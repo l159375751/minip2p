@@ -41,15 +41,13 @@
         font-weight: 600;
       }
 
-      textarea {
+      input[type="text"] {
         width: 100%;
-        min-height: 130px;
-        padding: 0.9rem;
-        border-radius: 0.75rem;
+        padding: 0.7rem;
+        border-radius: 0.6rem;
         border: 1px solid hsl(215 16% 80%);
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        resize: vertical;
       }
 
       input[type="file"] {
@@ -69,11 +67,6 @@
 
       button.secondary {
         background: hsl(215 19% 35%);
-      }
-
-      button.ghost {
-        background: hsl(215 16% 92%);
-        color: hsl(215 19% 25%);
       }
 
       button:disabled {
@@ -97,16 +90,17 @@
         flex: 1 1 220px;
       }
 
-      .signal-row {
+      .id-row {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 0.75rem;
-        align-items: flex-start;
       }
 
-      .signal-row textarea {
-        flex: 1 1 480px;
-        min-height: 150px;
+      .id-row code {
+        padding: 0.35rem 0.5rem;
+        background: hsl(215 16% 92%);
+        border-radius: 0.4rem;
       }
 
       .icon-button {
@@ -211,11 +205,6 @@
         gap: 0.5rem;
       }
 
-      .received a {
-        color: hsl(221 83% 45%);
-        font-weight: 600;
-      }
-
       .received-item {
         display: flex;
         align-items: center;
@@ -243,6 +232,7 @@
         font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       }
     </style>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
     <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js" defer data-simple-peer></script>
   </head>
   <body>
@@ -252,34 +242,29 @@
     </h1>
 
     <section>
-      <strong>Connection setup</strong>
+      <strong>Peer status</strong>
       <div class="row">
-        <button id="startInitiatorBtn">Start as initiator</button>
-        <button id="startResponderBtn" class="secondary">Start as responder</button>
-        <button id="resetBtn" class="ghost">Reset</button>
-      </div>
-      <div class="signal-row">
-        <div style="flex:1 1 480px;">
-          <label for="localSignal">Local signal</label>
-          <textarea id="localSignal" readonly placeholder="Create or join a connection to populate this field."></textarea>
+        <div>
+          <label for="remoteId">Remote Peer ID</label>
+          <input id="remoteId" type="text" placeholder="Paste the remote peer ID">
         </div>
-        <button id="copySignalBtn" class="secondary icon-button" type="button" aria-label="Copy local signal" title="Copy local signal" disabled>
+        <div style="align-self:flex-end">
+          <button id="connectBtn">Connect</button>
+        </div>
+      </div>
+      <div class="id-row">
+        <span>Share this page's Peer ID:</span>
+        <code id="localId">Waiting for PeerJS…</code>
+        <button id="copyIdBtn" class="secondary icon-button" type="button" aria-label="Copy peer ID" title="Copy peer ID" disabled>
           <span aria-hidden="true">📋</span>
         </button>
       </div>
-      <div>
-        <label for="remoteSignal">Remote signal</label>
-        <textarea id="remoteSignal" placeholder="Paste the JSON signal you received from the other peer, then apply it."></textarea>
-      </div>
-      <div class="row">
-        <button id="applyRemoteBtn" class="secondary">Apply remote signal</button>
-      </div>
-      <div class="status" id="status">Choose a role to begin.</div>
+      <div class="status" id="status">Initialising PeerJS…</div>
     </section>
 
     <section>
       <strong>Send a file or use the hash-colour demo</strong>
-      <p>The built-in demo image is selected by default. It embeds a timestamp and SHA-256 hash colour; swap to upload mode if you prefer your own file.</p>
+      <p>The demo timestamp image is selected by default and includes its SHA-256 hash colour. Switch to upload mode if you prefer to send your own file.</p>
       <div class="source-card">
         <div class="source-option">
           <label>
@@ -320,14 +305,15 @@
     </section>
 
     <script>
+      const ICE_SERVERS = [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      ];
+
       const statusEl = document.getElementById('status');
-      const startInitiatorBtn = document.getElementById('startInitiatorBtn');
-      const startResponderBtn = document.getElementById('startResponderBtn');
-      const resetBtn = document.getElementById('resetBtn');
-      const localSignalEl = document.getElementById('localSignal');
-      const remoteSignalEl = document.getElementById('remoteSignal');
-      const copySignalBtn = document.getElementById('copySignalBtn');
-      const applyRemoteBtn = document.getElementById('applyRemoteBtn');
+      const localIdEl = document.getElementById('localId');
+      const remoteIdEl = document.getElementById('remoteId');
+      const connectBtn = document.getElementById('connectBtn');
+      const copyIdBtn = document.getElementById('copyIdBtn');
       const generateDemoBtn = document.getElementById('generateDemoBtn');
       const sendBtn = document.getElementById('sendBtn');
       const fileInput = document.getElementById('fileInput');
@@ -337,11 +323,9 @@
       const demoPreviewHash = document.getElementById('demoPreviewHash');
       const hashColorEl = document.getElementById('hashColor');
 
-      const ICE_SERVERS = [
-        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
-      ];
-
-      let peer;
+      let signallingNode;
+      let signallingConn;
+      let simplePeer;
       let pendingMeta = null;
       let latestDemo = null;
       let demoUrl = null;
@@ -353,7 +337,12 @@
         statusEl.textContent = message;
       };
 
-      const isConnected = () => Boolean(peer && peer.connected);
+      const isConnected = () => Boolean(simplePeer && simplePeer.connected);
+
+      const getSelectedSource = () => {
+        const selected = Array.from(sourceRadios).find((radio) => radio.checked);
+        return selected ? selected.value : 'demo';
+      };
 
       const updateSendButtonState = () => {
         if (!isConnected()) {
@@ -365,49 +354,6 @@
         } else {
           const hasFile = fileInput.files && fileInput.files.length > 0;
           sendBtn.disabled = !hasFile;
-        }
-      };
-
-      const getSelectedSource = () => {
-        const selected = Array.from(sourceRadios).find((radio) => radio.checked);
-        return selected ? selected.value : 'demo';
-      };
-
-      const resetSignals = () => {
-        localSignalEl.value = '';
-        remoteSignalEl.value = '';
-        copySignalBtn.disabled = true;
-      };
-
-      const destroyPeer = (message) => {
-        if (peer) {
-          try {
-            peer.destroy();
-          } catch (err) {
-            console.warn('Error destroying peer:', err);
-          }
-          peer = null;
-        }
-        pendingMeta = null;
-        updateSendButtonState();
-        copySignalBtn.disabled = !localSignalEl.value.trim();
-        if (message) {
-          setStatus(message);
-        }
-      };
-
-      const handleIncomingBuffer = (buffer) => {
-        const meta = pendingMeta || {};
-        pendingMeta = null;
-        const blob = new Blob([buffer], { type: meta.mime || 'application/octet-stream' });
-        const fileName = meta.name || `received-${Date.now()}.bin`;
-        appendReceivedFile(fileName, blob, meta);
-        const hashLabel = meta.hashHex || meta.hash;
-        const statusBase = `Received ${fileName}`;
-        if (hashLabel) {
-          setStatus(`${statusBase} (hash ${hashLabel.slice(0, 12)}…).`);
-        } else {
-          setStatus(statusBase);
         }
       };
 
@@ -450,40 +396,139 @@
         receivedList.appendChild(wrapper);
       };
 
-      const wirePeerEvents = (initiator) => {
-        if (!peer) {
+      const destroySimplePeer = (message) => {
+        if (simplePeer) {
+          try {
+            simplePeer.destroy();
+          } catch (err) {
+            console.warn('Error destroying simple-peer:', err);
+          }
+          simplePeer = null;
+        }
+        pendingMeta = null;
+        updateSendButtonState();
+        if (message) {
+          setStatus(message);
+        }
+      };
+
+      const destroySignallingConn = (message) => {
+        if (signallingConn) {
+          try {
+            signallingConn.close();
+          } catch (err) {
+            console.warn('Error closing signalling connection:', err);
+          }
+          signallingConn = null;
+        }
+        destroySimplePeer();
+        if (message) {
+          setStatus(message);
+        }
+      };
+
+      const copyToClipboard = async (text, successMessage) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          if (successMessage) {
+            setStatus(successMessage);
+          }
+        } catch (err) {
+          console.warn('Clipboard API failed, falling back:', err);
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand('copy');
+            if (successMessage) {
+              setStatus(successMessage);
+            }
+          } catch (fallbackErr) {
+            console.error('execCommand copy failed:', fallbackErr);
+            setStatus('Copy failed. Select and copy manually.');
+          } finally {
+            document.body.removeChild(textarea);
+          }
+        }
+      };
+
+      const handleIncomingBuffer = (buffer) => {
+        const meta = pendingMeta || {};
+        pendingMeta = null;
+        const blob = new Blob([buffer], { type: meta.mime || 'application/octet-stream' });
+        const fileName = meta.name || `received-${Date.now()}.bin`;
+        appendReceivedFile(fileName, blob, meta);
+        const hashLabel = meta.hashHex || meta.hash;
+        const statusBase = `Received ${fileName}`;
+        if (hashLabel) {
+          setStatus(`${statusBase} (hash ${hashLabel.slice(0, 12)}…).`);
+        } else {
+          setStatus(statusBase);
+        }
+      };
+
+      const transmitFile = async ({ blob, name, mime, hashHex, colorHex }) => {
+        if (!isConnected()) {
+          throw new Error('Connect to a peer before sending files.');
+        }
+        const meta = {
+          kind: 'file-meta',
+          name,
+          mime,
+          size: blob.size,
+        };
+        if (hashHex) {
+          meta.hashHex = hashHex;
+        }
+        if (colorHex) {
+          meta.colorHex = colorHex;
+        }
+        simplePeer.send(JSON.stringify(meta));
+        const arrayBuffer = await blob.arrayBuffer();
+        simplePeer.send(arrayBuffer);
+      };
+
+      const wireSimplePeer = (initiator) => {
+        if (!window.SimplePeer) {
+          destroySimplePeer('simple-peer failed to load. Check console.');
           return;
         }
 
-        peer.on('signal', (data) => {
+        destroySimplePeer();
+
+        simplePeer = new window.SimplePeer({ initiator, trickle: false, config: { iceServers: ICE_SERVERS } });
+
+        simplePeer.on('signal', (data) => {
+          if (!signallingConn) {
+            console.warn('Signalling connection unavailable.');
+            return;
+          }
           try {
-            localSignalEl.value = JSON.stringify(data);
-            copySignalBtn.disabled = false;
-            setStatus(initiator ? 'Share this signal with the responder.' : 'Share this answer with the initiator.');
+            signallingConn.send(JSON.stringify({ type: 'signal', payload: data }));
           } catch (err) {
-            console.error('Failed to serialise signal:', err);
-            localSignalEl.value = 'Unable to serialise signal.';
+            console.error('Failed to send signalling message:', err);
           }
         });
 
-        peer.on('connect', () => {
+        simplePeer.on('connect', () => {
           setStatus('Connected! You can now send files.');
           updateSendButtonState();
         });
 
-        peer.on('close', () => {
-          destroyPeer('Connection closed.');
+        simplePeer.on('close', () => {
+          destroySimplePeer('Data channel closed.');
         });
 
-        peer.on('error', (err) => {
-          console.error('Peer error:', err);
+        simplePeer.on('error', (err) => {
+          console.error('simple-peer error:', err);
           const message = err?.message && err.message.includes('Connection failed')
-            ? 'Connection failed. Make sure both peers exchanged fresh signals and try again.'
+            ? 'Connection failed. Ensure both peers are online and exchange fresh IDs.'
             : `Connection error: ${err?.message ?? err}`;
-          destroyPeer(message);
+          destroySimplePeer(message);
         });
 
-        peer.on('data', async (data) => {
+        simplePeer.on('data', async (data) => {
           if (typeof data === 'string') {
             try {
               const payload = JSON.parse(data);
@@ -519,40 +564,80 @@
         });
       };
 
-      const startPeer = (initiator) => {
-        const script = document.querySelector('script[data-simple-peer]');
-        if (!window.SimplePeer) {
-          destroyPeer('simple-peer failed to load. Check console.');
+      const wireSignallingConn = (conn, initiator) => {
+        if (signallingConn && signallingConn !== conn) {
+          destroySignallingConn();
+        }
+
+        signallingConn = conn;
+
+        signallingConn.on('open', () => {
+          setStatus('Signalling channel open. Negotiating WebRTC…');
+          wireSimplePeer(initiator);
+        });
+
+        signallingConn.on('data', (payload) => {
+          let message = payload;
+          if (typeof payload === 'string') {
+            try {
+              message = JSON.parse(payload);
+            } catch (err) {
+              console.warn('Failed to parse signalling payload:', err);
+              return;
+            }
+          }
+
+          if (message?.type === 'signal') {
+            if (!simplePeer) {
+              console.warn('Received signal before simple-peer initialised.');
+              return;
+            }
+            try {
+              simplePeer.signal(message.payload);
+            } catch (err) {
+              console.error('Failed to apply signal:', err);
+            }
+            return;
+          }
+
+          if (message?.type === 'status' && message.message) {
+            setStatus(message.message);
+          }
+        });
+
+        signallingConn.on('close', () => {
+          destroySignallingConn('Signalling connection closed.');
+        });
+
+        signallingConn.on('error', (err) => {
+          console.error('Signalling error:', err);
+          destroySignallingConn(`Signalling error: ${err?.message ?? err}`);
+        });
+      };
+
+      const initSignallingNode = () => {
+        if (!window.Peer) {
+          setStatus('PeerJS failed to load. Check console.');
           return;
         }
 
-        destroyPeer();
-        resetSignals();
+        signallingNode = new window.Peer();
 
-        peer = new window.SimplePeer({ initiator, trickle: false, config: { iceServers: ICE_SERVERS } });
-        setStatus(initiator ? 'Creating offer…' : 'Waiting for offer…');
-        wirePeerEvents(initiator);
-      };
+        signallingNode.on('open', (id) => {
+          localIdEl.textContent = id;
+          copyIdBtn.disabled = false;
+          setStatus('Share your Peer ID, then connect to a partner.');
+        });
 
-      const transmitFile = async ({ blob, name, mime, hashHex, colorHex }) => {
-        if (!isConnected()) {
-          throw new Error('Connect to a peer before sending files.');
-        }
-        const meta = {
-          kind: 'file-meta',
-          name,
-          mime,
-          size: blob.size,
-        };
-        if (hashHex) {
-          meta.hashHex = hashHex;
-        }
-        if (colorHex) {
-          meta.colorHex = colorHex;
-        }
-        peer.send(JSON.stringify(meta));
-        const arrayBuffer = await blob.arrayBuffer();
-        peer.send(arrayBuffer);
+        signallingNode.on('error', (err) => {
+          console.error('PeerJS error:', err);
+          setStatus(`PeerJS error: ${err?.type ?? err?.message ?? err}`);
+        });
+
+        signallingNode.on('connection', (conn) => {
+          setStatus(`Incoming signalling connection from ${conn.peer}.`);
+          wireSignallingConn(conn, false);
+        });
       };
 
       const revokeDemoUrl = () => {
@@ -688,70 +773,73 @@
         }
       };
 
-      const copyToClipboard = async (text) => {
+      const updatePageFingerprint = async () => {
+        if (!window.crypto?.subtle) {
+          hashColorEl.style.backgroundColor = '#9ca3af';
+          hashColorEl.title = 'Fingerprint unavailable';
+          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
+          return;
+        }
+
         try {
-          await navigator.clipboard.writeText(text);
-          setStatus('Copied to clipboard.');
-        } catch (err) {
-          console.warn('Clipboard API failed, falling back:', err);
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          document.body.appendChild(textarea);
-          textarea.select();
-          try {
-            document.execCommand('copy');
-            setStatus('Copied to clipboard.');
-          } catch (fallbackErr) {
-            console.error('execCommand copy failed:', fallbackErr);
-            setStatus('Copy failed. Select and copy manually.');
-          } finally {
-            document.body.removeChild(textarea);
+          const response = await fetch(window.location.href, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
           }
+          const text = await response.text();
+          const encoder = new TextEncoder();
+          const data = encoder.encode(text);
+          const digest = await crypto.subtle.digest('SHA-256', data);
+          const hashBytes = new Uint8Array(digest);
+          const hashHex = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+          const [r, g, b] = hashBytes;
+          hashColorEl.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+          hashColorEl.title = `SHA-256 ${hashHex}`;
+          hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
+        } catch (err) {
+          console.error('Fingerprint error:', err);
+          hashColorEl.style.backgroundColor = '#9ca3af';
+          hashColorEl.title = 'Fingerprint unavailable';
+          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
         }
       };
 
-      startInitiatorBtn.addEventListener('click', () => {
-        startPeer(true);
-      });
-
-      startResponderBtn.addEventListener('click', () => {
-        startPeer(false);
-      });
-
-      resetBtn.addEventListener('click', () => {
-        destroyPeer('Connection reset.');
-        resetSignals();
-      });
-
-      applyRemoteBtn.addEventListener('click', () => {
-        if (!peer) {
-          setStatus('Start as initiator or responder before applying a signal.');
+      connectBtn.addEventListener('click', () => {
+        const remoteId = remoteIdEl.value.trim();
+        if (!remoteId) {
+          setStatus('Enter a remote Peer ID first.');
+          return;
+        }
+        if (!signallingNode || signallingNode.disconnected) {
+          setStatus('PeerJS still initialising. Please wait.');
+          return;
+        }
+        if (remoteId === localIdEl.textContent.trim()) {
+          setStatus('Use a partner\'s ID, not your own.');
           return;
         }
 
-        const raw = remoteSignalEl.value.trim();
-        if (!raw) {
-          setStatus('Paste a remote signal first.');
-          return;
+        if (signallingConn) {
+          destroySignallingConn('Previous connection closed.');
         }
 
         try {
-          const data = JSON.parse(raw);
-          peer.signal(data);
-          setStatus('Remote signal applied. Awaiting connection…');
+          const conn = signallingNode.connect(remoteId, { reliable: true });
+          setStatus(`Connecting to ${remoteId}…`);
+          wireSignallingConn(conn, true);
         } catch (err) {
-          console.error('Failed to apply remote signal:', err);
-          setStatus('Invalid remote signal JSON.');
+          console.error('Failed to start signalling connection:', err);
+          setStatus(`Connection failed: ${err?.message ?? err}`);
         }
       });
 
-      copySignalBtn.addEventListener('click', () => {
-        const text = localSignalEl.value.trim();
-        if (!text) {
-          setStatus('No local signal to copy yet.');
+      copyIdBtn.addEventListener('click', () => {
+        const id = localIdEl.textContent.trim();
+        if (!id || copyIdBtn.disabled) {
+          setStatus('Peer ID unavailable to copy yet.');
           return;
         }
-        copyToClipboard(text);
+        copyToClipboard(id, 'Peer ID copied to clipboard.');
       });
 
       sourceRadios.forEach((radio) => {
@@ -828,46 +916,23 @@
       });
 
       window.addEventListener('beforeunload', () => {
-        destroyPeer();
+        destroySignallingConn();
         revokeDemoUrl();
-      });
-
-      const updatePageFingerprint = async () => {
-        if (!window.crypto?.subtle) {
-          hashColorEl.style.backgroundColor = '#9ca3af';
-          hashColorEl.title = 'Fingerprint unavailable';
-          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
-          return;
-        }
-
-        try {
-          const response = await fetch(window.location.href, { cache: 'no-store' });
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+        if (signallingNode) {
+          try {
+            signallingNode.destroy();
+          } catch (err) {
+            console.warn('Error destroying PeerJS node:', err);
           }
-          const text = await response.text();
-          const encoder = new TextEncoder();
-          const data = encoder.encode(text);
-          const digest = await crypto.subtle.digest('SHA-256', data);
-          const hashBytes = new Uint8Array(digest);
-          const hashHex = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-          const [r, g, b] = hashBytes;
-          hashColorEl.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-          hashColorEl.title = `SHA-256 ${hashHex}`;
-          hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
-        } catch (err) {
-          console.error('Fingerprint error:', err);
-          hashColorEl.style.backgroundColor = '#9ca3af';
-          hashColorEl.title = 'Fingerprint unavailable';
-          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
         }
-      };
+      });
 
       const init = () => {
         updatePageFingerprint();
         prepareDemo({ announce: false, showBusy: false }).catch((err) => {
           console.error('Initial demo PNG generation failed:', err);
         });
+        initSignallingNode();
       };
 
       if (document.readyState === 'loading') {

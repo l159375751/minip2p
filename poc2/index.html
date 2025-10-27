@@ -143,11 +143,17 @@
         flex-wrap: wrap;
       }
 
+      .swatch {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.5rem;
+        border: 1px solid hsl(215 16% 70%);
+        display: inline-block;
+      }
+
       .received-item .swatch {
         width: 24px;
         height: 24px;
-        border-radius: 0.4rem;
-        border: 1px solid hsl(215 16% 70%);
       }
 
       .received-item small {
@@ -155,18 +161,7 @@
         color: hsl(215 19% 35%);
         font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       }
-
-      .demo-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        align-items: center;
-      }
-
-      .demo-actions button {
-        flex: 0 1 auto;
-      }
-
+      
       .demo-link {
         display: inline-flex;
         align-items: center;
@@ -181,6 +176,82 @@
 
       .demo-link.visible {
         visibility: visible;
+      }
+
+      .source-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: 1px solid hsl(215 16% 88%);
+        border-radius: 0.75rem;
+        background: hsl(215 40% 97%);
+      }
+
+      .source-option {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 600;
+      }
+
+      .source-option button {
+        margin-left: auto;
+      }
+
+      .source-option input[type="radio"] {
+        transform: scale(1.1);
+        accent-color: hsl(221 83% 53%);
+      }
+
+      .demo-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .demo-thumb {
+        flex: 0 0 240px;
+        border-radius: 0.75rem;
+        border: 1px solid hsl(215 16% 80%);
+        background: hsl(215 30% 90%);
+        overflow: hidden;
+      }
+
+      .demo-thumb img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .demo-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .demo-color {
+        font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-weight: 600;
+      }
+
+      .demo-meta code {
+        font-size: 0.85rem;
+        word-break: break-all;
+      }
+
+      .send-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+      }
+
+      .send-row small {
+        color: hsl(215 19% 35%);
       }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
@@ -218,11 +289,40 @@
     </section>
 
     <section>
-      <strong>Send a file</strong>
-      <input id="fileInput" type="file" aria-label="Choose a file to send">
-      <div class="row">
-        <button id="sendBtn" disabled>Send file</button>
-        <small>Both peers must keep this page open until the transfer finishes.</small>
+      <strong>Send a file or share the hash-colour demo</strong>
+      <p>The demo timestamp image is selected by default and includes its SHA-256 hash plus a colour swatch derived from that hash. Switch to upload mode if you prefer to send your own file.</p>
+      <div class="source-card">
+        <div class="source-option">
+          <label>
+            <input type="radio" name="sendSource" value="demo" checked>
+            Demo timestamp PNG (default)
+          </label>
+          <button id="generateDemoBtn" type="button" class="secondary">Regenerate</button>
+        </div>
+        <div class="demo-preview">
+          <div class="demo-thumb">
+            <img id="demoPreviewImage" alt="Demo PNG preview" hidden>
+          </div>
+          <div class="demo-meta">
+            <span id="demoPreviewSwatch" class="swatch" aria-label="Demo hash colour"></span>
+            <span id="demoPreviewColor" class="demo-color">--</span>
+            <code id="demoPreviewHash">Preparing hash…</code>
+            <a id="demoDownload" class="demo-link" download>Download demo</a>
+          </div>
+        </div>
+      </div>
+      <div class="source-card">
+        <div class="source-option">
+          <label>
+            <input type="radio" name="sendSource" value="file">
+            Upload a custom file
+          </label>
+        </div>
+        <input id="fileInput" type="file" aria-label="Choose a file to send">
+      </div>
+      <div class="send-row">
+        <button id="sendBtn" disabled>Send selected</button>
+        <small>Keep this page open until the transfer finishes.</small>
       </div>
     </section>
 
@@ -230,16 +330,6 @@
       <strong>Received files</strong>
       <div id="receivedList" class="received">
         <em>No files yet.</em>
-      </div>
-    </section>
-
-    <section>
-      <strong>Demo PNG generator</strong>
-      <p>Create a fresh timestamp image for quick transfer tests. The PNG embeds its SHA-256 hash and a colour swatch derived from that hash.</p>
-      <div class="demo-actions">
-        <button id="generateDemoBtn" type="button" class="secondary">Generate demo PNG</button>
-        <button id="sendDemoBtn" type="button" disabled>Send demo PNG</button>
-        <a id="demoDownload" class="demo-link" download>Download demo</a>
       </div>
     </section>
 
@@ -256,8 +346,12 @@
       const hashColorEl = document.getElementById('hashColor');
       const copyIdBtn = document.getElementById('copyIdBtn');
       const generateDemoBtn = document.getElementById('generateDemoBtn');
-      const sendDemoBtn = document.getElementById('sendDemoBtn');
       const demoDownload = document.getElementById('demoDownload');
+      const sourceRadios = document.querySelectorAll('input[name=\"sendSource\"]');
+      const demoPreviewImage = document.getElementById('demoPreviewImage');
+      const demoPreviewSwatch = document.getElementById('demoPreviewSwatch');
+      const demoPreviewColor = document.getElementById('demoPreviewColor');
+      const demoPreviewHash = document.getElementById('demoPreviewHash');
 
       let peer;
       let conn;
@@ -269,6 +363,27 @@
       const contrastColor = ([r, g, b]) => {
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
         return luminance > 0.55 ? '#111827' : '#f9fafb';
+      };
+
+      const getSelectedSource = () => {
+        const selected = Array.from(sourceRadios).find((radio) => radio.checked);
+        return selected ? selected.value : 'demo';
+      };
+
+      const isConnected = () => Boolean(conn && conn.open === true);
+
+      const updateSendButtonState = () => {
+        if (!isConnected()) {
+          sendBtn.disabled = true;
+          return;
+        }
+
+        if (getSelectedSource() === 'demo') {
+          sendBtn.disabled = !latestDemo;
+        } else {
+          const hasFile = fileInput.files && fileInput.files.length > 0;
+          sendBtn.disabled = !hasFile;
+        }
       };
 
       const setStatus = (message) => {
@@ -330,9 +445,8 @@
 
         const handleOpen = () => {
           setStatus(`Connected to ${conn.peer} (${origin})`);
-          sendBtn.disabled = false;
           disconnectBtn.disabled = false;
-          sendDemoBtn.disabled = !latestDemo;
+          updateSendButtonState();
         };
 
         if (conn.open) {
@@ -361,10 +475,13 @@
         });
 
         conn.on('close', () => {
-          setStatus(`Connection to ${conn.peer} closed.`);
-          sendBtn.disabled = true;
+          const peerId = connection.peer;
+          if (conn === connection) {
+            conn = null;
+          }
+          setStatus(`Connection to ${peerId} closed.`);
           disconnectBtn.disabled = true;
-          sendDemoBtn.disabled = true;
+          updateSendButtonState();
         });
 
         conn.on('error', (err) => {
@@ -413,12 +530,16 @@
 
       disconnectBtn.addEventListener('click', () => {
         if (conn) {
-          conn.close();
+          try {
+            conn.close();
+          } catch (err) {
+            console.warn('Error closing connection:', err);
+          }
+          conn = null;
         }
-        sendBtn.disabled = true;
         disconnectBtn.disabled = true;
-        sendDemoBtn.disabled = true;
         setStatus('Disconnected.');
+        updateSendButtonState();
       });
 
       copyIdBtn.addEventListener('click', async () => {
@@ -449,40 +570,74 @@
         }
       });
 
-      sendBtn.addEventListener('click', () => {
-        const file = fileInput.files?.[0];
-        if (!conn || conn.open !== true) {
+      sendBtn.addEventListener('click', async () => {
+        if (!isConnected()) {
           setStatus('Connect to a peer before sending files.');
           return;
         }
-        if (!file) {
-          setStatus('Choose a file to send.');
+
+        const selectedSource = getSelectedSource();
+
+        if (selectedSource === 'demo') {
+          if (!latestDemo) {
+            setStatus('Demo PNG not ready. Regenerate it first.');
+            updateSendButtonState();
+            return;
+          }
+
+          try {
+            sendBtn.disabled = true;
+            setStatus(`Sending ${latestDemo.name} (${Math.round(latestDemo.blob.size / 1024)} KB)…`);
+            const arrayBuffer = await latestDemo.blob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            conn.send({
+              kind: 'file',
+              name: latestDemo.name,
+              mime: 'image/png',
+              size: latestDemo.blob.size,
+              bytes: Array.from(bytes),
+              meta: {
+                hashHex: latestDemo.hashHex,
+                colorHex: latestDemo.colorHex,
+              },
+            });
+            setStatus(`Sent ${latestDemo.name} (hash ${latestDemo.hashHex.slice(0, 12)}…, colour ${latestDemo.colorHex}).`);
+          } catch (err) {
+            console.error('Send demo error:', err);
+            setStatus(`Failed to send demo PNG: ${err.message ?? err}`);
+          } finally {
+            updateSendButtonState();
+          }
+
           return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-          const arrayBuffer = reader.result;
+        const file = fileInput.files?.[0];
+        if (!file) {
+          setStatus('Choose a file to send.');
+          updateSendButtonState();
+          return;
+        }
+
+        try {
+          sendBtn.disabled = true;
+          setStatus(`Sending ${file.name} (${Math.round(file.size / 1024)} KB)…`);
+          const arrayBuffer = await file.arrayBuffer();
           const bytes = new Uint8Array(arrayBuffer);
-          const payload = {
+          conn.send({
             kind: 'file',
             name: file.name,
             mime: file.type || 'application/octet-stream',
             size: file.size,
             bytes: Array.from(bytes),
-          };
-
-          setStatus(`Sending ${file.name} (${Math.round(file.size / 1024)} KB)…`);
-          conn.send(payload);
+          });
           setStatus(`Sent ${file.name}.`);
-        };
-
-        reader.onerror = () => {
-          console.error('FileReader error:', reader.error);
-          setStatus(`Failed to read file: ${reader.error?.message ?? 'unknown error'}`);
-        };
-
-        reader.readAsArrayBuffer(file);
+        } catch (err) {
+          console.error('Send file error:', err);
+          setStatus(`Failed to send file: ${err.message ?? err}`);
+        } finally {
+          updateSendButtonState();
+        }
       });
 
       const revokeDemoUrl = () => {
@@ -588,63 +743,90 @@
         };
       };
 
-      generateDemoBtn.addEventListener('click', async () => {
-        generateDemoBtn.disabled = true;
-        setStatus('Generating demo PNG…');
+      const applyDemoResult = (result) => {
+        latestDemo = result;
+        revokeDemoUrl();
+        demoUrl = URL.createObjectURL(result.blob);
+        demoPreviewImage.src = demoUrl;
+        demoPreviewImage.hidden = false;
+        demoPreviewImage.alt = `Demo PNG preview with SHA-256 ${result.hashHex}`;
+        demoPreviewSwatch.style.backgroundColor = result.colorHex;
+        demoPreviewSwatch.title = `Hash-derived colour ${result.colorHex}`;
+        demoPreviewColor.textContent = result.colorHex;
+        demoPreviewColor.title = `Colour derived from hash ${result.hashHex}`;
+        demoPreviewHash.textContent = result.hashHex;
+        demoPreviewHash.title = `SHA-256 ${result.hashHex}`;
+        demoDownload.href = demoUrl;
+        demoDownload.download = result.name;
+        demoDownload.textContent = `Download ${result.name} (${result.hashHex.slice(0, 12)}…)`;
+        demoDownload.title = `SHA-256 ${result.hashHex}`;
+        demoDownload.style.backgroundColor = result.colorHex;
+        demoDownload.style.color = contrastColor(result.rgb);
+        demoDownload.classList.add('visible');
+      };
+
+      const prepareDemo = async ({ announce = true, showBusy = true } = {}) => {
+        if (showBusy) {
+          generateDemoBtn.disabled = true;
+          setStatus('Generating demo PNG…');
+        }
+
         try {
           const result = await createDemoPng();
-          latestDemo = result;
-          revokeDemoUrl();
-          demoUrl = URL.createObjectURL(result.blob);
-          demoDownload.href = demoUrl;
-          demoDownload.download = result.name;
-          demoDownload.textContent = `Download ${result.name} (${result.hashHex.slice(0, 12)}…)`;
-          demoDownload.title = `SHA-256 ${result.hashHex}`;
-          demoDownload.style.backgroundColor = result.colorHex;
-          demoDownload.style.color = contrastColor(result.rgb);
-          demoDownload.classList.add('visible');
-          sendDemoBtn.disabled = !conn || conn.open !== true;
-          setStatus(`Demo PNG ready. SHA-256 ${result.hashHex.slice(0, 12)}…, colour ${result.colorHex}.`);
+          applyDemoResult(result);
+          if (announce) {
+            setStatus(`Demo PNG ready. SHA-256 ${result.hashHex.slice(0, 12)}…, colour ${result.colorHex}.`);
+          }
+          return result;
         } catch (err) {
           console.error('Demo PNG error:', err);
-          setStatus(`Failed to generate demo PNG: ${err.message}`);
+          setStatus(`Failed to generate demo PNG: ${err.message ?? err}`);
+          throw err;
         } finally {
-          generateDemoBtn.disabled = false;
+          if (showBusy) {
+            generateDemoBtn.disabled = false;
+          }
+          updateSendButtonState();
         }
+      };
+
+      generateDemoBtn.addEventListener('click', () => {
+        prepareDemo({ announce: true, showBusy: true }).catch(() => {});
       });
 
-      sendDemoBtn.addEventListener('click', async () => {
-        if (!latestDemo) {
-          setStatus('Generate the demo PNG first.');
-          return;
+      sourceRadios.forEach((radio) => {
+        radio.addEventListener('change', () => {
+          if (!radio.checked) {
+            return;
+          }
+          if (radio.value === 'demo') {
+            if (latestDemo) {
+              setStatus(`Demo PNG selected (hash ${latestDemo.hashHex.slice(0, 12)}…, colour ${latestDemo.colorHex}).`);
+            } else {
+              setStatus('Demo PNG will be ready shortly.');
+            }
+          } else {
+            if (fileInput.files && fileInput.files.length > 0) {
+              const file = fileInput.files[0];
+              setStatus(`Ready to send ${file.name} (${Math.round(file.size / 1024)} KB).`);
+            } else {
+              setStatus('Upload a file and press Send.');
+            }
+          }
+          updateSendButtonState();
+        });
+      });
+
+      fileInput.addEventListener('change', () => {
+        if (getSelectedSource() === 'file') {
+          if (fileInput.files && fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            setStatus(`Ready to send ${file.name} (${Math.round(file.size / 1024)} KB).`);
+          } else {
+            setStatus('Upload a file and press Send.');
+          }
         }
-        if (!conn || conn.open !== true) {
-          setStatus('Connect to a peer before sending files.');
-          return;
-        }
-        try {
-          sendDemoBtn.disabled = true;
-          setStatus(`Sending ${latestDemo.name} (${Math.round(latestDemo.blob.size / 1024)} KB)…`);
-          const arrayBuffer = await latestDemo.blob.arrayBuffer();
-          const bytes = new Uint8Array(arrayBuffer);
-          conn.send({
-            kind: 'file',
-            name: latestDemo.name,
-            mime: 'image/png',
-            size: latestDemo.blob.size,
-            bytes: Array.from(bytes),
-            meta: {
-              hashHex: latestDemo.hashHex,
-              colorHex: latestDemo.colorHex,
-            },
-          });
-          setStatus(`Sent ${latestDemo.name} (hash ${latestDemo.hashHex.slice(0, 12)}…, colour ${latestDemo.colorHex}).`);
-        } catch (err) {
-          console.error('Send demo error:', err);
-          setStatus(`Failed to send demo PNG: ${err.message}`);
-        } finally {
-          sendDemoBtn.disabled = false;
-        }
+        updateSendButtonState();
       });
 
       window.addEventListener('beforeunload', revokeDemoUrl);

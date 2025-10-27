@@ -87,31 +87,6 @@
         flex: 1 1 220px;
       }
 
-      .fingerprint {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-      }
-
-      .color-box {
-        width: 48px;
-        height: 48px;
-        border-radius: 0.5rem;
-        border: 1px solid hsl(215 16% 80%);
-        background: hsl(215 16% 70%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.75rem;
-        color: hsl(215 19% 20%);
-      }
-
-      .fingerprint code {
-        font-size: 0.85rem;
-        word-break: break-all;
-      }
-
       .id-row {
         display: flex;
         flex-wrap: wrap;
@@ -123,6 +98,21 @@
         padding: 0.35rem 0.5rem;
         background: hsl(215 16% 92%);
         border-radius: 0.4rem;
+      }
+
+      .fingerprint-inline {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 0.75rem;
+      }
+
+      .color-dot {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid hsl(215 16% 75%);
+        background: hsl(215 16% 92%);
       }
 
       .received {
@@ -166,13 +156,29 @@
       .demo-link {
         display: inline-flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.4rem 0.6rem;
-        border-radius: 0.5rem;
+        gap: 0.6rem;
+        padding: 0.6rem 0.8rem;
+        border-radius: 0.6rem;
         background: hsl(215 16% 92%);
         color: inherit;
         text-decoration: none;
         visibility: hidden;
+      }
+
+      .demo-link strong {
+        font-size: 0.95rem;
+      }
+
+      .demo-link-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+
+      .demo-link small {
+        display: block;
+        font-size: 0.75rem;
+        color: hsl(215 19% 35%);
       }
 
       .demo-link.visible {
@@ -204,6 +210,16 @@
 
       .source-option button {
         margin-left: auto;
+      }
+
+      .demo-controls {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: auto;
+      }
+
+      .demo-controls > button {
+        flex: 0 1 auto;
       }
 
       .source-option input[type="radio"] {
@@ -244,31 +260,20 @@
         word-break: break-all;
       }
 
-      .send-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.75rem;
-        margin-top: 0.5rem;
-      }
-
-      .send-row small {
+      .send-note {
+        display: block;
+        margin-top: 0.75rem;
         color: hsl(215 19% 35%);
       }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
   </head>
   <body>
-    <h1>PeerJS WebRTC file sender (poc2)</h1>
-
-    <section aria-live="polite">
-      <strong>Page fingerprint</strong>
-      <div class="fingerprint">
-        <div id="hashColor" class="color-box" role="img" aria-label="SHA-256 derived colour">--</div>
-        <code id="pageHash">Computing SHA-256…</code>
-      </div>
-      <small>The colour changes whenever this HTML differs on fetch.</small>
-    </section>
+    <h1>PeerJS WebRTC file sender (poc2)
+      <span class="fingerprint-inline">
+        <span id="hashColor" class="color-dot" aria-label="Page hash colour">&nbsp;</span>
+      </span>
+    </h1>
 
     <section>
       <strong>Peer status</strong>
@@ -279,7 +284,6 @@
         </div>
         <div style="align-self:flex-end">
           <button id="connectBtn">Connect</button>
-          <button id="disconnectBtn" class="secondary" disabled>Disconnect</button>
         </div>
       </div>
       <div class="id-row">
@@ -299,16 +303,22 @@
             <input type="radio" name="sendSource" value="demo" checked>
             Demo timestamp PNG (default)
           </label>
-          <button id="generateDemoBtn" type="button" class="secondary">Regenerate</button>
+          <div class="demo-controls">
+            <button id="generateDemoBtn" type="button" class="secondary">Regenerate</button>
+            <button id="sendBtn" disabled>Send selected</button>
+          </div>
         </div>
         <div class="demo-preview">
           <div class="demo-thumb">
             <img id="demoPreviewImage" alt="Demo PNG preview" hidden>
           </div>
           <div class="demo-meta">
-            <span id="demoPreviewSwatch" class="swatch" aria-label="Demo hash colour"></span>
-            <code id="demoPreviewHash">Preparing hash…</code>
-            <a id="demoDownload" class="demo-link" download>Download demo</a>
+            <a id="demoDownload" class="demo-link" download>
+              <span class="demo-link-text">
+                <strong id="demoDownloadLabel">Download demo PNG</strong>
+                <small id="demoPreviewHash">Preparing hash…</small>
+              </span>
+            </a>
           </div>
         </div>
       </div>
@@ -321,10 +331,7 @@
         </div>
         <input id="fileInput" type="file" aria-label="Choose a file to send">
       </div>
-      <div class="send-row">
-        <button id="sendBtn" disabled>Send selected</button>
-        <small>Keep this page open until the transfer finishes.</small>
-      </div>
+      <small class="send-note">Keep this page open until the transfer finishes.</small>
     </section>
 
     <section>
@@ -339,18 +346,20 @@
       const localIdEl = document.getElementById('localId');
       const remoteIdEl = document.getElementById('remoteId');
       const connectBtn = document.getElementById('connectBtn');
-      const disconnectBtn = document.getElementById('disconnectBtn');
       const fileInput = document.getElementById('fileInput');
       const sendBtn = document.getElementById('sendBtn');
       const receivedList = document.getElementById('receivedList');
-      const pageHashEl = document.getElementById('pageHash');
+      const pageHashEl = document.createElement('span');
+      pageHashEl.id = 'pageHash';
+      pageHashEl.hidden = true;
+      document.body.appendChild(pageHashEl);
       const hashColorEl = document.getElementById('hashColor');
       const copyIdBtn = document.getElementById('copyIdBtn');
       const generateDemoBtn = document.getElementById('generateDemoBtn');
       const demoDownload = document.getElementById('demoDownload');
+      const demoDownloadLabel = document.getElementById('demoDownloadLabel');
       const sourceRadios = document.querySelectorAll('input[name=\"sendSource\"]');
       const demoPreviewImage = document.getElementById('demoPreviewImage');
-      const demoPreviewSwatch = document.getElementById('demoPreviewSwatch');
       const demoPreviewHash = document.getElementById('demoPreviewHash');
 
       let peer;
@@ -360,10 +369,6 @@
 
       const toHex = (value) => value.toString(16).padStart(2, '0');
       const rgbToHex = ([r, g, b]) => `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-      const contrastColor = ([r, g, b]) => {
-        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        return luminance > 0.55 ? '#111827' : '#f9fafb';
-      };
 
       const getSelectedSource = () => {
         const selected = Array.from(sourceRadios).find((radio) => radio.checked);
@@ -446,9 +451,24 @@
 
         let incomingMeta = null;
 
+        const processIncomingBuffer = (buffer) => {
+          const peerId = connection.peer;
+          const meta = incomingMeta || {};
+          incomingMeta = null;
+          const blob = new Blob([buffer], { type: meta.mime || 'application/octet-stream' });
+          const fileName = meta.name || `received-${Date.now()}.bin`;
+          appendReceivedFile(fileName, blob, meta);
+          const hashLabel = meta.hashHex || meta.hash;
+          const statusBase = `Received ${fileName} from ${peerId}`;
+          if (hashLabel) {
+            setStatus(`${statusBase} (hash ${hashLabel.slice(0, 12)}…).`);
+          } else {
+            setStatus(statusBase);
+          }
+        };
+
         const handleOpen = () => {
           setStatus(`Connected to ${connection.peer} (${origin})`);
-          disconnectBtn.disabled = false;
           updateSendButtonState();
         };
 
@@ -458,7 +478,7 @@
           conn.once('open', handleOpen);
         }
 
-        conn.on('data', (payload) => {
+        conn.on('data', async (payload) => {
           const peerId = connection.peer;
           if (payload && typeof payload === 'object' && payload.kind === 'file-meta') {
             incomingMeta = payload;
@@ -466,37 +486,23 @@
           }
 
           if (payload instanceof ArrayBuffer) {
-            const meta = incomingMeta || {};
-            incomingMeta = null;
-            const blob = new Blob([payload], { type: meta.mime || 'application/octet-stream' });
-            const fileName = meta.name || `received-${Date.now()}.bin`;
-            appendReceivedFile(fileName, blob, meta);
-            const hashLabel = meta.hashHex || meta.hash;
-            if (hashLabel) {
-              setStatus(`File received from ${peerId} (hash ${hashLabel.slice(0, 12)}…).`);
-            } else {
-              setStatus(`File received from ${peerId}`);
-            }
+            processIncomingBuffer(payload);
+            return;
+          }
+
+          if (payload instanceof Blob) {
+            const buffer = await payload.arrayBuffer();
+            processIncomingBuffer(buffer);
             return;
           }
 
           if (payload?.byteLength && payload.buffer instanceof ArrayBuffer) {
             const buffer = payload.buffer.slice(payload.byteOffset, payload.byteOffset + payload.byteLength);
-            const meta = incomingMeta || {};
-            incomingMeta = null;
-            const blob = new Blob([buffer], { type: meta.mime || 'application/octet-stream' });
-            const fileName = meta.name || `received-${Date.now()}.bin`;
-            appendReceivedFile(fileName, blob, meta);
-            const hashLabel = meta.hashHex || meta.hash;
-            if (hashLabel) {
-              setStatus(`File received from ${peerId} (hash ${hashLabel.slice(0, 12)}…).`);
-            } else {
-              setStatus(`File received from ${peerId}`);
-            }
+            processIncomingBuffer(buffer);
             return;
-          } else {
-            console.log('Received non-file payload:', payload);
           }
+
+          console.log('Received non-file payload:', payload);
         });
 
         conn.on('close', () => {
@@ -505,7 +511,6 @@
           if (isCurrent) {
             conn = null;
             setStatus(`Connection to ${peerId} closed.`);
-            disconnectBtn.disabled = true;
             updateSendButtonState();
             incomingMeta = null;
           }
@@ -556,20 +561,6 @@
         setStatus(`Connecting to ${remoteId}…`);
         const outgoing = peer.connect(remoteId, { reliable: true });
         wireConnection(outgoing, 'outgoing');
-      });
-
-      disconnectBtn.addEventListener('click', () => {
-        if (conn) {
-          try {
-            conn.close();
-          } catch (err) {
-            console.warn('Error closing connection:', err);
-          }
-          conn = null;
-        }
-        disconnectBtn.disabled = true;
-        setStatus('Disconnected.');
-        updateSendButtonState();
       });
 
       copyIdBtn.addEventListener('click', async () => {
@@ -695,7 +686,7 @@
       const createDemoPng = async () => {
         const canvas = document.createElement('canvas');
         canvas.width = 520;
-        canvas.height = 320;
+        canvas.height = 280;
         const ctx = canvas.getContext('2d');
 
         const now = new Date();
@@ -730,7 +721,6 @@
         const hashHex = Array.from(hashBytes, toHex).join('').toUpperCase();
         const rgb = [hashBytes[0], hashBytes[1], hashBytes[2]];
         const colorHex = rgbToHex(rgb).toUpperCase();
-        const contrast = contrastColor(rgb);
 
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
         gradient.addColorStop(0, '#111827');
@@ -739,33 +729,33 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 34px "Segoe UI", sans-serif';
-        ctx.fillText('PeerJS demo PNG', canvas.width / 2, 48);
 
-        const swatchSize = 132;
+        const swatchSize = 160;
         const swatchX = (canvas.width - swatchSize) / 2;
-        const swatchY = 70;
+        const swatchY = 32;
         ctx.fillStyle = colorHex;
         ctx.fillRect(swatchX, swatchY, swatchSize, swatchSize);
         ctx.lineWidth = 4;
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
         ctx.strokeRect(swatchX, swatchY, swatchSize, swatchSize);
 
-        ctx.fillStyle = contrast;
-        ctx.font = '20px "Segoe UI", monospace';
-        ctx.fillText(colorHex, canvas.width / 2, swatchY + swatchSize + 28);
+        const textBase = swatchY + swatchSize + 34;
 
         ctx.fillStyle = '#e5e7eb';
+        ctx.font = '20px "Segoe UI", monospace';
+        ctx.fillText(colorHex, canvas.width / 2, textBase);
+
+        ctx.fillStyle = '#dbeafe';
         ctx.font = '22px "Segoe UI", sans-serif';
-        ctx.fillText(friendlyTime, canvas.width / 2, swatchY + swatchSize + 60);
+        ctx.fillText(friendlyTime, canvas.width / 2, textBase + 34);
 
         ctx.fillStyle = '#cbd5f5';
         ctx.font = '16px "Segoe UI", monospace';
-        const hashLine1 = hashHex.slice(0, 16).toUpperCase();
-        const hashLine2 = `${hashHex.slice(16, 32).toUpperCase()}…`;
-        ctx.fillText(hashLine1, canvas.width / 2, swatchY + swatchSize + 92);
-        ctx.fillText(hashLine2, canvas.width / 2, swatchY + swatchSize + 116);
+        const upperHash = hashHex.toUpperCase();
+        const hashLine1 = upperHash.slice(0, 32);
+        const hashLine2 = upperHash.slice(32);
+        ctx.fillText(hashLine1, canvas.width / 2, textBase + 68);
+        ctx.fillText(hashLine2, canvas.width / 2, textBase + 92);
 
         const blob = await new Promise((resolve, reject) => {
           canvas.toBlob((result) => {
@@ -794,15 +784,13 @@
         demoPreviewImage.src = demoUrl;
         demoPreviewImage.hidden = false;
         demoPreviewImage.alt = `Demo PNG preview with SHA-256 ${result.hashHex}`;
-        demoPreviewSwatch.style.backgroundColor = result.colorHex;
-        demoPreviewSwatch.title = `Hash-derived colour ${result.colorHex}`;
-        demoPreviewSwatch.setAttribute('aria-label', `Hash-derived colour ${result.colorHex}`);
-        demoPreviewHash.textContent = result.hashHex;
-        demoPreviewHash.title = `SHA-256 ${result.hashHex}`;
+        demoPreviewHash.textContent = `SHA-256 ${result.hashHex.slice(0, 12)}…`;
+        demoPreviewHash.title = `Full hash ${result.hashHex}`;
         demoDownload.href = demoUrl;
         demoDownload.download = result.name;
-        demoDownload.textContent = `Download ${result.name} (${result.hashHex.slice(0, 12)}…)`;
-        demoDownload.title = `SHA-256 ${result.hashHex}`;
+        demoDownload.title = `Download ${result.name} (SHA-256 ${result.hashHex})`;
+        demoDownload.setAttribute('aria-label', `Download ${result.name} with SHA-256 ${result.hashHex} and colour ${result.colorHex}`);
+        demoDownloadLabel.textContent = `Download ${result.name}`;
         demoDownload.classList.add('visible');
       };
 
@@ -898,14 +886,12 @@
 
           const [r, g, b] = hashBytes;
           hashColorEl.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-          hashColorEl.textContent = '';
-          hashColorEl.title = `SHA-256: ${hashHex}`;
+          hashColorEl.title = `SHA-256 ${hashHex}`;
           hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
         } catch (err) {
           console.error('Fingerprint error:', err);
           pageHashEl.textContent = `Fingerprint unavailable (${err.message}).`;
           hashColorEl.style.backgroundColor = '#9ca3af';
-          hashColorEl.textContent = '!';
           hashColorEl.title = 'Fingerprint unavailable';
           hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
         }

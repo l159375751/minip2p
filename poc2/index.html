@@ -123,7 +123,7 @@
         font-weight: 600;
       }
     </style>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
   </head>
   <body>
     <h1>PeerJS WebRTC file sender (poc2)</h1>
@@ -247,7 +247,7 @@
       };
 
       const initialisePeer = () => {
-        peer = new Peer();
+        peer = new window.Peer();
 
         peer.on('open', (id) => {
           localIdEl.textContent = id;
@@ -328,9 +328,6 @@
         reader.readAsArrayBuffer(file);
       });
 
-      initialisePeer();
-      resetReceivedList();
-
       const updatePageFingerprint = async () => {
         if (!window.crypto?.subtle) {
           pageHashEl.textContent = 'Web Crypto unsupported.';
@@ -366,7 +363,39 @@
         }
       };
 
+      const ensurePeerReady = () => new Promise((resolve, reject) => {
+        if (window.Peer) {
+          resolve(window.Peer);
+          return;
+        }
+        const script = document.querySelector('script[data-peerjs]');
+        if (!script) {
+          reject(new Error('PeerJS script tag missing.'));
+          return;
+        }
+        script.addEventListener('load', () => {
+          if (window.Peer) {
+            resolve(window.Peer);
+          } else {
+            reject(new Error('PeerJS loaded but global not found.'));
+          }
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error('PeerJS failed to load.')), { once: true });
+      });
+
       updatePageFingerprint();
+      resetReceivedList();
+
+      ensurePeerReady()
+        .then(() => {
+          initialisePeer();
+        })
+        .catch((err) => {
+          console.error(err);
+          setStatus(err.message);
+          localIdEl.textContent = 'Unavailable';
+          localIdEl.title = err.message;
+        });
     </script>
   </body>
 </html>

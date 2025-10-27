@@ -337,6 +337,10 @@
       const demoPreviewHash = document.getElementById('demoPreviewHash');
       const hashColorEl = document.getElementById('hashColor');
 
+      const ICE_SERVERS = [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+      ];
+
       let peer;
       let pendingMeta = null;
       let latestDemo = null;
@@ -386,6 +390,7 @@
         }
         pendingMeta = null;
         updateSendButtonState();
+        copySignalBtn.disabled = !localSignalEl.value.trim();
         if (message) {
           setStatus(message);
         }
@@ -472,7 +477,10 @@
 
         peer.on('error', (err) => {
           console.error('Peer error:', err);
-          destroyPeer(`Connection error: ${err.message ?? err}`);
+          const message = err?.message && err.message.includes('Connection failed')
+            ? 'Connection failed. Make sure both peers exchanged fresh signals and try again.'
+            : `Connection error: ${err?.message ?? err}`;
+          destroyPeer(message);
         });
 
         peer.on('data', async (data) => {
@@ -521,7 +529,7 @@
         destroyPeer();
         resetSignals();
 
-        peer = new window.SimplePeer({ initiator, trickle: false });
+        peer = new window.SimplePeer({ initiator, trickle: false, config: { iceServers: ICE_SERVERS } });
         setStatus(initiator ? 'Creating offer…' : 'Waiting for offer…');
         wirePeerEvents(initiator);
       };

@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>poc3 – simple-peer file share</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+        background: hsl(0 0% 96%);
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.8rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      section {
+        background: hsl(0 0% 100%);
+        padding: 1.25rem;
+        border-radius: 0.9rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+
+      label {
+        font-weight: 600;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 130px;
+        padding: 0.9rem;
+        border-radius: 0.75rem;
+        border: 1px solid hsl(215 16% 80%);
+        font-size: 0.9rem;
+        font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        resize: vertical;
+      }
+
+      input[type="file"] {
+        font-size: 0.95rem;
+      }
+
+      button {
+        padding: 0.65rem 1.4rem;
+        border-radius: 0.6rem;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+        color: #fff;
+        background: hsl(221 83% 53%);
+        transition: background 0.2s ease;
+      }
+
+      button.secondary {
+        background: hsl(215 19% 35%);
+      }
+
+      button.ghost {
+        background: hsl(215 16% 92%);
+        color: hsl(215 19% 25%);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        background: hsl(215 16% 70%);
+      }
+
+      .status {
+        font-size: 0.95rem;
+        color: hsl(221 83% 45%);
+        min-height: 1.2rem;
+      }
+
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      .row > * {
+        flex: 1 1 220px;
+      }
+
+      .signal-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: flex-start;
+      }
+
+      .signal-row textarea {
+        flex: 1 1 480px;
+        min-height: 150px;
+      }
+
+      .icon-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem;
+        width: 2.25rem;
+        height: 2.25rem;
+        font-size: 1.1rem;
+        line-height: 1;
+      }
+
+      .fingerprint-dot {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid hsl(215 16% 75%);
+        background: hsl(215 16% 92%);
+      }
+
+      .source-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 1rem;
+        border: 1px solid hsl(215 16% 88%);
+        border-radius: 0.75rem;
+        background: hsl(215 40% 97%);
+      }
+
+      .source-option {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font-weight: 600;
+      }
+
+      .source-option label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .source-option input[type="radio"] {
+        transform: scale(1.1);
+        accent-color: hsl(221 83% 53%);
+      }
+
+      .demo-controls {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: auto;
+      }
+
+      .demo-controls > button {
+        flex: 0 1 auto;
+      }
+
+      .demo-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+      }
+
+      .demo-thumb {
+        flex: 0 0 240px;
+        border-radius: 0.75rem;
+        border: 1px solid hsl(215 16% 80%);
+        background: hsl(215 30% 90%);
+        overflow: hidden;
+      }
+
+      .demo-thumb img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .demo-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .demo-meta small {
+        font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        color: hsl(215 19% 35%);
+      }
+
+      .send-note {
+        display: block;
+        margin-top: 0.75rem;
+        color: hsl(215 19% 35%);
+      }
+
+      .received {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .received a {
+        color: hsl(221 83% 45%);
+        font-weight: 600;
+      }
+
+      .received-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .swatch {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.5rem;
+        border: 1px solid hsl(215 16% 70%);
+        display: inline-block;
+        background: hsl(215 16% 92%);
+      }
+
+      .received-item .swatch {
+        width: 24px;
+        height: 24px;
+      }
+
+      .received-item small {
+        font-size: 0.8rem;
+        color: hsl(215 19% 35%);
+        font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+    </style>
+    <script src="https://unpkg.com/simple-peer@9.11.1/simplepeer.min.js" defer data-simple-peer></script>
+  </head>
+  <body>
+    <h1>
+      poc3 – simple-peer file share
+      <span id="hashColor" class="fingerprint-dot" aria-label="Page hash colour"></span>
+    </h1>
+
+    <section>
+      <strong>Connection setup</strong>
+      <div class="row">
+        <button id="startInitiatorBtn">Start as initiator</button>
+        <button id="startResponderBtn" class="secondary">Start as responder</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+      </div>
+      <div class="signal-row">
+        <div style="flex:1 1 480px;">
+          <label for="localSignal">Local signal</label>
+          <textarea id="localSignal" readonly placeholder="Create or join a connection to populate this field."></textarea>
+        </div>
+        <button id="copySignalBtn" class="secondary icon-button" type="button" aria-label="Copy local signal" title="Copy local signal" disabled>
+          <span aria-hidden="true">📋</span>
+        </button>
+      </div>
+      <div>
+        <label for="remoteSignal">Remote signal</label>
+        <textarea id="remoteSignal" placeholder="Paste the JSON signal you received from the other peer, then apply it."></textarea>
+      </div>
+      <div class="row">
+        <button id="applyRemoteBtn" class="secondary">Apply remote signal</button>
+      </div>
+      <div class="status" id="status">Choose a role to begin.</div>
+    </section>
+
+    <section>
+      <strong>Send a file or use the hash-colour demo</strong>
+      <p>The built-in demo image is selected by default. It embeds a timestamp and SHA-256 hash colour; swap to upload mode if you prefer your own file.</p>
+      <div class="source-card">
+        <div class="source-option">
+          <label>
+            <input type="radio" name="sendSource" value="demo" checked>
+            Demo timestamp PNG (default)
+          </label>
+          <div class="demo-controls">
+            <button id="generateDemoBtn" type="button" class="secondary">Regenerate</button>
+            <button id="sendBtn" disabled>Send selected</button>
+          </div>
+        </div>
+        <div class="demo-preview">
+          <div class="demo-thumb">
+            <img id="demoPreviewImage" alt="Demo PNG preview" hidden>
+          </div>
+          <div class="demo-meta">
+            <small id="demoPreviewHash">Preparing hash…</small>
+          </div>
+        </div>
+      </div>
+      <div class="source-card">
+        <div class="source-option">
+          <label>
+            <input type="radio" name="sendSource" value="file">
+            Upload a custom file
+          </label>
+        </div>
+        <input id="fileInput" type="file" aria-label="Choose a file to send">
+      </div>
+      <small class="send-note">Keep this page open until the transfer finishes.</small>
+    </section>
+
+    <section>
+      <strong>Received files</strong>
+      <div id="receivedList" class="received">
+        <em>No files yet.</em>
+      </div>
+    </section>
+
+    <script>
+      const statusEl = document.getElementById('status');
+      const startInitiatorBtn = document.getElementById('startInitiatorBtn');
+      const startResponderBtn = document.getElementById('startResponderBtn');
+      const resetBtn = document.getElementById('resetBtn');
+      const localSignalEl = document.getElementById('localSignal');
+      const remoteSignalEl = document.getElementById('remoteSignal');
+      const copySignalBtn = document.getElementById('copySignalBtn');
+      const applyRemoteBtn = document.getElementById('applyRemoteBtn');
+      const generateDemoBtn = document.getElementById('generateDemoBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const fileInput = document.getElementById('fileInput');
+      const receivedList = document.getElementById('receivedList');
+      const sourceRadios = document.querySelectorAll('input[name="sendSource"]');
+      const demoPreviewImage = document.getElementById('demoPreviewImage');
+      const demoPreviewHash = document.getElementById('demoPreviewHash');
+      const hashColorEl = document.getElementById('hashColor');
+
+      let peer;
+      let pendingMeta = null;
+      let latestDemo = null;
+      let demoUrl = null;
+
+      const toHex = (value) => value.toString(16).padStart(2, '0');
+      const rgbToHex = ([r, g, b]) => `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+
+      const setStatus = (message) => {
+        statusEl.textContent = message;
+      };
+
+      const isConnected = () => Boolean(peer && peer.connected);
+
+      const updateSendButtonState = () => {
+        if (!isConnected()) {
+          sendBtn.disabled = true;
+          return;
+        }
+        if (getSelectedSource() === 'demo') {
+          sendBtn.disabled = !latestDemo;
+        } else {
+          const hasFile = fileInput.files && fileInput.files.length > 0;
+          sendBtn.disabled = !hasFile;
+        }
+      };
+
+      const getSelectedSource = () => {
+        const selected = Array.from(sourceRadios).find((radio) => radio.checked);
+        return selected ? selected.value : 'demo';
+      };
+
+      const resetSignals = () => {
+        localSignalEl.value = '';
+        remoteSignalEl.value = '';
+        copySignalBtn.disabled = true;
+      };
+
+      const destroyPeer = (message) => {
+        if (peer) {
+          try {
+            peer.destroy();
+          } catch (err) {
+            console.warn('Error destroying peer:', err);
+          }
+          peer = null;
+        }
+        pendingMeta = null;
+        updateSendButtonState();
+        if (message) {
+          setStatus(message);
+        }
+      };
+
+      const handleIncomingBuffer = (buffer) => {
+        const meta = pendingMeta || {};
+        pendingMeta = null;
+        const blob = new Blob([buffer], { type: meta.mime || 'application/octet-stream' });
+        const fileName = meta.name || `received-${Date.now()}.bin`;
+        appendReceivedFile(fileName, blob, meta);
+        const hashLabel = meta.hashHex || meta.hash;
+        const statusBase = `Received ${fileName}`;
+        if (hashLabel) {
+          setStatus(`${statusBase} (hash ${hashLabel.slice(0, 12)}…).`);
+        } else {
+          setStatus(statusBase);
+        }
+      };
+
+      const appendReceivedFile = (name, blob, meta = {}) => {
+        if (receivedList.firstElementChild && receivedList.firstElementChild.tagName === 'EM') {
+          receivedList.innerHTML = '';
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'received-item';
+        const hashValueRaw = meta.hashHex || meta.hash || null;
+        const hashValue = hashValueRaw ? String(hashValueRaw) : null;
+
+        if (meta.colorHex) {
+          const swatch = document.createElement('span');
+          swatch.className = 'swatch';
+          swatch.style.backgroundColor = meta.colorHex;
+          swatch.title = hashValue ? `Colour derived from hash ${hashValue}` : 'Colour derived from hash';
+          wrapper.appendChild(swatch);
+        }
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.textContent = `Download ${name} (${Math.round(blob.size / 1024)} KB)`;
+        if (hashValue) {
+          link.title = `SHA-256 ${hashValue}`;
+        }
+
+        wrapper.appendChild(link);
+
+        if (hashValue) {
+          const info = document.createElement('small');
+          info.textContent = `hash ${hashValue.slice(0, 12)}…`;
+          info.title = hashValue;
+          wrapper.appendChild(info);
+        }
+
+        receivedList.appendChild(wrapper);
+      };
+
+      const wirePeerEvents = (initiator) => {
+        if (!peer) {
+          return;
+        }
+
+        peer.on('signal', (data) => {
+          try {
+            localSignalEl.value = JSON.stringify(data);
+            copySignalBtn.disabled = false;
+            setStatus(initiator ? 'Share this signal with the responder.' : 'Share this answer with the initiator.');
+          } catch (err) {
+            console.error('Failed to serialise signal:', err);
+            localSignalEl.value = 'Unable to serialise signal.';
+          }
+        });
+
+        peer.on('connect', () => {
+          setStatus('Connected! You can now send files.');
+          updateSendButtonState();
+        });
+
+        peer.on('close', () => {
+          destroyPeer('Connection closed.');
+        });
+
+        peer.on('error', (err) => {
+          console.error('Peer error:', err);
+          destroyPeer(`Connection error: ${err.message ?? err}`);
+        });
+
+        peer.on('data', async (data) => {
+          if (typeof data === 'string') {
+            try {
+              const payload = JSON.parse(data);
+              if (payload && payload.kind === 'file-meta') {
+                pendingMeta = payload;
+              } else {
+                console.log('Received text payload:', payload);
+              }
+            } catch (err) {
+              console.warn('Unable to parse text payload:', err);
+            }
+            return;
+          }
+
+          if (data instanceof ArrayBuffer) {
+            handleIncomingBuffer(data);
+            return;
+          }
+
+          if (data instanceof Blob) {
+            const buffer = await data.arrayBuffer();
+            handleIncomingBuffer(buffer);
+            return;
+          }
+
+          if (ArrayBuffer.isView(data) && data.buffer instanceof ArrayBuffer) {
+            const buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+            handleIncomingBuffer(buffer);
+            return;
+          }
+
+          console.log('Received unknown payload type:', data);
+        });
+      };
+
+      const startPeer = (initiator) => {
+        const script = document.querySelector('script[data-simple-peer]');
+        if (!window.SimplePeer) {
+          destroyPeer('simple-peer failed to load. Check console.');
+          return;
+        }
+
+        destroyPeer();
+        resetSignals();
+
+        peer = new window.SimplePeer({ initiator, trickle: false });
+        setStatus(initiator ? 'Creating offer…' : 'Waiting for offer…');
+        wirePeerEvents(initiator);
+      };
+
+      const transmitFile = async ({ blob, name, mime, hashHex, colorHex }) => {
+        if (!isConnected()) {
+          throw new Error('Connect to a peer before sending files.');
+        }
+        const meta = {
+          kind: 'file-meta',
+          name,
+          mime,
+          size: blob.size,
+        };
+        if (hashHex) {
+          meta.hashHex = hashHex;
+        }
+        if (colorHex) {
+          meta.colorHex = colorHex;
+        }
+        peer.send(JSON.stringify(meta));
+        const arrayBuffer = await blob.arrayBuffer();
+        peer.send(arrayBuffer);
+      };
+
+      const revokeDemoUrl = () => {
+        if (demoUrl) {
+          URL.revokeObjectURL(demoUrl);
+          demoUrl = null;
+        }
+      };
+
+      const createDemoPng = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 520;
+        canvas.height = 280;
+        const ctx = canvas.getContext('2d');
+
+        const now = new Date();
+        const isoTimestamp = now.toISOString();
+        const friendlyTime = isoTimestamp.replace('T', ' ').replace('Z', ' UTC');
+
+        let hashBytes;
+        try {
+          if (window.crypto?.subtle) {
+            const encoder = new TextEncoder();
+            const digest = await window.crypto.subtle.digest('SHA-256', encoder.encode(`poc3-demo::${isoTimestamp}`));
+            hashBytes = new Uint8Array(digest);
+          }
+        } catch (err) {
+          console.warn('SHA-256 generation failed, falling back to random bytes.', err);
+        }
+
+        if (!hashBytes) {
+          hashBytes = new Uint8Array(32);
+          if (window.crypto?.getRandomValues) {
+            window.crypto.getRandomValues(hashBytes);
+          } else {
+            for (let i = 0; i < hashBytes.length; i += 1) {
+              hashBytes[i] = Math.floor(Math.random() * 256);
+            }
+          }
+        }
+
+        const hashHex = Array.from(hashBytes, toHex).join('').toUpperCase();
+        const rgb = [hashBytes[0], hashBytes[1], hashBytes[2]];
+        const colorHex = rgbToHex(rgb).toUpperCase();
+
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#111827');
+        gradient.addColorStop(1, '#1f2937');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const swatchSize = 160;
+        const swatchX = (canvas.width - swatchSize) / 2;
+        const swatchY = 32;
+        ctx.fillStyle = colorHex;
+        ctx.fillRect(swatchX, swatchY, swatchSize, swatchSize);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.strokeRect(swatchX, swatchY, swatchSize, swatchSize);
+
+        const textBase = swatchY + swatchSize + 34;
+
+        ctx.fillStyle = '#e5e7eb';
+        ctx.font = '20px "Segoe UI", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(colorHex, canvas.width / 2, textBase);
+
+        ctx.fillStyle = '#dbeafe';
+        ctx.font = '22px "Segoe UI", sans-serif';
+        ctx.fillText(friendlyTime, canvas.width / 2, textBase + 34);
+
+        ctx.fillStyle = '#cbd5f5';
+        ctx.font = '16px "Segoe UI", monospace';
+        const upperHash = hashHex.toUpperCase();
+        const hashLine1 = upperHash.slice(0, 32);
+        const hashLine2 = upperHash.slice(32);
+        ctx.fillText(hashLine1, canvas.width / 2, textBase + 68);
+        ctx.fillText(hashLine2, canvas.width / 2, textBase + 92);
+
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((result) => {
+            if (!result) {
+              reject(new Error('Unable to generate PNG blob.'));
+              return;
+            }
+            resolve(result);
+          }, 'image/png');
+        });
+
+        const safeName = `demo-${isoTimestamp.replace(/[:.]/g, '-')}.png`;
+
+        return {
+          blob,
+          name: safeName,
+          hashHex,
+          colorHex,
+        };
+      };
+
+      const applyDemoResult = (result) => {
+        latestDemo = result;
+        revokeDemoUrl();
+        demoUrl = URL.createObjectURL(result.blob);
+        demoPreviewImage.src = demoUrl;
+        demoPreviewImage.hidden = false;
+        demoPreviewImage.alt = `Demo PNG preview with SHA-256 ${result.hashHex}`;
+        demoPreviewHash.textContent = `SHA-256 ${result.hashHex.slice(0, 12)}…`;
+        demoPreviewHash.title = `Full hash ${result.hashHex}`;
+      };
+
+      const prepareDemo = async ({ announce = true, showBusy = true } = {}) => {
+        if (showBusy) {
+          generateDemoBtn.disabled = true;
+          setStatus('Generating demo PNG…');
+        }
+
+        try {
+          const result = await createDemoPng();
+          applyDemoResult(result);
+          if (announce) {
+            setStatus(`Demo PNG ready. SHA-256 ${result.hashHex.slice(0, 12)}….`);
+          }
+          updateSendButtonState();
+          return result;
+        } catch (err) {
+          console.error('Demo PNG error:', err);
+          setStatus(`Failed to generate demo PNG: ${err.message ?? err}`);
+          throw err;
+        } finally {
+          if (showBusy) {
+            generateDemoBtn.disabled = false;
+          }
+        }
+      };
+
+      const copyToClipboard = async (text) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setStatus('Copied to clipboard.');
+        } catch (err) {
+          console.warn('Clipboard API failed, falling back:', err);
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand('copy');
+            setStatus('Copied to clipboard.');
+          } catch (fallbackErr) {
+            console.error('execCommand copy failed:', fallbackErr);
+            setStatus('Copy failed. Select and copy manually.');
+          } finally {
+            document.body.removeChild(textarea);
+          }
+        }
+      };
+
+      startInitiatorBtn.addEventListener('click', () => {
+        startPeer(true);
+      });
+
+      startResponderBtn.addEventListener('click', () => {
+        startPeer(false);
+      });
+
+      resetBtn.addEventListener('click', () => {
+        destroyPeer('Connection reset.');
+        resetSignals();
+      });
+
+      applyRemoteBtn.addEventListener('click', () => {
+        if (!peer) {
+          setStatus('Start as initiator or responder before applying a signal.');
+          return;
+        }
+
+        const raw = remoteSignalEl.value.trim();
+        if (!raw) {
+          setStatus('Paste a remote signal first.');
+          return;
+        }
+
+        try {
+          const data = JSON.parse(raw);
+          peer.signal(data);
+          setStatus('Remote signal applied. Awaiting connection…');
+        } catch (err) {
+          console.error('Failed to apply remote signal:', err);
+          setStatus('Invalid remote signal JSON.');
+        }
+      });
+
+      copySignalBtn.addEventListener('click', () => {
+        const text = localSignalEl.value.trim();
+        if (!text) {
+          setStatus('No local signal to copy yet.');
+          return;
+        }
+        copyToClipboard(text);
+      });
+
+      sourceRadios.forEach((radio) => {
+        radio.addEventListener('change', () => {
+          updateSendButtonState();
+        });
+      });
+
+      fileInput.addEventListener('change', () => {
+        updateSendButtonState();
+      });
+
+      generateDemoBtn.addEventListener('click', () => {
+        prepareDemo({ announce: true, showBusy: true }).catch(() => {});
+      });
+
+      sendBtn.addEventListener('click', async () => {
+        if (!isConnected()) {
+          setStatus('Connect to a peer before sending files.');
+          return;
+        }
+
+        const selectedSource = getSelectedSource();
+
+        if (selectedSource === 'demo') {
+          if (!latestDemo) {
+            setStatus('Demo PNG not ready. Regenerate it first.');
+            updateSendButtonState();
+            return;
+          }
+
+          try {
+            sendBtn.disabled = true;
+            setStatus(`Sending ${latestDemo.name} (${Math.round(latestDemo.blob.size / 1024)} KB)…`);
+            await transmitFile({
+              blob: latestDemo.blob,
+              name: latestDemo.name,
+              mime: 'image/png',
+              hashHex: latestDemo.hashHex,
+              colorHex: latestDemo.colorHex,
+            });
+            setStatus(`Sent ${latestDemo.name} (hash ${latestDemo.hashHex.slice(0, 12)}…).`);
+          } catch (err) {
+            console.error('Send demo error:', err);
+            setStatus(`Failed to send demo PNG: ${err.message ?? err}`);
+          } finally {
+            updateSendButtonState();
+          }
+          return;
+        }
+
+        const file = fileInput.files?.[0];
+        if (!file) {
+          setStatus('Choose a file to send.');
+          updateSendButtonState();
+          return;
+        }
+
+        try {
+          sendBtn.disabled = true;
+          setStatus(`Sending ${file.name} (${Math.round(file.size / 1024)} KB)…`);
+          await transmitFile({
+            blob: file,
+            name: file.name,
+            mime: file.type || 'application/octet-stream',
+          });
+          setStatus(`Sent ${file.name}.`);
+        } catch (err) {
+          console.error('Send file error:', err);
+          setStatus(`Failed to send file: ${err.message ?? err}`);
+        } finally {
+          updateSendButtonState();
+        }
+      });
+
+      window.addEventListener('beforeunload', () => {
+        destroyPeer();
+        revokeDemoUrl();
+      });
+
+      const updatePageFingerprint = async () => {
+        if (!window.crypto?.subtle) {
+          hashColorEl.style.backgroundColor = '#9ca3af';
+          hashColorEl.title = 'Fingerprint unavailable';
+          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
+          return;
+        }
+
+        try {
+          const response = await fetch(window.location.href, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const text = await response.text();
+          const encoder = new TextEncoder();
+          const data = encoder.encode(text);
+          const digest = await crypto.subtle.digest('SHA-256', data);
+          const hashBytes = new Uint8Array(digest);
+          const hashHex = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+          const [r, g, b] = hashBytes;
+          hashColorEl.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+          hashColorEl.title = `SHA-256 ${hashHex}`;
+          hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
+        } catch (err) {
+          console.error('Fingerprint error:', err);
+          hashColorEl.style.backgroundColor = '#9ca3af';
+          hashColorEl.title = 'Fingerprint unavailable';
+          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
+        }
+      };
+
+      const init = () => {
+        updatePageFingerprint();
+        prepareDemo({ announce: false, showBusy: false }).catch((err) => {
+          console.error('Initial demo PNG generation failed:', err);
+        });
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    </script>
+  </body>
+</html>

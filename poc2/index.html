@@ -135,6 +135,33 @@
         color: hsl(221 83% 45%);
         font-weight: 600;
       }
+
+      .demo-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .demo-actions button {
+        flex: 0 1 auto;
+      }
+
+      .demo-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.6rem;
+        border-radius: 0.5rem;
+        background: hsl(215 16% 92%);
+        color: inherit;
+        text-decoration: none;
+        visibility: hidden;
+      }
+
+      .demo-link.visible {
+        visibility: visible;
+      }
     </style>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
   </head>
@@ -187,9 +214,13 @@
     </section>
 
     <section>
-      <strong>Demo assets</strong>
-      <p>Need a quick test file? Download the bundled timestamp image.</p>
-      <a href="demo-timestamp.png" download>demo-timestamp.png</a>
+      <strong>Demo PNG generator</strong>
+      <p>Create a fresh timestamp image for quick transfer tests. Generate once per session so both peers know what to expect.</p>
+      <div class="demo-actions">
+        <button id="generateDemoBtn" type="button" class="secondary">Generate demo PNG</button>
+        <button id="sendDemoBtn" type="button" disabled>Send demo PNG</button>
+        <a id="demoDownload" class="demo-link" download>Download demo</a>
+      </div>
     </section>
 
     <script>
@@ -204,9 +235,14 @@
       const pageHashEl = document.getElementById('pageHash');
       const hashColorEl = document.getElementById('hashColor');
       const copyIdBtn = document.getElementById('copyIdBtn');
+      const generateDemoBtn = document.getElementById('generateDemoBtn');
+      const sendDemoBtn = document.getElementById('sendDemoBtn');
+      const demoDownload = document.getElementById('demoDownload');
 
       let peer;
       let conn;
+      let latestDemo = null;
+      let demoUrl = null;
 
       const setStatus = (message) => {
         statusEl.textContent = message;
@@ -238,11 +274,18 @@
 
         conn = connection;
 
-        conn.once('open', () => {
+        const handleOpen = () => {
           setStatus(`Connected to ${conn.peer} (${origin})`);
           sendBtn.disabled = false;
           disconnectBtn.disabled = false;
-        });
+          sendDemoBtn.disabled = !latestDemo;
+        };
+
+        if (conn.open) {
+          handleOpen();
+        } else {
+          conn.once('open', handleOpen);
+        }
 
         conn.on('data', (payload) => {
           if (payload && payload.kind === 'file' && Array.isArray(payload.bytes)) {
@@ -259,6 +302,7 @@
           setStatus(`Connection to ${conn.peer} closed.`);
           sendBtn.disabled = true;
           disconnectBtn.disabled = true;
+          sendDemoBtn.disabled = true;
         });
 
         conn.on('error', (err) => {
@@ -311,6 +355,7 @@
         }
         sendBtn.disabled = true;
         disconnectBtn.disabled = true;
+        sendDemoBtn.disabled = true;
         setStatus('Disconnected.');
       });
 
@@ -377,6 +422,103 @@
 
         reader.readAsArrayBuffer(file);
       });
+
+      const revokeDemoUrl = () => {
+        if (demoUrl) {
+          URL.revokeObjectURL(demoUrl);
+          demoUrl = null;
+        }
+      };
+
+      const createDemoPng = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 480;
+        canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#1f2937');
+        gradient.addColorStop(1, '#0f172a');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const now = new Date();
+        const timestamp = now.toISOString().replace('T', ' ').replace('Z', ' UTC');
+
+        ctx.fillStyle = '#e5e7eb';
+        ctx.font = 'bold 32px "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Demo timestamp PNG', canvas.width / 2, 70);
+
+        ctx.fillStyle = '#93c5fd';
+        ctx.font = '24px "Segoe UI", monospace';
+        ctx.fillText(timestamp, canvas.width / 2, 120);
+
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Unable to generate PNG blob.'));
+              return;
+            }
+            const safeName = `demo-${now.toISOString().replace(/[:.]/g, '-')}.png`;
+            resolve({ blob, name: safeName });
+          }, 'image/png');
+        });
+      };
+
+      generateDemoBtn.addEventListener('click', async () => {
+        generateDemoBtn.disabled = true;
+        setStatus('Generating demo PNG…');
+        try {
+          const result = await createDemoPng();
+          latestDemo = result;
+          revokeDemoUrl();
+          demoUrl = URL.createObjectURL(result.blob);
+          demoDownload.href = demoUrl;
+          demoDownload.download = result.name;
+          demoDownload.textContent = `Download ${result.name}`;
+          demoDownload.classList.add('visible');
+          sendDemoBtn.disabled = !conn || conn.open !== true;
+          setStatus('Demo PNG ready. Download or send it to your peer.');
+        } catch (err) {
+          console.error('Demo PNG error:', err);
+          setStatus(`Failed to generate demo PNG: ${err.message}`);
+        } finally {
+          generateDemoBtn.disabled = false;
+        }
+      });
+
+      sendDemoBtn.addEventListener('click', async () => {
+        if (!latestDemo) {
+          setStatus('Generate the demo PNG first.');
+          return;
+        }
+        if (!conn || conn.open !== true) {
+          setStatus('Connect to a peer before sending files.');
+          return;
+        }
+        try {
+          sendDemoBtn.disabled = true;
+          setStatus(`Sending ${latestDemo.name} (${Math.round(latestDemo.blob.size / 1024)} KB)…`);
+          const arrayBuffer = await latestDemo.blob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          conn.send({
+            kind: 'file',
+            name: latestDemo.name,
+            mime: 'image/png',
+            size: latestDemo.blob.size,
+            bytes: Array.from(bytes),
+          });
+          setStatus(`Sent ${latestDemo.name}.`);
+        } catch (err) {
+          console.error('Send demo error:', err);
+          setStatus(`Failed to send demo PNG: ${err.message}`);
+        } finally {
+          sendDemoBtn.disabled = false;
+        }
+      });
+
+      window.addEventListener('beforeunload', revokeDemoUrl);
 
       const updatePageFingerprint = async () => {
         if (!window.crypto?.subtle) {

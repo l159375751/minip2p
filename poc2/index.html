@@ -155,7 +155,7 @@
       import { webRTC } from 'https://esm.sh/@libp2p/webrtc@6.0.7';
       import { noise } from 'https://esm.sh/@chainsafe/libp2p-noise@17.0.0';
       import { yamux } from 'https://esm.sh/@chainsafe/libp2p-yamux@4.0.1';
-      import { identify } from 'https://esm.sh/@libp2p/identify@4.0.6';
+      import { identify, identifyPush } from 'https://esm.sh/@libp2p/identify@4.0.6';
       import { multiaddr } from 'https://esm.sh/@multiformats/multiaddr@13.0.1';
 
       const PROTOCOL = '/poc2/png/1.0.0';
@@ -193,7 +193,8 @@
             listen: ['/webrtc']
           },
           services: {
-            identify: identify()
+            identify: identify(),
+            identifyPush: identifyPush()
           }
         });
 

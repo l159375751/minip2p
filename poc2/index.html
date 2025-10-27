@@ -149,6 +149,7 @@
         border-radius: 0.5rem;
         border: 1px solid hsl(215 16% 70%);
         display: inline-block;
+        background: hsl(215 16% 92%);
       }
 
       .received-item .swatch {
@@ -193,6 +194,12 @@
         align-items: center;
         gap: 0.6rem;
         font-weight: 600;
+      }
+
+      .source-option label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
       }
 
       .source-option button {
@@ -442,9 +449,10 @@
         }
 
         conn = connection;
+        updateSendButtonState();
 
         const handleOpen = () => {
-          setStatus(`Connected to ${conn.peer} (${origin})`);
+          setStatus(`Connected to ${connection.peer} (${origin})`);
           disconnectBtn.disabled = false;
           updateSendButtonState();
         };
@@ -456,6 +464,7 @@
         }
 
         conn.on('data', (payload) => {
+          const peerId = connection.peer;
           if (payload && payload.kind === 'file' && Array.isArray(payload.bytes)) {
             const bytes = new Uint8Array(payload.bytes);
             const blob = new Blob([bytes], { type: payload.mime || 'application/octet-stream' });
@@ -463,11 +472,11 @@
             const hashLabel = payload.meta?.hashHex || payload.meta?.hash;
             const colourLabel = payload.meta?.colorHex;
             if (hashLabel && colourLabel) {
-              setStatus(`File received from ${conn.peer} (hash ${hashLabel.slice(0, 12)}…, colour ${colourLabel}).`);
+              setStatus(`File received from ${peerId} (hash ${hashLabel.slice(0, 12)}…, colour ${colourLabel}).`);
             } else if (hashLabel) {
-              setStatus(`File received from ${conn.peer} (hash ${hashLabel.slice(0, 12)}…).`);
+              setStatus(`File received from ${peerId} (hash ${hashLabel.slice(0, 12)}…).`);
             } else {
-              setStatus(`File received from ${conn.peer}`);
+              setStatus(`File received from ${peerId}`);
             }
           } else {
             console.log('Received non-file payload:', payload);
@@ -476,17 +485,21 @@
 
         conn.on('close', () => {
           const peerId = connection.peer;
-          if (conn === connection) {
+          const isCurrent = conn === connection;
+          if (isCurrent) {
             conn = null;
+            setStatus(`Connection to ${peerId} closed.`);
+            disconnectBtn.disabled = true;
+            updateSendButtonState();
           }
-          setStatus(`Connection to ${peerId} closed.`);
-          disconnectBtn.disabled = true;
-          updateSendButtonState();
         });
 
         conn.on('error', (err) => {
           console.error('Connection error:', err);
           setStatus(`Connection error: ${err.message}`);
+          if (conn === connection) {
+            updateSendButtonState();
+          }
         });
       };
 
@@ -752,6 +765,7 @@
         demoPreviewImage.alt = `Demo PNG preview with SHA-256 ${result.hashHex}`;
         demoPreviewSwatch.style.backgroundColor = result.colorHex;
         demoPreviewSwatch.title = `Hash-derived colour ${result.colorHex}`;
+        demoPreviewSwatch.setAttribute('aria-label', `Hash-derived colour ${result.colorHex}`);
         demoPreviewColor.textContent = result.colorHex;
         demoPreviewColor.title = `Colour derived from hash ${result.hashHex}`;
         demoPreviewHash.textContent = result.hashHex;
@@ -829,6 +843,10 @@
         updateSendButtonState();
       });
 
+      prepareDemo({ announce: false, showBusy: false }).catch((err) => {
+        console.error('Initial demo PNG generation failed:', err);
+      });
+
       window.addEventListener('beforeunload', revokeDemoUrl);
 
       const updatePageFingerprint = async () => {
@@ -888,6 +906,7 @@
 
       updatePageFingerprint();
       resetReceivedList();
+      updateSendButtonState();
 
       ensurePeerReady()
         .then(() => {

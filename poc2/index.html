@@ -85,10 +85,44 @@
         color: #2563eb;
         min-height: 1.2rem;
       }
+
+      .fingerprint {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+
+      .color-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        background: #9ca3af;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        color: #1f2933;
+      }
+
+      .fingerprint code {
+        font-size: 0.85rem;
+        word-break: break-all;
+      }
     </style>
   </head>
   <body>
     <h1>WebRTC PNG demo (poc2)</h1>
+
+    <section>
+      <strong>Page fingerprint</strong>
+      <div class="fingerprint">
+        <div id="hashColor" class="color-box" role="img" aria-label="SHA-256 derived colour">--</div>
+        <code id="pageHash">Computing SHA-256…</code>
+      </div>
+      <small>Colour updates whenever the fetched HTML changes.</small>
+    </section>
 
     <section>
       <strong>Share these multiaddrs with the remote browser:</strong>
@@ -131,6 +165,8 @@
       const receiveBtn = document.getElementById('receiveBtn');
       const sentPreview = document.getElementById('sentPreview');
       const receivedPreview = document.getElementById('receivedPreview');
+      const pageHashEl = document.getElementById('pageHash');
+      const hashColorEl = document.getElementById('hashColor');
 
       const setStatus = (msg) => {
         console.info(msg);
@@ -303,6 +339,43 @@
         sendBtn.disabled = true;
         receiveBtn.disabled = true;
       });
+
+      const updatePageFingerprint = async () => {
+        if (!window.crypto?.subtle) {
+          pageHashEl.textContent = 'Web Crypto unsupported in this browser.';
+          hashColorEl.textContent = 'X';
+          return;
+        }
+
+        try {
+          const response = await fetch(window.location.href, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const text = await response.text();
+          const encoder = new TextEncoder();
+          const data = encoder.encode(text);
+          const digest = await crypto.subtle.digest('SHA-256', data);
+          const hashBytes = new Uint8Array(digest);
+          const hashHex = Array.from(hashBytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+          pageHashEl.textContent = hashHex;
+
+          const [r, g, b] = hashBytes;
+          hashColorEl.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+          hashColorEl.textContent = '';
+          hashColorEl.title = `SHA-256: ${hashHex}`;
+          hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
+        } catch (err) {
+          console.error('Fingerprint error:', err);
+          pageHashEl.textContent = `Unable to compute hash (${err.message}).`;
+          hashColorEl.style.backgroundColor = '#9ca3af';
+          hashColorEl.textContent = '!';
+          hashColorEl.title = 'Fingerprint unavailable';
+          hashColorEl.setAttribute('aria-label', 'Fingerprint unavailable');
+        }
+      };
+
+      updatePageFingerprint();
     </script>
   </body>
 </html>

@@ -136,6 +136,26 @@
         font-weight: 600;
       }
 
+      .received-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .received-item .swatch {
+        width: 24px;
+        height: 24px;
+        border-radius: 0.4rem;
+        border: 1px solid hsl(215 16% 70%);
+      }
+
+      .received-item small {
+        font-size: 0.8rem;
+        color: hsl(215 19% 35%);
+        font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+
       .demo-actions {
         display: flex;
         flex-wrap: wrap;
@@ -215,7 +235,7 @@
 
     <section>
       <strong>Demo PNG generator</strong>
-      <p>Create a fresh timestamp image for quick transfer tests. Generate once per session so both peers know what to expect.</p>
+      <p>Create a fresh timestamp image for quick transfer tests. The PNG embeds its SHA-256 hash and a colour swatch derived from that hash.</p>
       <div class="demo-actions">
         <button id="generateDemoBtn" type="button" class="secondary">Generate demo PNG</button>
         <button id="sendDemoBtn" type="button" disabled>Send demo PNG</button>
@@ -244,6 +264,13 @@
       let latestDemo = null;
       let demoUrl = null;
 
+      const toHex = (value) => value.toString(16).padStart(2, '0');
+      const rgbToHex = ([r, g, b]) => `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      const contrastColor = ([r, g, b]) => {
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.55 ? '#111827' : '#f9fafb';
+      };
+
       const setStatus = (message) => {
         statusEl.textContent = message;
       };
@@ -255,16 +282,43 @@
         receivedList.appendChild(placeholder);
       };
 
-      const appendReceivedFile = (name, blob) => {
+      const appendReceivedFile = (name, blob, meta = {}) => {
         if (receivedList.firstElementChild && receivedList.firstElementChild.tagName === 'EM') {
           receivedList.innerHTML = '';
         }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'received-item';
+        const hashValueRaw = meta.hashHex || meta.hash || null;
+        const hashValue = hashValueRaw ? String(hashValueRaw) : null;
+
+        if (meta.colorHex) {
+          const swatch = document.createElement('span');
+          swatch.className = 'swatch';
+          swatch.style.backgroundColor = meta.colorHex;
+          swatch.title = hashValue ? `Colour derived from hash ${hashValue}` : 'Colour derived from hash';
+          wrapper.appendChild(swatch);
+        }
+
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = name;
         link.textContent = `Download ${name} (${Math.round(blob.size / 1024)} KB)`;
-        receivedList.appendChild(link);
+        if (hashValue) {
+          link.title = `SHA-256 ${hashValue}`;
+        }
+
+        wrapper.appendChild(link);
+
+        if (hashValue) {
+          const info = document.createElement('small');
+          info.textContent = `hash ${hashValue.slice(0, 12)}…`;
+          info.title = hashValue;
+          wrapper.appendChild(info);
+        }
+
+        receivedList.appendChild(wrapper);
       };
 
       const wireConnection = (connection, origin) => {
@@ -291,8 +345,16 @@
           if (payload && payload.kind === 'file' && Array.isArray(payload.bytes)) {
             const bytes = new Uint8Array(payload.bytes);
             const blob = new Blob([bytes], { type: payload.mime || 'application/octet-stream' });
-            appendReceivedFile(payload.name || 'received.bin', blob);
-            setStatus(`File received from ${conn.peer}`);
+            appendReceivedFile(payload.name || 'received.bin', blob, payload.meta || {});
+            const hashLabel = payload.meta?.hashHex || payload.meta?.hash;
+            const colourLabel = payload.meta?.colorHex;
+            if (hashLabel && colourLabel) {
+              setStatus(`File received from ${conn.peer} (hash ${hashLabel.slice(0, 12)}…, colour ${colourLabel}).`);
+            } else if (hashLabel) {
+              setStatus(`File received from ${conn.peer} (hash ${hashLabel.slice(0, 12)}…).`);
+            } else {
+              setStatus(`File received from ${conn.peer}`);
+            }
           } else {
             console.log('Received non-file payload:', payload);
           }
@@ -430,40 +492,100 @@
         }
       };
 
-      const createDemoPng = () => {
+      const createDemoPng = async () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 480;
-        canvas.height = 180;
+        canvas.width = 520;
+        canvas.height = 320;
         const ctx = canvas.getContext('2d');
 
+        const now = new Date();
+        const isoTimestamp = now.toISOString();
+        const friendlyTime = isoTimestamp.replace('T', ' ').replace('Z', ' UTC');
+
+        let hashBytes;
+        try {
+          if (window.crypto?.subtle) {
+            const encoder = new TextEncoder();
+            const digest = await window.crypto.subtle.digest(
+              'SHA-256',
+              encoder.encode(`poc2-demo::${isoTimestamp}`)
+            );
+            hashBytes = new Uint8Array(digest);
+          }
+        } catch (err) {
+          console.warn('SHA-256 generation failed, falling back to random bytes.', err);
+        }
+
+        if (!hashBytes) {
+          hashBytes = new Uint8Array(32);
+          if (window.crypto?.getRandomValues) {
+            window.crypto.getRandomValues(hashBytes);
+          } else {
+            for (let i = 0; i < hashBytes.length; i += 1) {
+              hashBytes[i] = Math.floor(Math.random() * 256);
+            }
+          }
+        }
+
+        const hashHex = Array.from(hashBytes, toHex).join('').toUpperCase();
+        const rgb = [hashBytes[0], hashBytes[1], hashBytes[2]];
+        const colorHex = rgbToHex(rgb).toUpperCase();
+        const contrast = contrastColor(rgb);
+
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#1f2937');
-        gradient.addColorStop(1, '#0f172a');
+        gradient.addColorStop(0, '#111827');
+        gradient.addColorStop(1, '#1f2937');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        const now = new Date();
-        const timestamp = now.toISOString().replace('T', ' ').replace('Z', ' UTC');
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 34px "Segoe UI", sans-serif';
+        ctx.fillText('PeerJS demo PNG', canvas.width / 2, 48);
+
+        const swatchSize = 132;
+        const swatchX = (canvas.width - swatchSize) / 2;
+        const swatchY = 70;
+        ctx.fillStyle = colorHex;
+        ctx.fillRect(swatchX, swatchY, swatchSize, swatchSize);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.strokeRect(swatchX, swatchY, swatchSize, swatchSize);
+
+        ctx.fillStyle = contrast;
+        ctx.font = '20px "Segoe UI", monospace';
+        ctx.fillText(colorHex, canvas.width / 2, swatchY + swatchSize + 28);
 
         ctx.fillStyle = '#e5e7eb';
-        ctx.font = 'bold 32px "Segoe UI", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Demo timestamp PNG', canvas.width / 2, 70);
+        ctx.font = '22px "Segoe UI", sans-serif';
+        ctx.fillText(friendlyTime, canvas.width / 2, swatchY + swatchSize + 60);
 
-        ctx.fillStyle = '#93c5fd';
-        ctx.font = '24px "Segoe UI", monospace';
-        ctx.fillText(timestamp, canvas.width / 2, 120);
+        ctx.fillStyle = '#cbd5f5';
+        ctx.font = '16px "Segoe UI", monospace';
+        const hashLine1 = hashHex.slice(0, 16).toUpperCase();
+        const hashLine2 = `${hashHex.slice(16, 32).toUpperCase()}…`;
+        ctx.fillText(hashLine1, canvas.width / 2, swatchY + swatchSize + 92);
+        ctx.fillText(hashLine2, canvas.width / 2, swatchY + swatchSize + 116);
 
-        return new Promise((resolve, reject) => {
-          canvas.toBlob((blob) => {
-            if (!blob) {
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((result) => {
+            if (!result) {
               reject(new Error('Unable to generate PNG blob.'));
               return;
             }
-            const safeName = `demo-${now.toISOString().replace(/[:.]/g, '-')}.png`;
-            resolve({ blob, name: safeName });
+            resolve(result);
           }, 'image/png');
         });
+
+        const safeName = `demo-${isoTimestamp.replace(/[:.]/g, '-')}.png`;
+
+        return {
+          blob,
+          name: safeName,
+          hashHex,
+          colorHex,
+          rgb,
+        };
       };
 
       generateDemoBtn.addEventListener('click', async () => {
@@ -476,10 +598,13 @@
           demoUrl = URL.createObjectURL(result.blob);
           demoDownload.href = demoUrl;
           demoDownload.download = result.name;
-          demoDownload.textContent = `Download ${result.name}`;
+          demoDownload.textContent = `Download ${result.name} (${result.hashHex.slice(0, 12)}…)`;
+          demoDownload.title = `SHA-256 ${result.hashHex}`;
+          demoDownload.style.backgroundColor = result.colorHex;
+          demoDownload.style.color = contrastColor(result.rgb);
           demoDownload.classList.add('visible');
           sendDemoBtn.disabled = !conn || conn.open !== true;
-          setStatus('Demo PNG ready. Download or send it to your peer.');
+          setStatus(`Demo PNG ready. SHA-256 ${result.hashHex.slice(0, 12)}…, colour ${result.colorHex}.`);
         } catch (err) {
           console.error('Demo PNG error:', err);
           setStatus(`Failed to generate demo PNG: ${err.message}`);
@@ -508,8 +633,12 @@
             mime: 'image/png',
             size: latestDemo.blob.size,
             bytes: Array.from(bytes),
+            meta: {
+              hashHex: latestDemo.hashHex,
+              colorHex: latestDemo.colorHex,
+            },
           });
-          setStatus(`Sent ${latestDemo.name}.`);
+          setStatus(`Sent ${latestDemo.name} (hash ${latestDemo.hashHex.slice(0, 12)}…, colour ${latestDemo.colorHex}).`);
         } catch (err) {
           console.error('Send demo error:', err);
           setStatus(`Failed to send demo PNG: ${err.message}`);

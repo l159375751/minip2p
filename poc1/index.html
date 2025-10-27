@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>POC1 - P2P Gutenberg</title>
+    <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .box {
+            background: white;
+            border: 2px solid #333;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .box h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        input, button, select {
+            font-family: monospace;
+            padding: 8px;
+            margin: 5px;
+        }
+
+        input[type="text"] {
+            width: 300px;
+        }
+
+        .status {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            padding: 3px 0;
+            border-left: 3px solid #999;
+            padding-left: 8px;
+            margin: 3px 0;
+        }
+
+        .log-entry.query { border-color: #00f; }
+        .log-entry.answer { border-color: #0f0; }
+        .log-entry.transfer { border-color: #f90; }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .book-card {
+            border: 1px solid #ccc;
+            padding: 12px;
+            background: #fafafa;
+        }
+
+        .book-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+
+        .book-card button {
+            font-size: 11px;
+            padding: 4px 8px;
+            margin: 2px;
+        }
+
+        .search-result {
+            background: #f0f9ff;
+            border: 1px solid #0891b2;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        .search-result h4 {
+            margin: 0 0 5px 0;
+        }
+
+        .search-result .peer {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .search-result button {
+            font-size: 12px;
+            padding: 5px 10px;
+            margin-top: 5px;
+            background: #B5F5B5;
+            border: 1px solid #5DA85D;
+            cursor: pointer;
+        }
+
+        .search-result button:hover {
+            background: #A0E8A0;
+        }
+
+        .search-result button.completed {
+            background: #006400;
+            color: white;
+            cursor: default;
+        }
+
+        .search-result button.neutral {
+            background: #f0f0f0;
+            border: 1px solid #999;
+        }
+
+        .search-result button.neutral:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <h1>POC1 - P2P Gutenberg Library</h1>
+
+    <div class="status">
+        Nostr: <span id="nostr-status" style="color: red;">Disconnected</span> |
+        Index: <span id="index-count">0</span> books |
+        Library: <span id="library-count">0</span> books
+    </div>
+
+    <!-- NOSTR CONFIG BOX -->
+    <div class="box">
+        <h2>🔑 Nostr Config (testing)</h2>
+        <div>
+            <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
+            <button onclick="nextRelay()">Next Relay</button>
+            <button onclick="generateKeypair()">New Keypair</button>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px;">
+            <div><strong>Pubkey:</strong> <code id="pubkey" style="word-break: break-all;">-</code></div>
+            <div style="margin-top: 5px;"><strong>Privkey:</strong> <code id="privkey" style="word-break: break-all;">-</code></div>
+        </div>
+    </div>
+
+    <!-- SEARCH BOX -->
+    <div class="box">
+        <h2>📖 Search</h2>
+        <div>
+            <input type="text" id="search-query" placeholder="Search for books..." value="dracula" onkeypress="if(event.key === 'Enter') searchBooks()">
+            <button onclick="searchBooks()">Search Network</button>
+        </div>
+        <h3>Search Results</h3>
+        <div id="search-results"></div>
+        <h3>Network Activity</h3>
+        <div class="log" id="search-log"></div>
+    </div>
+
+    <!-- SEARCH DAEMON DEBUG -->
+    <div class="box">
+        <h2>🔍 Search Daemon - Debug</h2>
+        <div class="log" id="search-daemon-log"></div>
+    </div>
+
+    <!-- LIBRARY BOX -->
+    <div class="box">
+        <h2>📚 My Library</h2>
+        <div>
+            <button onclick="addTestBook()">Add Test Book</button>
+        </div>
+        <div id="library" class="book-grid">
+            <p>No books yet. Download some to get started!</p>
+        </div>
+    </div>
+
+    <!-- TRANSFER BOX -->
+    <div class="box">
+        <h2>📥 Transfer Client</h2>
+        <div>
+            <input type="text" id="transfer-book-id" placeholder="Book ID">
+            <button onclick="requestBook()">Request Book</button>
+        </div>
+        <div class="log" id="transfer-log"></div>
+    </div>
+
+    <!-- DAEMON CONTROLS -->
+    <div class="box">
+        <h2>🤖 Daemon Controls</h2>
+        <div>
+            <button onclick="loadIndex()">Load Index</button>
+            <button onclick="forceLoadTestBooks()">Load 5 Test Books</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <label><input type="checkbox" id="search-daemon-enabled" checked> Search Daemon (auto-respond to queries)</label><br>
+            <label><input type="checkbox" id="transfer-daemon-enabled" checked> Transfer Daemon (auto-serve books)</label>
+        </div>
+    </div>
+
+    <!-- TRANSFER DAEMON DEBUG -->
+    <div class="box">
+        <h2>📡 Transfer Daemon - Debug</h2>
+        <div class="log" id="transfer-daemon-log"></div>
+    </div>
+
+    <!-- WEBRTC DEBUG -->
+    <div class="box">
+        <h2>🔍 WebRTC Debug (detailed signaling)</h2>
+        <button onclick="document.getElementById('webrtc-debug').innerHTML = ''">Clear</button>
+        <div class="log" id="webrtc-debug" style="font-family: monospace; font-size: 11px; max-height: 600px;"></div>
+    </div>
+
+    <script>
+        // ===== STATE =====
+        let ws = null;
+        let books = []; // index
+        let library = []; // downloaded books
+        const relays = [
+            'wss://relay.snort.social',
+            'wss://nostr.wine',
+            'wss://relay.nostr.band',
+            'wss://nos.lol',           // Requires POW - skip for now
+            'wss://relay.damus.io'     // Rate limits easily
+        ];
+        let currentRelayIndex = 0;
+        let relay = relays[currentRelayIndex];
+        let keypair = { pubkey: '', privkey: '' };
+        let db = null;
+        let mySearches = new Set(); // Track our own searches to match responses
+        let answeredQueries = new Map(); // Track what we've answered: eventId -> timestamp
+        let connectionCheckInterval = null; // Check connection status
+        let searchResults = new Map(); // Track search results: bookId -> {book, peers: [pubkey]}
+        let myWhoHasQueries = new Set(); // Track which book IDs we've asked "who has?" for
+        let peerConnections = new Map(); // Track WebRTC peer connections: connectionId -> RTCPeerConnection
+        let pendingTransfers = new Map(); // Track pending transfers: connectionId -> {bookId, peer, role}
+        let pendingIceCandidates = new Map(); // Track ICE candidates that arrived before remote description: connectionId -> [candidates]
+
+        // ===== INDEXEDDB =====
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('GutenbergP2P', 1);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('library')) {
+                        const store = db.createObjectStore('library', { keyPath: 'id' });
+                        store.createIndex('title', 'title', { unique: false });
+                    }
+                };
+            });
+        }
+
+        async function saveBookToDB(book) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readwrite');
+                const store = tx.objectStore('library');
+                const request = store.put(book);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function loadLibraryFromDB() {
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readonly');
+                const store = tx.objectStore('library');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteBookFromDB(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readwrite');
+                const store = tx.objectStore('library');
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function forceLoadTestBooks() {
+            // Force load test books (ignores existing library)
+            await loadTestBooksImpl();
+        }
+
+        async function seedTestBooks() {
+            // Add some test books to the library if empty
+            if (library.length > 0) return;
+            await loadTestBooksImpl();
+        }
+
+        async function loadTestBooksImpl() {
+
+            const bookFiles = [
+                { id: '11', title: "Alice's Adventures in Wonderland", author: 'Lewis Carroll', file: 'alice.txt' },
+                { id: '1342', title: 'Pride and Prejudice', author: 'Jane Austen', file: 'pride.txt' },
+                { id: '84', title: 'Frankenstein', author: 'Mary Wollstonecraft Shelley', file: 'frankenstein.txt' },
+                { id: '345', title: 'Dracula', author: 'Bram Stoker', file: 'dracula.txt' },
+                { id: '48320', title: 'Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle', file: 'sherlock.txt' }
+            ];
+
+            let loaded = 0;
+            let skipped = 0;
+
+            for (const bookMeta of bookFiles) {
+                // Skip if already in library
+                if (library.find(b => b.id === bookMeta.id)) {
+                    skipped++;
+                    console.log(`[SEED] Skipping ${bookMeta.title} - already in library`);
+                    continue;
+                }
+
+                try {
+                    const response = await fetch(bookMeta.file);
+                    if (!response.ok) continue;
+                    const content = await response.text();
+
+                    const book = {
+                        id: bookMeta.id,
+                        title: bookMeta.title,
+                        author: bookMeta.author,
+                        content: content
+                    };
+
+                    await saveBookToDB(book);
+                    library.push(book);
+                    loaded++;
+                } catch (e) {
+                    console.log(`[SEED] Could not load ${bookMeta.file}: ${e.message}`);
+                }
+            }
+
+            renderLibrary();
+            document.getElementById('library-count').textContent = library.length;
+            log('transfer-log', `Loaded ${loaded} books (${skipped} already present)`, 'answer');
+        }
+
+        // ===== LOGGING =====
+        function logDebug(label, data) {
+            const container = document.getElementById('webrtc-debug');
+            if (!container) return;
+
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+            div.style.padding = '8px';
+            div.style.background = '#f5f5f5';
+            div.style.border = '1px solid #ddd';
+            div.style.borderRadius = '3px';
+
+            const time = new Date().toLocaleTimeString();
+            const labelSpan = document.createElement('div');
+            labelSpan.style.fontWeight = 'bold';
+            labelSpan.style.color = '#0066cc';
+            labelSpan.textContent = `[${time}] ${label}`;
+
+            const pre = document.createElement('pre');
+            pre.style.margin = '5px 0 0 0';
+            pre.style.whiteSpace = 'pre-wrap';
+            pre.style.fontSize = '10px';
+            pre.textContent = JSON.stringify(data, null, 2);
+
+            div.appendChild(labelSpan);
+            div.appendChild(pre);
+            container.prepend(div);
+        }
+
+        function log(boxId, msg, type = '') {
+            console.log(`[LOG] ${boxId}: ${msg}`);
+            const container = document.getElementById(boxId);
+            if (!container) {
+                console.error(`[LOG ERROR] Container not found: ${boxId}`);
+                return;
+            }
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            container.prepend(div);
+        }
+
+        // ===== NOSTR CONNECTION =====
+        function toggleNostrConnection() {
+            if (ws) {
+                disconnectNostr();
+            } else {
+                connectNostr();
+            }
+        }
+
+        function nextRelay() {
+            log('search-daemon-log', 'Switching to next relay...', 'query');
+            if (ws) disconnectNostr();
+            currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+            relay = relays[currentRelayIndex];
+            setTimeout(() => connectNostr(), 500);
+        }
+
+        function connectNostr() {
+            if (ws) {
+                log('search-daemon-log', 'Already connected');
+                return;
+            }
+
+            log('search-daemon-log', `Connecting to ${relay}...`);
+            ws = new WebSocket(relay);
+
+            ws.onopen = () => {
+                const statusEl = document.getElementById('nostr-status');
+                statusEl.textContent = `Connected (${relay.replace('wss://', '')})`;
+                statusEl.style.color = 'green';
+                const connectBtn = document.getElementById('connect-btn');
+                if (connectBtn) connectBtn.textContent = 'Disconnect';
+                log('search-daemon-log', `Connected to ${relay}!`, 'answer');
+
+                // Subscribe to search queries and answers (only NEW events from now on)
+                const now = Math.floor(Date.now() / 1000);
+                const sub = JSON.stringify([
+                    'REQ',
+                    'gutenberg',
+                    {
+                        kinds: [25555, 25556, 25557, 25558, 25559, 25560], // search, metadata, who-has, offer, answer, ice
+                        since: now // only events from now forward
+                    }
+                ]);
+                ws.send(sub);
+                log('search-daemon-log', 'Subscribed to TEST events (kinds 25555-25560)');
+
+                // Check connection status every 5 seconds
+                connectionCheckInterval = setInterval(() => {
+                    if (ws) {
+                        const states = {
+                            0: { text: `Connecting... (${relay.replace('wss://', '')})`, color: 'orange' },
+                            1: { text: `Connected (${relay.replace('wss://', '')})`, color: 'green' },
+                            2: { text: 'Closing...', color: 'orange' },
+                            3: { text: 'Disconnected', color: 'red' }
+                        };
+                        const status = states[ws.readyState] || { text: 'Unknown', color: 'gray' };
+                        const statusEl = document.getElementById('nostr-status');
+                        statusEl.textContent = status.text;
+                        statusEl.style.color = status.color;
+
+                        // Auto-reconnect if connection dropped
+                        if (ws.readyState === 3) {
+                            log('search-daemon-log', 'Connection lost, reconnecting...', 'query');
+                            setTimeout(connectNostr, 2000);
+                        }
+                    }
+                }, 5000);
+            };
+
+            ws.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                console.log('[NOSTR RECEIVED]', msg);
+
+                if (msg[0] === 'EVENT') {
+                    const ev = msg[2];
+                    console.log('[EVENT RECEIVED] Kind:', ev.kind, 'Content:', ev.content);
+                    handleNostrEvent(ev);
+                }
+
+                // EOSE = End Of Stored Events (confirms subscription is active)
+                if (msg[0] === 'EOSE') {
+                    log('search-daemon-log', '✓ Listening for events on network', 'answer');
+                }
+
+                // OK response to our events
+                if (msg[0] === 'OK') {
+                    console.log('[EVENT ACCEPTED]', msg);
+                    // Check for rate limiting
+                    if (msg[2] === false && msg[3] && msg[3].includes('rate-limit')) {
+                        log('search-daemon-log', `⚠️ Rate limited by ${relay}, switching relay...`, 'query');
+                        disconnectNostr();
+                        setTimeout(() => {
+                            currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+                            relay = relays[currentRelayIndex];
+                            connectNostr();
+                        }, 1000);
+                    }
+                }
+            };
+
+            ws.onerror = () => {
+                log('search-daemon-log', `Connection error with ${relay}`, 'query');
+            };
+
+            ws.onclose = () => {
+                const statusEl = document.getElementById('nostr-status');
+                statusEl.textContent = 'Disconnected';
+                statusEl.style.color = 'red';
+                const connectBtn = document.getElementById('connect-btn');
+                if (connectBtn) connectBtn.textContent = 'Connect to Nostr';
+                log('search-daemon-log', 'Disconnected');
+
+                // Clear connection check interval
+                if (connectionCheckInterval) {
+                    clearInterval(connectionCheckInterval);
+                    connectionCheckInterval = null;
+                }
+
+                ws = null;
+
+                // Try next relay after 2 seconds
+                setTimeout(() => {
+                    if (!ws) {
+                        currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+                        relay = relays[currentRelayIndex];
+                        log('search-daemon-log', `Trying next relay: ${relay}`, 'query');
+                        connectNostr();
+                    }
+                }, 2000);
+            };
+        }
+
+        function disconnectNostr() {
+            if (!ws) {
+                log('search-daemon-log', 'Not connected');
+                return;
+            }
+
+            log('search-daemon-log', 'Disconnecting...');
+            ws.close();
+        }
+
+        // ===== NOSTR EVENT HANDLER =====
+        async function handleNostrEvent(ev) {
+            const kind = ev.kind;
+
+            // Search Query (kind 25555)
+            if (kind === 25555) {
+                const queryTag = ev.tags.find(t => t[0] === 'q');
+                const query = queryTag ? queryTag[1] : '';
+                const eventId = ev.id;
+                const fromPubkey = ev.pubkey;
+
+                // Show all queries in search log (real-time feed)
+                const isOwnQuery = fromPubkey === keypair.pubkey;
+                if (isOwnQuery) {
+                    log('search-log', `🔁 Your search echoed back: "${query}"`, 'answer');
+                } else {
+                    log('search-log', `🔍 Network search: "${query}"`, 'query');
+                }
+
+                // DAEMON DECISION LOGIC
+                if (document.getElementById('search-daemon-enabled').checked) {
+                    log('search-daemon-log', `📥 Query received: "${query}" from ${fromPubkey.substring(0, 8)}...`, 'query');
+
+                    // Decision 1: Skip if it's our own query
+                    if (fromPubkey === keypair.pubkey) {
+                        log('search-daemon-log', `⏭️  Skip: Our own query`, 'query');
+                        return;
+                    }
+
+                    // Decision 2: Skip if we already answered this exact event
+                    if (answeredQueries.has(eventId)) {
+                        log('search-daemon-log', `⏭️  Skip: Already answered`, 'query');
+                        return;
+                    }
+
+                    // Decision 3: Skip if we don't have the index loaded
+                    if (books.length === 0) {
+                        log('search-daemon-log', `⏭️  Skip: Index not loaded`, 'query');
+                        return;
+                    }
+
+                    // Decision 4: Search for matches
+                    const matches = books.filter(b =>
+                        b.title.toLowerCase().includes(query.toLowerCase()) ||
+                        b.id === query
+                    ).slice(0, 5);
+
+                    if (matches.length > 0) {
+                        log('search-daemon-log', `✓ Found ${matches.length} match(es), responding...`, 'answer');
+
+                        // Mark as answered
+                        answeredQueries.set(eventId, Date.now());
+
+                        // Respond after a small delay
+                        setTimeout(() => {
+                            matches.forEach(book => {
+                                sendSearchAnswer(book);
+                            });
+                        }, 500);
+
+                        // Clean up old answered queries after 5 minutes
+                        setTimeout(() => answeredQueries.delete(eventId), 300000);
+                    } else {
+                        log('search-daemon-log', `⏭️  Skip: No matches found`, 'query');
+                    }
+                }
+            }
+
+            // Search Answer (kind 25556) - metadata only
+            if (kind === 25556) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const titleTag = ev.tags.find(t => t[0] === 'title');
+                const authorTag = ev.tags.find(t => t[0] === 'author');
+                const id = idTag ? idTag[1] : 'unknown';
+                const title = titleTag ? titleTag[1] : 'unknown';
+                const author = authorTag ? authorTag[1] : 'Unknown';
+
+                // Check if this is a response to our search
+                const isMyResult = Array.from(mySearches).some(query =>
+                    title.toLowerCase().includes(query.toLowerCase()) ||
+                    id === query
+                );
+
+                if (isMyResult) {
+                    log('search-log', `✓ Metadata: "${title}" (${id})`, 'answer');
+                    console.log('[SEARCH RESULT] Adding to results:', id, title);
+
+                    // Add to search results (metadata only, no peers yet)
+                    if (!searchResults.has(id)) {
+                        searchResults.set(id, {
+                            id: id,
+                            title: title,
+                            author: author,
+                            peers: []
+                        });
+                        console.log('[SEARCH RESULT] Now have', searchResults.size, 'results');
+                        renderSearchResults();
+                    }
+                } else {
+                    log('search-log', `← Found: "${title}" (${id})`, 'answer');
+                }
+            }
+
+            // "Who has?" Query (kind 25557)
+            if (kind === 25557) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const bookId = idTag ? idTag[1] : '';
+                const fromPubkey = ev.pubkey;
+
+                log('search-daemon-log', `📥 "Who has ${bookId}?" from ${fromPubkey.substring(0, 8)}...`, 'query');
+
+                // Check if we have this book in our library
+                if (document.getElementById('transfer-daemon-enabled').checked) {
+                    const haveIt = library.find(b => b.id === bookId);
+                    if (haveIt) {
+                        log('transfer-daemon-log', `✓ We have it! Announcing transports...`, 'answer');
+                        setTimeout(() => announceAvailability(bookId, fromPubkey), 500);
+                    } else {
+                        log('transfer-daemon-log', `⏭️  Skip: Don't have file ${bookId}`, 'query');
+                    }
+                }
+            }
+
+            // "I have it" Answer (kind 25558) - includes transports or WebRTC offer
+            if (kind === 25558) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const offerTag = ev.tags.find(t => t[0] === 'offer');
+                const connTag = ev.tags.find(t => t[0] === 'conn');
+                const toTag = ev.tags.find(t => t[0] === 'to');
+                const transportsTag = ev.tags.find(t => t[0] === 'transports');
+                const bookId = idTag ? idTag[1] : '';
+                const fromPubkey = ev.pubkey;
+
+                // Check if this message is for us
+                const isForUs = toTag && toTag[1] === keypair.pubkey;
+
+                // Check if this is for a book we asked about
+                if (myWhoHasQueries.has(bookId)) {
+                    const transports = transportsTag ? JSON.parse(transportsTag[1]) : [];
+                    const transportStr = transports.length > 0 ? ` (${transports.join(', ')})` : '';
+                    log('search-log', `✓ Peer ${fromPubkey.substring(0, 8)}... has file ${bookId}${transportStr}`, 'answer');
+
+                    // Add peer to search results with transports
+                    const result = searchResults.get(bookId);
+                    if (result) {
+                        if (!result.peers) result.peers = [];
+                        if (!result.peerTransports) result.peerTransports = {};
+
+                        if (!result.peers.includes(fromPubkey)) {
+                            result.peers.push(fromPubkey);
+                        }
+
+                        // Store available transports for this peer
+                        if (transports.length > 0) {
+                            result.peerTransports[fromPubkey] = transports;
+                        }
+
+                        renderSearchResults();
+                    }
+
+                    // Handle WebRTC offer if present
+                    if (isForUs && offerTag && connTag) {
+                        const offer = JSON.parse(offerTag[1]);
+                        const connectionId = connTag[1];
+
+                        log('transfer-log', `📥 Received WebRTC offer, starting transfer...`, 'answer');
+                        // Automatically handle the offer to start the transfer
+                        setTimeout(() => handleWebRTCOffer(offer, connectionId, bookId, fromPubkey), 500);
+                    }
+                }
+            }
+
+            // WebRTC Answer (kind 25559)
+            if (kind === 25559) {
+                const connTag = ev.tags.find(t => t[0] === 'conn');
+                const answerTag = ev.tags.find(t => t[0] === 'answer');
+                const toTag = ev.tags.find(t => t[0] === 'to');
+
+                if (toTag && toTag[1] === keypair.pubkey && connTag && answerTag) {
+                    const connectionId = connTag[1];
+                    const answer = JSON.parse(answerTag[1]);
+                    const pc = peerConnections.get(connectionId);
+
+                    if (pc) {
+                        console.log('[ANSWER] Received answer, PC signaling state:', pc.signalingState);
+                        // Only set remote description if we're expecting an answer (we sent an offer)
+                        if (pc.signalingState === 'have-local-offer') {
+                            log('transfer-daemon-log', `✓ Received WebRTC answer`, 'answer');
+                            await pc.setRemoteDescription(answer);
+
+                            // Process any queued ICE candidates
+                            if (pendingIceCandidates.has(connectionId)) {
+                                const candidates = pendingIceCandidates.get(connectionId);
+                                console.log(`[SENDER] Processing ${candidates.length} queued ICE candidates`);
+                                logDebug('SENDER: Processing Queued ICE', { count: candidates.length });
+                                for (const candidate of candidates) {
+                                    await pc.addIceCandidate(candidate);
+                                }
+                                pendingIceCandidates.delete(connectionId);
+                            } else {
+                                console.log('[SENDER] No queued ICE candidates');
+                                logDebug('SENDER: No Queued ICE', {});
+                            }
+                        } else {
+                            console.log('[ANSWER] Ignoring answer - wrong signaling state:', pc.signalingState);
+                        }
+                    }
+                }
+            }
+
+            // Transfer Request (kind 25561)
+            if (kind === 25561) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const toTag = ev.tags.find(t => t[0] === 'to');
+                const transportTag = ev.tags.find(t => t[0] === 'transport');
+                const bookId = idTag ? idTag[1] : '';
+                const transport = transportTag ? transportTag[1] : 'webrtc-direct';
+                const fromPubkey = ev.pubkey;
+
+                if (toTag && toTag[1] === keypair.pubkey) {
+                    log('transfer-daemon-log', `📥 Transfer request for ${bookId} via ${transport}`, 'query');
+
+                    const haveIt = library.find(b => b.id === bookId);
+                    if (haveIt && (transport === 'webrtc-lan' || transport === 'webrtc-wan')) {
+                        log('transfer-daemon-log', `✓ Starting WebRTC transfer (${transport})...`, 'answer');
+                        setTimeout(() => sendIHaveIt(bookId, fromPubkey), 500);
+                    } else {
+                        log('transfer-daemon-log', `⏭️  Skip: Don't have file or unsupported transport`, 'query');
+                    }
+                }
+            }
+
+            // ICE Candidate (kind 25560)
+            if (kind === 25560) {
+                const connTag = ev.tags.find(t => t[0] === 'conn');
+                const candidateTag = ev.tags.find(t => t[0] === 'candidate');
+                const toTag = ev.tags.find(t => t[0] === 'to');
+
+                if (toTag && toTag[1] === keypair.pubkey && connTag && candidateTag) {
+                    const connectionId = connTag[1];
+                    const candidate = JSON.parse(candidateTag[1]);
+                    const pc = peerConnections.get(connectionId);
+
+                    const receivedCandData = {
+                        connectionId: connectionId.substring(0, 32) + '...',
+                        type: candidate.type,
+                        protocol: candidate.protocol,
+                        address: candidate.address,
+                        port: candidate.port,
+                        hasRemoteDesc: !!pc?.remoteDescription
+                    };
+                    console.log('[ICE RECEIVED] Candidate:', receivedCandData);
+                    logDebug('Received ICE Candidate', receivedCandData);
+
+                    if (pc) {
+                        if (pc.remoteDescription) {
+                            // Remote description is set, add candidate immediately
+                            console.log('[ICE] Adding candidate immediately');
+                            await pc.addIceCandidate(candidate);
+                        } else {
+                            // Queue candidate until remote description is set
+                            console.log('[ICE] Queuing candidate (no remote description yet)');
+                            if (!pendingIceCandidates.has(connectionId)) {
+                                pendingIceCandidates.set(connectionId, []);
+                            }
+                            pendingIceCandidates.get(connectionId).push(candidate);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ===== LOAD INDEX =====
+        async function loadIndex() {
+            log('search-daemon-log', 'Downloading index... (~9 MB)', 'query');
+
+            try {
+                const response = await fetch('GUTINDEX.ALL.new');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                log('search-daemon-log', 'Download complete! Parsing...', 'answer');
+                const text = await response.text();
+                const lines = text.split('\n');
+
+                console.log('[INDEX] Total lines:', lines.length);
+                console.log('[INDEX] First 5 lines:', lines.slice(0, 5));
+                console.log('[INDEX] Sample line 100000:', lines[100000]);
+
+                books = [];
+                let current = null;
+                let matchCount = 0;
+
+                for (const line of lines) {
+                    const match = line.match(/^(.+?)\s{2,}(\d+)\r?$/); // Handle CRLF
+                    if (match) {
+                        matchCount++;
+                        if (matchCount <= 5) {
+                            console.log('[INDEX] Match:', match[0]);
+                        }
+                        if (current) books.push(current);
+
+                        const content = match[1].trim();
+                        const id = match[2];
+
+                        let title, author;
+                        if (content.includes(', by ')) {
+                            [title, author] = content.split(', by ', 2);
+                        } else {
+                            title = content;
+                            author = 'Unknown';
+                        }
+
+                        current = { id, title, author };
+                    }
+                }
+
+                if (current) books.push(current);
+
+                console.log('[INDEX] Total matches found:', matchCount);
+                console.log('[INDEX] Books array length:', books.length);
+
+                document.getElementById('index-count').textContent = books.length;
+                log('search-daemon-log', `Loaded ${books.length} books`, 'answer');
+            } catch (e) {
+                log('search-daemon-log', `Failed to load index: ${e.message}`, 'query');
+            }
+        }
+
+        // ===== FILL CDN =====
+        function fillCDN() {
+            log('transfer-daemon-log', 'Fill CDN not yet implemented (for later)', 'transfer');
+            // TODO: Download random books from network to become a seeder
+        }
+
+        // ===== SEARCH =====
+        async function searchBooks() {
+            console.log('[DEBUG] searchBooks() called');
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('search-log', 'Not connected, connecting...', 'query');
+                console.log('[DEBUG] Auto-connecting...');
+                connectNostr();
+                // Wait a bit for connection then retry
+                setTimeout(searchBooks, 1500);
+                return;
+            }
+
+            console.log('[DEBUG] WebSocket state:', ws.readyState);
+
+            const query = document.getElementById('search-query').value.trim();
+            console.log('[DEBUG] Query:', query);
+
+            if (!query) {
+                log('search-log', '⚠️ Please enter a search term', 'query');
+                return;
+            }
+
+            // Track this search so we can identify responses
+            mySearches.add(query);
+
+            const event = await makeEvent(25555, [['q', query]], `Searching for: ${query}`);
+            console.log('[DEBUG] Sending event:', event);
+
+            ws.send(JSON.stringify(['EVENT', event]));
+
+            log('search-log', `→ 🔎 YOU SEARCHED: "${query}" - waiting for responses...`, 'query');
+            document.getElementById('search-query').value = '';
+
+            // Clear old searches after 60 seconds
+            setTimeout(() => mySearches.delete(query), 60000);
+
+            // Clear previous search results
+            searchResults.clear();
+            renderSearchResults();
+        }
+
+        function renderSearchResults() {
+            const container = document.getElementById('search-results');
+            if (searchResults.size === 0) {
+                container.innerHTML = '<p style="color: #666;">No results yet. Search for a book and wait for metadata responses.</p>';
+                return;
+            }
+
+            let html = '';
+            for (const [bookId, result] of searchResults) {
+                const hasPeers = result.peers && result.peers.length > 0;
+                const completedPeers = result.completedPeers || [];
+
+                html += `
+                    <div class="search-result">
+                        <h4>${result.title}</h4>
+                        <div>by ${result.author} | ID: ${result.id}</div>
+                        ${hasPeers ? `
+                            <div class="peer">Available from ${result.peers.length} peer(s)</div>
+                            ${result.peers.map(peer => {
+                                const isCompleted = completedPeers.includes(peer);
+                                const transports = result.peerTransports && result.peerTransports[peer] ? result.peerTransports[peer] : [];
+
+                                if (isCompleted) {
+                                    return `<button class="completed" disabled>✓ Received from ${peer.substring(0, 8)}...</button>`;
+                                }
+
+                                // Show one button per transport
+                                if (transports.length > 0) {
+                                    return transports.map(transport => `
+                                        <button onclick="requestTransfer('${result.id}', '${peer}', '${transport}')">
+                                            ${peer.substring(0, 8)}... via ${transport}
+                                        </button>
+                                    `).join('');
+                                } else {
+                                    // Fallback if no transports specified
+                                    return `<button onclick="requestTransfer('${result.id}', '${peer}')">Request from ${peer.substring(0, 8)}...</button>`;
+                                }
+                            }).join('')}
+                        ` : `
+                            <button class="neutral" onclick="askWhoHas('${result.id}')">Who has this?</button>
+                        `}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        async function askWhoHas(bookId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('search-log', '❌ Not connected to Nostr!', 'query');
+                return;
+            }
+
+            myWhoHasQueries.add(bookId);
+
+            const event = await makeEvent(
+                25557,
+                [['id', bookId]],
+                `Who has file ${bookId}?`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('search-log', `→ Asking: "Who has file ${bookId}?"`, 'query');
+
+            // Clear after 60 seconds
+            setTimeout(() => myWhoHasQueries.delete(bookId), 60000);
+        }
+
+        async function announceAvailability(bookId, targetPubkey) {
+            if (!ws) return;
+
+            // Announce available transports
+            const transports = [
+                'webrtc-lan',     // WebRTC for same LAN (local network)
+                'webrtc-wan',     // WebRTC for internet (with STUN/ICE)
+                'libp2p',         // libp2p with its own transport layer
+            ];
+
+            const event = await makeEvent(
+                25558,
+                [
+                    ['id', bookId],
+                    ['to', targetPubkey],
+                    ['transports', JSON.stringify(transports)]
+                ],
+                `I have file ${bookId}`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('transfer-daemon-log', `→ Announced: ${transports.join(', ')}`, 'answer');
+        }
+
+        async function sendIHaveIt(bookId, targetPubkey) {
+            if (!ws) return;
+
+            try {
+                // Create WebRTC peer connection as answerer (will send offer, confusingly)
+                const connectionId = `${keypair.pubkey}-${targetPubkey}-${bookId}`;
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                peerConnections.set(connectionId, pc);
+                pendingTransfers.set(connectionId, { bookId, peer: targetPubkey, role: 'sender' });
+
+                // Track ICE candidates for logging
+                const iceCandidates = [];
+
+                // Monitor connection states
+                pc.onconnectionstatechange = () => {
+                    console.log('[SENDER PC] Connection state:', pc.connectionState);
+                    log('transfer-daemon-log', `Sender connection state: ${pc.connectionState}`, 'answer');
+                    logDebug('SENDER: Connection State', { state: pc.connectionState });
+                };
+                pc.oniceconnectionstatechange = () => {
+                    console.log('[SENDER PC] ICE connection state:', pc.iceConnectionState);
+                    log('transfer-daemon-log', `Sender ICE state: ${pc.iceConnectionState}`, 'answer');
+                    logDebug('SENDER: ICE Connection State', { state: pc.iceConnectionState });
+                };
+                pc.onicegatheringstatechange = () => {
+                    console.log('[SENDER PC] ICE gathering state:', pc.iceGatheringState);
+                };
+
+                // Create data channel for sending the book (with buffering enabled)
+                const channel = pc.createDataChannel('book-transfer', {
+                    ordered: true
+                });
+
+                channel.onopen = () => {
+                    console.log('[SENDER CHANNEL] onopen fired, channel state:', channel.readyState, 'pc state:', pc.connectionState);
+                    log('transfer-daemon-log', `📡 Data channel open (PC state: ${pc.connectionState}), waiting for receiver...`, 'answer');
+                    // Wait for peer connection to fully establish
+                    const checkAndSend = () => {
+                        console.log('[CHECK] Channel:', channel.readyState, 'PC:', pc.connectionState, 'ICE:', pc.iceConnectionState);
+                        if (channel.readyState === 'open' && (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected')) {
+                            log('transfer-daemon-log', `→ Connection ready, sending book ${bookId}...`, 'answer');
+                            sendBookData(channel, bookId);
+                        } else if (channel.readyState === 'open') {
+                            log('transfer-daemon-log', `⏳ Waiting for connection... (PC: ${pc.connectionState}, ICE: ${pc.iceConnectionState})`, 'answer');
+                            setTimeout(checkAndSend, 1000);
+                        } else {
+                            log('transfer-daemon-log', `❌ Channel closed before sending`, 'transfer');
+                        }
+                    };
+                    setTimeout(checkAndSend, 1000);
+                };
+
+                // Handle ICE candidates
+                pc.onicecandidate = async (event) => {
+                    if (event.candidate) {
+                        iceCandidates.push(event.candidate);
+                        const candData = {
+                            type: event.candidate.type,
+                            protocol: event.candidate.protocol,
+                            address: event.candidate.address,
+                            port: event.candidate.port,
+                            candidate: event.candidate.candidate
+                        };
+                        console.log('[SENDER ICE] Candidate gathered:', candData);
+                        logDebug('SENDER: ICE Candidate', candData);
+                        const iceEvent = await makeEvent(
+                            25560,
+                            [
+                                ['conn', connectionId],
+                                ['candidate', JSON.stringify(event.candidate)],
+                                ['to', targetPubkey]
+                            ],
+                            'ICE candidate'
+                        );
+                        ws.send(JSON.stringify(['EVENT', iceEvent]));
+                    } else {
+                        console.log('[SENDER ICE] Gathering complete. Total candidates:', iceCandidates.length);
+                    }
+                };
+
+                // Create offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                const offerData = {
+                    connectionId: connectionId,
+                    peerId: keypair.pubkey.substring(0, 16) + '...',
+                    targetPeerId: targetPubkey.substring(0, 16) + '...',
+                    sdpType: offer.type,
+                    sdpPreview: offer.sdp.substring(0, 200) + '...'
+                };
+                console.log('[SENDER OFFER] Created offer:', offerData);
+                logDebug('SENDER: Created Offer', offerData);
+
+                // Send offer via Nostr (kind 25558)
+                const event = await makeEvent(
+                    25558,
+                    [
+                        ['id', bookId],
+                        ['to', targetPubkey],
+                        ['conn', connectionId],
+                        ['offer', JSON.stringify(offer)]
+                    ],
+                    `I have file ${bookId}`
+                );
+
+                ws.send(JSON.stringify(['EVENT', event]));
+                log('transfer-daemon-log', `→ Sent offer for book ${bookId}`, 'answer');
+            } catch (e) {
+                log('transfer-daemon-log', `❌ Error creating offer: ${e.message}`, 'transfer');
+            }
+        }
+
+        async function handleWebRTCOffer(offer, connectionId, bookId, fromPubkey) {
+            try {
+                log('transfer-log', `📥 Received WebRTC offer for book ${bookId}`, 'transfer');
+
+                const receivedOfferData = {
+                    connectionId: connectionId,
+                    peerId: keypair.pubkey.substring(0, 16) + '...',
+                    fromPeerId: fromPubkey.substring(0, 16) + '...',
+                    sdpType: offer.type,
+                    sdpPreview: offer.sdp.substring(0, 200) + '...'
+                };
+                console.log('[RECEIVER OFFER] Received offer:', receivedOfferData);
+                logDebug('RECEIVER: Received Offer', receivedOfferData);
+
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                peerConnections.set(connectionId, pc);
+                pendingTransfers.set(connectionId, { bookId, peer: fromPubkey, role: 'receiver' });
+
+                // Track ICE candidates for logging
+                const iceCandidates = [];
+
+                // Monitor connection states
+                pc.onconnectionstatechange = () => {
+                    console.log('[RECEIVER PC] Connection state:', pc.connectionState);
+                    log('transfer-log', `Receiver connection state: ${pc.connectionState}`, 'answer');
+                    logDebug('RECEIVER: Connection State', { state: pc.connectionState });
+                };
+                pc.oniceconnectionstatechange = () => {
+                    console.log('[RECEIVER PC] ICE connection state:', pc.iceConnectionState);
+                    log('transfer-log', `Receiver ICE state: ${pc.iceConnectionState}`, 'answer');
+                    logDebug('RECEIVER: ICE Connection State', { state: pc.iceConnectionState });
+                };
+                pc.onicegatheringstatechange = () => {
+                    console.log('[RECEIVER PC] ICE gathering state:', pc.iceGatheringState);
+                };
+
+                // Handle incoming data channel
+                pc.ondatachannel = (event) => {
+                    console.log('[ONDATACHANNEL] Event fired!', event);
+                    const channel = event.channel;
+                    console.log('[ONDATACHANNEL] Channel state:', channel.readyState);
+                    log('transfer-log', `📡 Data channel event, state: ${channel.readyState}`, 'answer');
+
+                    // Set up handlers immediately, before channel opens
+                    let receivedData = '';
+                    let messageCount = 0;
+
+                    channel.onmessage = (e) => {
+                        messageCount++;
+                        console.log(`[CHANNEL ONMESSAGE #${messageCount}] Received data, length:`, e.data.length);
+                        log('transfer-log', `📥 Received chunk #${messageCount}: ${e.data.length} bytes`, 'answer');
+                        logDebug('RECEIVER: Data Received', { chunk: messageCount, bytes: e.data.length });
+                        receivedData += e.data;
+                    };
+
+                    console.log('[CHANNEL] Set up onmessage handler, channel state:', channel.readyState);
+                    logDebug('RECEIVER: Data Channel Ready', { state: channel.readyState, label: channel.label });
+
+                    channel.onclose = async () => {
+                        console.log(`[CHANNEL ONCLOSE] Channel closed, received ${messageCount} messages, total ${receivedData.length} bytes`);
+                        log('transfer-log', `Channel closed, total received: ${receivedData.length} bytes (${messageCount} messages)`, 'answer');
+                        logDebug('RECEIVER: Channel Closed', { messageCount, totalBytes: receivedData.length });
+                        try {
+                            const book = JSON.parse(receivedData);
+                            log('transfer-log', `✓ Received book: ${book.title} (${receivedData.length} bytes)`, 'answer');
+
+                            await saveBookToDB(book);
+                            library.push(book);
+                            renderLibrary();
+                            document.getElementById('library-count').textContent = library.length;
+
+                            // Mark transfer as completed in search results
+                            const result = searchResults.get(bookId);
+                            if (result) {
+                                if (!result.completedPeers) result.completedPeers = [];
+                                result.completedPeers.push(fromPubkey);
+                                renderSearchResults();
+                            }
+
+                            log('transfer-log', `✓ Saved to library!`, 'answer');
+                        } catch (e) {
+                            log('transfer-log', `❌ Error saving book: ${e.message}`, 'transfer');
+                            console.error('[RECEIVE ERROR]', e, 'Data length:', receivedData.length);
+                        }
+                    };
+
+                    channel.onerror = (error) => {
+                        log('transfer-log', `❌ Channel error: ${error}`, 'transfer');
+                    };
+
+                    channel.onopen = () => {
+                        log('transfer-log', `✓ Data channel fully open`, 'answer');
+                    };
+                };
+
+                // Handle ICE candidates
+                pc.onicecandidate = async (event) => {
+                    if (event.candidate) {
+                        iceCandidates.push(event.candidate);
+                        const candData = {
+                            type: event.candidate.type,
+                            protocol: event.candidate.protocol,
+                            address: event.candidate.address,
+                            port: event.candidate.port,
+                            candidate: event.candidate.candidate
+                        };
+                        console.log('[RECEIVER ICE] Candidate gathered:', candData);
+                        logDebug('RECEIVER: ICE Candidate', candData);
+                        const iceEvent = await makeEvent(
+                            25560,
+                            [
+                                ['conn', connectionId],
+                                ['candidate', JSON.stringify(event.candidate)],
+                                ['to', fromPubkey]
+                            ],
+                            'ICE candidate'
+                        );
+                        ws.send(JSON.stringify(['EVENT', iceEvent]));
+                    } else {
+                        console.log('[RECEIVER ICE] Gathering complete. Total candidates:', iceCandidates.length);
+                    }
+                };
+
+                // Set remote description and create answer
+                await pc.setRemoteDescription(offer);
+
+                // Process any queued ICE candidates
+                if (pendingIceCandidates.has(connectionId)) {
+                    const candidates = pendingIceCandidates.get(connectionId);
+                    console.log(`[RECEIVER] Processing ${candidates.length} queued ICE candidates`);
+                    logDebug('RECEIVER: Processing Queued ICE', { count: candidates.length });
+                    for (const candidate of candidates) {
+                        await pc.addIceCandidate(candidate);
+                    }
+                    pendingIceCandidates.delete(connectionId);
+                } else {
+                    console.log('[RECEIVER] No queued ICE candidates');
+                    logDebug('RECEIVER: No Queued ICE', {});
+                }
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                const answerData = {
+                    connectionId: connectionId,
+                    sdpType: answer.type,
+                    sdpPreview: answer.sdp.substring(0, 200) + '...'
+                };
+                console.log('[RECEIVER ANSWER] Created answer:', answerData);
+                logDebug('RECEIVER: Created Answer', answerData);
+
+                // Send answer via Nostr (kind 25559)
+                const event = await makeEvent(
+                    25559,
+                    [
+                        ['conn', connectionId],
+                        ['answer', JSON.stringify(answer)],
+                        ['to', fromPubkey]
+                    ],
+                    'WebRTC answer'
+                );
+
+                ws.send(JSON.stringify(['EVENT', event]));
+                log('transfer-log', `→ Sent WebRTC answer`, 'answer');
+            } catch (e) {
+                log('transfer-log', `❌ Error handling offer: ${e.message}`, 'transfer');
+            }
+        }
+
+        function sendBookData(channel, bookId) {
+            const book = library.find(b => b.id === bookId);
+            if (!book) {
+                log('transfer-daemon-log', `❌ Book ${bookId} not found in library`, 'transfer');
+                return;
+            }
+
+            console.log('[SEND] Channel state before send:', channel.readyState);
+            console.log('[SEND] Channel bufferedAmount:', channel.bufferedAmount);
+
+            const data = JSON.stringify(book);
+            console.log('[SEND] Data size:', data.length);
+
+            // Chunk the data into smaller pieces (256KB chunks)
+            const CHUNK_SIZE = 256 * 1024; // 256KB
+            const chunks = [];
+            for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+                chunks.push(data.slice(i, i + CHUNK_SIZE));
+            }
+
+            console.log(`[SEND] Splitting into ${chunks.length} chunks`);
+            logDebug('SENDER: Chunking Data', { totalBytes: data.length, chunks: chunks.length, chunkSize: CHUNK_SIZE });
+
+            try {
+                // Send each chunk
+                for (let i = 0; i < chunks.length; i++) {
+                    channel.send(chunks[i]);
+                    console.log(`[SEND] Sent chunk ${i + 1}/${chunks.length} (${chunks[i].length} bytes)`);
+                }
+                console.log('[SEND] All chunks sent successfully');
+                console.log('[SEND] Buffered after send:', channel.bufferedAmount);
+                log('transfer-daemon-log', `✓ Sent book ${bookId} (${data.length} bytes in ${chunks.length} chunks)`, 'answer');
+
+                // Close channel after data is buffered and sent
+                setTimeout(() => {
+                    console.log('[SEND] Closing channel, buffered:', channel.bufferedAmount);
+                    logDebug('SENDER: Closing Channel', { bufferedAmount: channel.bufferedAmount });
+                    channel.close();
+                }, 3000);
+            } catch (e) {
+                console.error('[SEND ERROR]', e);
+                log('transfer-daemon-log', `❌ Send error: ${e.message}`, 'transfer');
+            }
+        }
+
+        function receiveBookData(channel, bookId) {
+            let receivedData = '';
+
+            log('transfer-log', `Setting up receive handlers for channel state: ${channel.readyState}`, 'transfer');
+
+            channel.onmessage = (event) => {
+                log('transfer-log', `📥 Received chunk: ${event.data.length} bytes`, 'answer');
+                receivedData += event.data;
+            };
+
+            channel.onclose = async () => {
+                log('transfer-log', `Channel closed, total received: ${receivedData.length} bytes`, 'answer');
+                try {
+                    const book = JSON.parse(receivedData);
+                    log('transfer-log', `✓ Received book: ${book.title} (${receivedData.length} bytes)`, 'answer');
+
+                    // Save to library
+                    await saveBookToDB(book);
+                    library.push(book);
+                    renderLibrary();
+                    document.getElementById('library-count').textContent = library.length;
+
+                    log('transfer-log', `✓ Saved to library!`, 'answer');
+                } catch (e) {
+                    log('transfer-log', `❌ Error saving book: ${e.message}`, 'transfer');
+                    console.error('[RECEIVE ERROR]', e, 'Data length:', receivedData.length);
+                }
+            };
+
+            channel.onerror = (error) => {
+                log('transfer-log', `❌ Channel error: ${error}`, 'transfer');
+            };
+        }
+
+        async function requestTransfer(bookId, peerPubkey, transport) {
+            console.log('[REQUEST TRANSFER] Called with:', { bookId, peerPubkey: peerPubkey.substring(0, 16), transport });
+            log('transfer-log', `→ Requesting ${bookId} from ${peerPubkey.substring(0, 8)}... via ${transport || 'default'}`, 'query');
+            logDebug('REQUEST: Starting Transfer', { bookId, peer: peerPubkey.substring(0, 16) + '...', transport });
+
+            if (transport === 'libp2p') {
+                log('transfer-log', `❌ libp2p not implemented yet - needs js-libp2p integration`, 'transfer');
+                return;
+            }
+
+            if (transport === 'webrtc-lan' || transport === 'webrtc-wan' || !transport) {
+                // Use WebRTC - need to request WebRTC offer from peer
+                const event = await makeEvent(
+                    25561, // New event kind for "start webrtc transfer"
+                    [
+                        ['id', bookId],
+                        ['to', peerPubkey],
+                        ['transport', transport || 'webrtc-lan']
+                    ],
+                    `Request WebRTC transfer for ${bookId}`
+                );
+                ws.send(JSON.stringify(['EVENT', event]));
+                log('transfer-log', `→ Requested WebRTC connection (${transport || 'webrtc-lan'})`, 'query');
+                return;
+            }
+
+            // Legacy path - if we already have an offer stored
+            const result = searchResults.get(bookId);
+            if (result && result.peerOffers && result.peerOffers[peerPubkey]) {
+                const { offer, connectionId } = result.peerOffers[peerPubkey];
+                await handleWebRTCOffer(offer, connectionId, bookId, peerPubkey);
+            } else {
+                log('transfer-log', `❌ No offer available from this peer yet`, 'transfer');
+            }
+        }
+
+        async function sendSearchAnswer(book) {
+            const event = await makeEvent(
+                25556,
+                [
+                    ['id', book.id],
+                    ['title', book.title],
+                    ['author', book.author || 'Unknown']
+                ],
+                `I have: ${book.title}`
+            );
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('search-daemon-log', `→ Answered: ${book.title} (${book.id})`, 'answer');
+        }
+
+        // ===== TRANSFER =====
+        async function requestBook() {
+            if (!ws) {
+                log('transfer-log', 'Not connected to Nostr!', 'query');
+                return;
+            }
+
+            const bookId = document.getElementById('transfer-book-id').value.trim();
+            if (!bookId) return;
+
+            const event = await makeEvent(25557, [['id', bookId]], `Requesting book: ${bookId}`);
+            ws.send(JSON.stringify(['EVENT', event]));
+
+            log('transfer-log', `→ Requesting book ${bookId}`, 'transfer');
+            document.getElementById('transfer-book-id').value = '';
+
+            // TODO: WebRTC setup
+            log('transfer-log', 'WebRTC transfer not yet implemented', 'transfer');
+        }
+
+        // ===== LIBRARY =====
+        function renderLibrary() {
+            const container = document.getElementById('library');
+
+            if (library.length === 0) {
+                container.innerHTML = '<p>No books yet. Download some to get started!</p>';
+                return;
+            }
+
+            container.innerHTML = library.map(book => `
+                <div class="book-card">
+                    <h4>${book.title}</h4>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                        ${book.author}<br>
+                        ID: ${book.id}
+                    </div>
+                    <button onclick="openBook('${book.id}')">Open</button>
+                    <button onclick="saveBook('${book.id}')">Save</button>
+                    <button onclick="deleteBook('${book.id}')">Delete</button>
+                </div>
+            `).join('');
+
+            document.getElementById('library-count').textContent = library.length;
+        }
+
+        function openBook(id) {
+            const book = library.find(b => b.id === id);
+            if (!book) {
+                log('transfer-log', `❌ Book ${id} not found`, 'transfer');
+                return;
+            }
+
+            // Open book content in a new tab
+            const newTab = window.open();
+            newTab.document.write(`
+                <html>
+                <head>
+                    <title>${book.title} - ${book.author}</title>
+                    <style>
+                        body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+                        h1 { font-size: 2em; margin-bottom: 0.5em; }
+                        .author { color: #666; font-style: italic; margin-bottom: 2em; }
+                        pre { white-space: pre-wrap; font-family: Georgia, serif; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${book.title}</h1>
+                    <div class="author">by ${book.author}</div>
+                    <pre>${book.content}</pre>
+                </body>
+                </html>
+            `);
+            newTab.document.close();
+            log('transfer-log', `✓ Opened "${book.title}" in new tab`, 'answer');
+        }
+
+        function saveBook(id) {
+            const book = library.find(b => b.id === id);
+            if (!book) {
+                log('transfer-log', `❌ Book ${id} not found`, 'transfer');
+                return;
+            }
+
+            // Create a downloadable file
+            const blob = new Blob([book.content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${book.title.replace(/[^a-z0-9]/gi, '_')}_${book.id}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log('transfer-log', `✓ Downloaded "${book.title}" to disk`, 'answer');
+        }
+
+        async function deleteBook(id) {
+            library = library.filter(b => b.id !== id);
+            await deleteBookFromDB(id);
+            renderLibrary();
+            log('transfer-log', `Deleted book ${id}`, 'query');
+        }
+
+        // Add a test book to library (for testing)
+        async function addTestBook() {
+            const testBook = {
+                id: '1984',
+                title: 'Nineteen Eighty-Four',
+                author: 'George Orwell',
+                data: 'Test book data...' // In real version, this would be the actual file
+            };
+
+            library.push(testBook);
+            await saveBookToDB(testBook);
+            renderLibrary();
+            log('transfer-log', `Added test book: ${testBook.title}`, 'answer');
+        }
+
+        // ===== NOSTR KEYPAIR =====
+        function generateKeypair() {
+            try {
+                const wasConnected = ws && ws.readyState === WebSocket.OPEN;
+
+                // Use nostr-tools to generate proper keypair
+                const sk = NostrTools.generateSecretKey();
+                const pk = NostrTools.getPublicKey(sk);
+
+                keypair.privkey = sk;
+                keypair.pubkey = pk;
+
+                // Convert to hex for display
+                const skHex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
+                const pkHex = pk;
+
+                document.getElementById('pubkey').textContent = pkHex;
+                document.getElementById('privkey').textContent = skHex;
+
+                log('search-daemon-log', 'Generated new keypair', 'answer');
+
+                // Reconnect if we were connected (to use new identity)
+                if (wasConnected) {
+                    log('search-daemon-log', 'Reconnecting with new identity...', 'answer');
+                    disconnectNostr();
+                    setTimeout(() => connectNostr(), 1000);
+                }
+            } catch (e) {
+                console.error('[KEYPAIR ERROR]', e);
+                log('search-daemon-log', 'Error generating keypair: ' + e.message, 'query');
+            }
+        }
+
+        // ===== HELPERS =====
+        async function makeEvent(kind, tags, content) {
+            // Use nostr-tools finalizeEvent to create properly signed events
+            const eventTemplate = {
+                kind: kind,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: content
+            };
+
+            // finalizeEvent will add id, pubkey, and sig
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, keypair.privkey);
+
+            return signedEvent;
+        }
+
+        function randomHex(len) {
+            return Array.from({length: len}, () =>
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+
+        // Initialize
+        async function init() {
+            await initDB();
+            library = await loadLibraryFromDB();
+            await seedTestBooks(); // Add test books if library is empty
+            generateKeypair();
+            renderLibrary();
+            renderSearchResults();
+            log('transfer-log', `Loaded ${library.length} books from storage`, 'answer');
+
+            // Auto-connect to Nostr and load index
+            connectNostr();
+            loadIndex();
+        }
+
+        init();
+    </script>
+</body>
+</html>

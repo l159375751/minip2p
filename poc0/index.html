@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Gutenberg P2P - POC0</title>
+    <style>
+        body {
+            font-family: monospace;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        input, button, select {
+            font-family: monospace;
+            padding: 8px;
+            margin: 5px;
+        }
+        #query { width: 300px; }
+        .status {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #999;
+            padding-left: 10px;
+        }
+        .message.query { border-color: #00f; }
+        .message.answer { border-color: #0f0; }
+        .message.sent { opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <h1>Gutenberg P2P - POC0</h1>
+
+    <div class="status">
+        Relay: <span id="status">Disconnected</span> |
+        Books: <span id="book-count">0</span>
+    </div>
+
+    <div>
+        <button onclick="connect()">Connect to Nostr</button>
+        <button onclick="loadIndex()">Load Index</button>
+    </div>
+
+    <h3>Send Query</h3>
+    <div>
+        <input id="query" placeholder="Book title or ID...">
+        <button onclick="sendQuery()">Ask Network</button>
+    </div>
+
+    <h3>Answer Query</h3>
+    <div>
+        <input id="answer-id" placeholder="Book ID">
+        <select id="transport">
+            <option value="webrtc">WebRTC</option>
+            <option value="http">HTTP</option>
+            <option value="onion">.onion</option>
+        </select>
+        <button onclick="sendAnswer()">Announce I Have This</button>
+    </div>
+
+    <h3>Network Activity</h3>
+    <div class="log" id="log"></div>
+
+    <h3>Index Debug</h3>
+    <div class="log" id="debug" style="max-height: 150px;"></div>
+
+    <script>
+        /*
+        NOSTR EVENT SCHEMA (poc0 - using dummy signatures)
+
+        QUERY:
+        {
+            kind: 32100,
+            tags: [
+                ['t', 'gutenberg-query'],
+                ['book', '<title or ID>']
+            ],
+            content: "Looking for: <query>"
+        }
+
+        ANSWER:
+        {
+            kind: 32101,
+            tags: [
+                ['t', 'gutenberg-answer'],
+                ['book', '<book ID>'],
+                ['transport', 'webrtc|http|onion']
+            ],
+            content: "I have <title> (<ID>) available via <transport>"
+        }
+        */
+
+        let ws = null;
+        let books = [];
+        const relay = 'wss://relay.damus.io';
+
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('log').prepend(div);
+        }
+
+        function debug(msg) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('debug').prepend(div);
+        }
+
+        async function loadIndex() {
+            debug('Loading GUTINDEX.ALL.new...');
+            log('Loading GUTINDEX.ALL.new...');
+
+            const response = await fetch('GUTINDEX.ALL.new');
+            const text = await response.text();
+            debug(`Fetched ${(text.length / 1024 / 1024).toFixed(2)} MB`);
+
+            const lines = text.split('\n');
+            debug(`Parsing ${lines.length} lines...`);
+
+            books = [];
+            let current = null;
+
+            for (const line of lines) {
+                const match = line.match(/^(.+?)\s{2,}(\d+)$/);
+                if (match) {
+                    if (current) books.push(current);
+
+                    const content = match[1].trim();
+                    const id = match[2];
+
+                    let title, author;
+                    if (content.includes(', by ')) {
+                        [title, author] = content.split(', by ', 2);
+                    } else {
+                        title = content;
+                        author = 'Unknown';
+                    }
+
+                    current = { id, title, author };
+                }
+            }
+
+            if (current) books.push(current);
+
+            document.getElementById('book-count').textContent = books.length;
+            debug(`Parsed ${books.length} books`);
+
+            // Show samples
+            books.slice(0, 3).forEach(b => {
+                debug(`  [${b.id}] ${b.title} - ${b.author}`);
+            });
+
+            log(`Loaded ${books.length} books`, 'answer');
+        }
+
+        function connect() {
+            if (ws) {
+                log('Already connected');
+                return;
+            }
+
+            log(`Connecting to ${relay}...`);
+            ws = new WebSocket(relay);
+
+            ws.onopen = () => {
+                document.getElementById('status').textContent = 'Connected';
+                log('Connected!', 'answer');
+
+                // Subscribe to book queries and answers
+                const sub = JSON.stringify([
+                    'REQ',
+                    'gutenberg',
+                    { kinds: [32100, 32101] }
+                ]);
+                ws.send(sub);
+                log('Subscribed to gutenberg events (kinds 32100, 32101)');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+
+                if (msg[0] === 'EVENT') {
+                    const ev = msg[2];
+                    handleEvent(ev);
+                }
+            };
+
+            ws.onerror = () => {
+                log('Connection error', 'query');
+            };
+
+            ws.onclose = () => {
+                document.getElementById('status').textContent = 'Disconnected';
+                log('Disconnected', 'query');
+                ws = null;
+            };
+        }
+
+        function handleEvent(ev) {
+            const tags = ev.tags;
+            const kind = ev.kind;
+
+            if (kind === 32100) {
+                // QUERY
+                const bookTag = tags.find(t => t[0] === 'book');
+                const query = bookTag ? bookTag[1] : 'unknown';
+                log(`← QUERY: "${query}"`, 'query');
+
+                // Auto-answer if we have the book
+                if (books.length > 0) {
+                    const match = books.find(b =>
+                        b.id === query ||
+                        b.title.toLowerCase().includes(query.toLowerCase())
+                    );
+
+                    if (match) {
+                        debug(`Match found: [${match.id}] ${match.title}`);
+                        setTimeout(() => {
+                            autoAnswer(match.id, match.title);
+                        }, 500);
+                    } else {
+                        debug(`No match for query: "${query}"`);
+                    }
+                }
+            }
+
+            if (kind === 32101) {
+                // ANSWER
+                const bookTag = tags.find(t => t[0] === 'book');
+                const transportTag = tags.find(t => t[0] === 'transport');
+                const book = bookTag ? bookTag[1] : 'unknown';
+                const transport = transportTag ? transportTag[1] : 'unknown';
+                log(`← ANSWER: book=${book} via ${transport}`, 'answer');
+            }
+        }
+
+        function autoAnswer(bookId, title) {
+            const event = makeEvent(
+                32101,
+                [
+                    ['book', bookId],
+                    ['transport', 'webrtc']
+                ],
+                `I have "${title}" (${bookId}) available via webrtc`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log(`→ AUTO-ANSWER: ${title} (${bookId})`, 'answer sent');
+        }
+
+        function sendQuery() {
+            if (!ws) {
+                log('Not connected!', 'query');
+                return;
+            }
+
+            const query = document.getElementById('query').value.trim();
+            if (!query) return;
+
+            const event = makeEvent(
+                32100,
+                [
+                    ['book', query]
+                ],
+                `Looking for: ${query}`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log(`→ QUERY: "${query}"`, 'query sent');
+            document.getElementById('query').value = '';
+        }
+
+        function sendAnswer() {
+            if (!ws) {
+                log('Not connected!', 'query');
+                return;
+            }
+
+            const bookId = document.getElementById('answer-id').value.trim();
+            const transport = document.getElementById('transport').value;
+            if (!bookId) return;
+
+            const event = makeEvent(
+                32101,
+                [
+                    ['book', bookId],
+                    ['transport', transport]
+                ],
+                `I have book ${bookId} available via ${transport}`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log(`→ ANSWER: book=${bookId} via ${transport}`, 'answer sent');
+            document.getElementById('answer-id').value = '';
+        }
+
+        function randomHex(len) {
+            return Array.from({length: len}, () =>
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+
+        function makeEvent(kind, tags, content) {
+            return {
+                kind: kind,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: content,
+                pubkey: randomHex(64),
+                id: randomHex(64),
+                sig: randomHex(128)
+            };
+        }
+    </script>
+</body>
+</html>

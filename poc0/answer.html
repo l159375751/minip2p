@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Answer - Respond to Queries</title>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 20px; }
+        button { font-family: monospace; padding: 8px; margin: 5px; }
+        .status { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .log { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin: 10px 0; max-height: 400px; overflow-y: auto; }
+        .message { padding: 5px; margin: 5px 0; border-left: 3px solid #999; padding-left: 10px; }
+        .message.query { border-color: #00f; }
+        .message.answer { border-color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>Answer - Respond to Queries</h1>
+
+    <div class="status">
+        Books: <span id="book-count">0</span> |
+        Relay: <span id="relay-status">Disconnected</span>
+    </div>
+
+    <div>
+        <button onclick="loadIndex()">Load Index</button>
+        <button onclick="connect()">Connect to Nostr</button>
+    </div>
+
+    <h3>Network Activity</h3>
+    <div class="log" id="log"></div>
+
+    <h3>Debug</h3>
+    <div class="log" id="debug" style="max-height: 150px;"></div>
+
+    <script>
+        /*
+        Listens for QUERY (kind 32100), auto-answers if book found in index
+        ANSWER (kind 32101): ['book', <id>], ['transport', 'webrtc']
+        */
+
+        let ws = null;
+        let books = [];
+        const relay = 'wss://relay.damus.io';
+
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('log').prepend(div);
+        }
+
+        function debug(msg) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('debug').prepend(div);
+        }
+
+        async function loadIndex() {
+            debug('Loading GUTINDEX.ALL.new...');
+
+            const response = await fetch('GUTINDEX.ALL.new');
+            const text = await response.text();
+            debug(`Fetched ${(text.length / 1024 / 1024).toFixed(2)} MB`);
+
+            const lines = text.split('\n');
+            books = [];
+            let current = null;
+
+            for (const line of lines) {
+                const match = line.match(/^(.+?)\s{2,}(\d+)$/);
+                if (match) {
+                    if (current) books.push(current);
+
+                    const content = match[1].trim();
+                    const id = match[2];
+
+                    let title, author;
+                    if (content.includes(', by ')) {
+                        [title, author] = content.split(', by ', 2);
+                    } else {
+                        title = content;
+                        author = 'Unknown';
+                    }
+
+                    current = { id, title, author };
+                }
+            }
+
+            if (current) books.push(current);
+
+            document.getElementById('book-count').textContent = books.length;
+            debug(`Loaded ${books.length} books`);
+            books.slice(0, 3).forEach(b => {
+                debug(`  [${b.id}] ${b.title}`);
+            });
+        }
+
+        function connect() {
+            if (ws) {
+                log('Already connected');
+                return;
+            }
+
+            log(`Connecting to ${relay}...`);
+            ws = new WebSocket(relay);
+
+            ws.onopen = () => {
+                document.getElementById('relay-status').textContent = 'Connected';
+                log('Connected!', 'answer');
+
+                // Subscribe to queries
+                const sub = JSON.stringify([
+                    'REQ',
+                    'queries',
+                    { kinds: [32100] }
+                ]);
+                ws.send(sub);
+                log('Subscribed to queries (kind 32100)');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg[0] === 'EVENT') {
+                    const ev = msg[2];
+                    if (ev.kind === 32100) {
+                        handleQuery(ev);
+                    }
+                }
+            };
+
+            ws.onerror = () => log('Connection error', 'query');
+            ws.onclose = () => {
+                document.getElementById('relay-status').textContent = 'Disconnected';
+                log('Disconnected');
+                ws = null;
+            };
+        }
+
+        function handleQuery(ev) {
+            const bookTag = ev.tags.find(t => t[0] === 'book');
+            const query = bookTag ? bookTag[1] : 'unknown';
+            log(`← QUERY: "${query}"`, 'query');
+
+            if (books.length === 0) {
+                debug('Index not loaded, cannot answer');
+                return;
+            }
+
+            // Find match
+            const match = books.find(b =>
+                b.id === query ||
+                b.title.toLowerCase().includes(query.toLowerCase())
+            );
+
+            if (match) {
+                debug(`Match found: [${match.id}] ${match.title}`);
+                setTimeout(() => {
+                    sendAnswer(match.id, match.title);
+                }, 500);
+            } else {
+                debug(`No match for: "${query}"`);
+            }
+        }
+
+        function sendAnswer(bookId, title) {
+            const event = {
+                kind: 32101,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [
+                    ['book', bookId],
+                    ['transport', 'webrtc']
+                ],
+                content: `I have "${title}" (${bookId}) available via webrtc`,
+                pubkey: randomHex(64),
+                id: randomHex(64),
+                sig: randomHex(128)
+            };
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log(`→ ANSWER: ${title} (${bookId})`, 'answer');
+        }
+
+        function randomHex(len) {
+            return Array.from({length: len}, () =>
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+    </script>
+</body>
+</html>

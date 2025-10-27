@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Request - Query Network</title>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 20px; }
+        input, button { font-family: monospace; padding: 8px; margin: 5px; }
+        #query { width: 400px; }
+        .status { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .log { background: #f9f9f9; border: 1px solid #ddd; padding: 10px; margin: 10px 0; max-height: 400px; overflow-y: auto; }
+        .message { padding: 5px; margin: 5px 0; border-left: 3px solid #999; padding-left: 10px; }
+        .message.query { border-color: #00f; }
+        .message.answer { border-color: #0f0; }
+    </style>
+</head>
+<body>
+    <h1>Request - Query Network</h1>
+
+    <div class="status">
+        Relay: <span id="status">Disconnected</span>
+    </div>
+
+    <div>
+        <button onclick="connect()">Connect to Nostr</button>
+    </div>
+
+    <h3>Send Query</h3>
+    <div>
+        <input id="query" placeholder="Book title or ID...">
+        <button onclick="sendQuery()">Ask Network</button>
+    </div>
+
+    <h3>Network Activity</h3>
+    <div class="log" id="log"></div>
+
+    <script>
+        /*
+        QUERY (kind 32100): ['book', <query>]
+        ANSWER (kind 32101): ['book', <id>], ['transport', <type>]
+        */
+
+        let ws = null;
+        const relay = 'wss://relay.damus.io';
+
+        function log(msg, type = '') {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('log').prepend(div);
+        }
+
+        function connect() {
+            if (ws) {
+                log('Already connected');
+                return;
+            }
+
+            log(`Connecting to ${relay}...`);
+            ws = new WebSocket(relay);
+
+            ws.onopen = () => {
+                document.getElementById('status').textContent = 'Connected';
+                log('Connected!', 'answer');
+
+                // Subscribe to answers
+                const sub = JSON.stringify([
+                    'REQ',
+                    'answers',
+                    { kinds: [32101] }
+                ]);
+                ws.send(sub);
+                log('Subscribed to answers (kind 32101)');
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg[0] === 'EVENT') {
+                    const ev = msg[2];
+                    if (ev.kind === 32101) {
+                        const bookTag = ev.tags.find(t => t[0] === 'book');
+                        const transportTag = ev.tags.find(t => t[0] === 'transport');
+                        const book = bookTag ? bookTag[1] : 'unknown';
+                        const transport = transportTag ? transportTag[1] : 'unknown';
+                        log(`← ANSWER: book=${book} via ${transport}`, 'answer');
+                    }
+                }
+            };
+
+            ws.onerror = () => log('Connection error', 'query');
+            ws.onclose = () => {
+                document.getElementById('status').textContent = 'Disconnected';
+                log('Disconnected');
+                ws = null;
+            };
+        }
+
+        function sendQuery() {
+            if (!ws) {
+                log('Not connected!', 'query');
+                return;
+            }
+
+            const query = document.getElementById('query').value.trim();
+            if (!query) return;
+
+            const event = {
+                kind: 32100,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: [['book', query]],
+                content: `Looking for: ${query}`,
+                pubkey: randomHex(64),
+                id: randomHex(64),
+                sig: randomHex(128)
+            };
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log(`→ QUERY: "${query}"`, 'query');
+            document.getElementById('query').value = '';
+        }
+
+        function randomHex(len) {
+            return Array.from({length: len}, () =>
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+    </script>
+</body>
+</html>

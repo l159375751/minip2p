@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Search - Local Index</title>
+    <style>
+        body { font-family: monospace; max-width: 900px; margin: 20px auto; padding: 20px; }
+        input, button { font-family: monospace; padding: 8px; margin: 5px; }
+        #search { width: 400px; }
+        .book { border-left: 2px solid #333; padding: 10px; margin: 10px 0; }
+        .status { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Search - Local Index</h1>
+
+    <div class="status">
+        Books: <span id="book-count">0</span>
+    </div>
+
+    <div>
+        <button onclick="loadIndex()">Load Index</button>
+        <input id="search" placeholder="Search books...">
+        <button onclick="search()">Search</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        let books = [];
+
+        async function loadIndex() {
+            console.log('Loading GUTINDEX.ALL.new...');
+
+            const response = await fetch('GUTINDEX.ALL.new');
+            const text = await response.text();
+            const lines = text.split('\n');
+            books = [];
+            let current = null;
+
+            for (const line of lines) {
+                const match = line.match(/^(.+?)\s{2,}(\d+)$/);
+                if (match) {
+                    if (current) books.push(current);
+
+                    const content = match[1].trim();
+                    const id = match[2];
+
+                    let title, author;
+                    if (content.includes(', by ')) {
+                        [title, author] = content.split(', by ', 2);
+                    } else {
+                        title = content;
+                        author = 'Unknown';
+                    }
+
+                    current = { id, title, author };
+                }
+            }
+
+            if (current) books.push(current);
+
+            document.getElementById('book-count').textContent = books.length;
+            console.log(`Loaded ${books.length} books`);
+        }
+
+        function search() {
+            const query = document.getElementById('search').value.toLowerCase();
+            if (!query) return;
+
+            const results = books.filter(b =>
+                b.title.toLowerCase().includes(query) ||
+                b.author.toLowerCase().includes(query)
+            ).slice(0, 50);
+
+            const html = results.map(b => `
+                <div class="book">
+                    <b>${b.title}</b><br>
+                    ${b.author} | ID: ${b.id}
+                </div>
+            `).join('');
+
+            document.getElementById('results').innerHTML =
+                html || '<div class="book">No results</div>';
+        }
+    </script>
+</body>
+</html>

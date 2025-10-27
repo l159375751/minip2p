@@ -152,9 +152,11 @@
 
     <script type="module">
       import { createLibp2p } from 'https://esm.sh/libp2p@3.0.7';
-      import { webRTC } from 'https://esm.sh/@libp2p/webrtc@5.0.8';
-      import { noise } from 'https://esm.sh/@chainsafe/libp2p-noise@15.1.0';
-      import { yamux } from 'https://esm.sh/@chainsafe/libp2p-yamux@3.0.4';
+      import { webRTC } from 'https://esm.sh/@libp2p/webrtc@6.0.7';
+      import { noise } from 'https://esm.sh/@chainsafe/libp2p-noise@17.0.0';
+      import { yamux } from 'https://esm.sh/@chainsafe/libp2p-yamux@4.0.1';
+      import { identify } from 'https://esm.sh/@libp2p/identify@4.0.6';
+      import { multiaddr } from 'https://esm.sh/@multiformats/multiaddr@13.0.1';
 
       const PROTOCOL = '/poc2/png/1.0.0';
 
@@ -185,10 +187,13 @@
               }
             })
           ],
-          connectionEncryption: [noise()],
+          connectionEncrypters: [noise()],
           streamMuxers: [yamux()],
           addresses: {
             listen: ['/webrtc']
+          },
+          services: {
+            identify: identify()
           }
         });
 
@@ -318,8 +323,15 @@
           const { bytes, blob } = await generatePngBytes();
           sentPreview.src = URL.createObjectURL(blob);
 
+          let ma;
+          try {
+            ma = multiaddr(remoteAddr);
+          } catch (err) {
+            throw new Error(`Invalid multiaddr: ${err.message}`);
+          }
+
           setStatus(`Dialing ${remoteAddr}…`);
-          const stream = await node.dialProtocol(remoteAddr, PROTOCOL);
+          const stream = await node.dialProtocol(ma, PROTOCOL);
 
           setStatus('Sending PNG bytes over WebRTC data channel…');
           await streamWriter(stream, bytes);

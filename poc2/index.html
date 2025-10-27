@@ -112,6 +112,19 @@
         word-break: break-all;
       }
 
+      .id-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .id-row code {
+        padding: 0.35rem 0.5rem;
+        background: hsl(215 16% 92%);
+        border-radius: 0.4rem;
+      }
+
       .received {
         display: flex;
         flex-direction: column;
@@ -149,9 +162,10 @@
           <button id="disconnectBtn" class="secondary" disabled>Disconnect</button>
         </div>
       </div>
-      <div>
+      <div class="id-row">
         <span>Share this page's Peer ID:</span>
         <code id="localId">Waiting for PeerJS…</code>
+        <button id="copyIdBtn" class="secondary" type="button" disabled>Copy</button>
       </div>
       <div class="status" id="status">Initialising PeerJS…</div>
     </section>
@@ -172,6 +186,12 @@
       </div>
     </section>
 
+    <section>
+      <strong>Demo assets</strong>
+      <p>Need a quick test file? Download the bundled timestamp image.</p>
+      <a href="demo-timestamp.png" download>demo-timestamp.png</a>
+    </section>
+
     <script>
       const statusEl = document.getElementById('status');
       const localIdEl = document.getElementById('localId');
@@ -183,6 +203,7 @@
       const receivedList = document.getElementById('receivedList');
       const pageHashEl = document.getElementById('pageHash');
       const hashColorEl = document.getElementById('hashColor');
+      const copyIdBtn = document.getElementById('copyIdBtn');
 
       let peer;
       let conn;
@@ -252,6 +273,7 @@
         peer.on('open', (id) => {
           localIdEl.textContent = id;
           localIdEl.title = 'Share this ID with the remote peer';
+          copyIdBtn.disabled = false;
           setStatus('Share your Peer ID with a partner, then connect either way.');
         });
 
@@ -290,6 +312,34 @@
         sendBtn.disabled = true;
         disconnectBtn.disabled = true;
         setStatus('Disconnected.');
+      });
+
+      copyIdBtn.addEventListener('click', async () => {
+        const id = localIdEl.textContent.trim();
+        if (!id || copyIdBtn.disabled) {
+          setStatus('Peer ID unavailable to copy yet.');
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(id);
+          setStatus('Peer ID copied to clipboard.');
+        } catch (err) {
+          console.warn('Clipboard API failed, falling back:', err);
+          const textarea = document.createElement('textarea');
+          textarea.value = id;
+          document.body.appendChild(textarea);
+          textarea.select();
+          try {
+            document.execCommand('copy');
+            setStatus('Peer ID copied to clipboard.');
+          } catch (fallbackErr) {
+            console.error('execCommand copy failed:', fallbackErr);
+            setStatus('Copy failed. Manually select the Peer ID.');
+          } finally {
+            document.body.removeChild(textarea);
+          }
+        }
       });
 
       sendBtn.addEventListener('click', () => {

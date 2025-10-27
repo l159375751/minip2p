@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>poc2 – libp2p WebRTC PNG sender</title>
+    <title>poc2 – PeerJS file share</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
       :root {
         color-scheme: light dark;
@@ -12,10 +13,10 @@
       body {
         margin: 0;
         padding: 2rem;
+        background: hsl(0 0% 96%);
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
-        background: #f5f5f5;
       }
 
       h1 {
@@ -24,44 +25,56 @@
       }
 
       section {
-        background: #ffffff;
-        padding: 1rem;
-        border-radius: 0.75rem;
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+        background: hsl(0 0% 100%);
+        padding: 1.25rem;
+        border-radius: 0.9rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.08);
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.9rem;
       }
 
-      textarea,
+      label {
+        font-weight: 600;
+      }
+
       input[type="text"] {
         width: 100%;
+        padding: 0.7rem;
+        border-radius: 0.6rem;
+        border: 1px solid hsl(215 16% 80%);
+        font-size: 0.95rem;
         font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-        font-size: 0.9rem;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid #d0d0d0;
-        min-height: 3.5rem;
+      }
+
+      input[type="file"] {
+        font-size: 0.95rem;
       }
 
       button {
-        padding: 0.6rem 1.2rem;
-        font-size: 1rem;
-        border-radius: 0.5rem;
+        padding: 0.65rem 1.4rem;
+        border-radius: 0.6rem;
         border: none;
+        font-size: 1rem;
         cursor: pointer;
         color: #fff;
-        background: #2563eb;
+        background: hsl(221 83% 53%);
         transition: background 0.2s ease;
       }
 
       button.secondary {
-        background: #4b5563;
+        background: hsl(215 19% 35%);
       }
 
       button:disabled {
-        background: #9ca3af;
         cursor: not-allowed;
+        background: hsl(215 16% 70%);
+      }
+
+      .status {
+        font-size: 0.95rem;
+        color: hsl(221 83% 45%);
+        min-height: 1.2rem;
       }
 
       .row {
@@ -70,20 +83,8 @@
         gap: 0.75rem;
       }
 
-      .row button {
-        flex: 1 1 200px;
-      }
-
-      img {
-        max-width: 100%;
-        border-radius: 0.5rem;
-        border: 1px solid #d1d5db;
-      }
-
-      .status {
-        font-size: 0.95rem;
-        color: #2563eb;
-        min-height: 1.2rem;
+      .row > * {
+        flex: 1 1 220px;
       }
 
       .fingerprint {
@@ -97,265 +98,242 @@
         width: 48px;
         height: 48px;
         border-radius: 0.5rem;
-        border: 1px solid #d1d5db;
-        background: #9ca3af;
+        border: 1px solid hsl(215 16% 80%);
+        background: hsl(215 16% 70%);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 0.75rem;
-        color: #1f2933;
+        color: hsl(215 19% 20%);
       }
 
       .fingerprint code {
         font-size: 0.85rem;
         word-break: break-all;
       }
+
+      .received {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .received a {
+        color: hsl(221 83% 45%);
+        font-weight: 600;
+      }
     </style>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
   </head>
   <body>
-    <h1>WebRTC PNG demo (poc2)</h1>
+    <h1>PeerJS WebRTC file sender (poc2)</h1>
 
-    <section>
+    <section aria-live="polite">
       <strong>Page fingerprint</strong>
       <div class="fingerprint">
         <div id="hashColor" class="color-box" role="img" aria-label="SHA-256 derived colour">--</div>
         <code id="pageHash">Computing SHA-256…</code>
       </div>
-      <small>Colour updates whenever the fetched HTML changes.</small>
+      <small>The colour changes whenever this HTML differs on fetch.</small>
     </section>
 
     <section>
-      <strong>Share these multiaddrs with the remote browser:</strong>
-      <textarea id="multiaddrs" readonly>Starting libp2p node…</textarea>
-      <div class="status" id="status">Bootstrapping…</div>
-    </section>
-
-    <section>
-      <label for="remoteAddr"><strong>Remote peer multiaddr</strong></label>
-      <input id="remoteAddr" type="text" placeholder="/webrtc/certhash/.../p2p/..." autocomplete="off" />
-
+      <strong>Peer status</strong>
       <div class="row">
-        <button id="receiveBtn" class="secondary" type="button">Ready to receive</button>
-        <button id="sendBtn" type="button">Send timestamp PNG</button>
+        <div>
+          <label for="remoteId">Remote Peer ID</label>
+          <input id="remoteId" type="text" placeholder="Paste the remote peer ID">
+        </div>
+        <div style="align-self:flex-end">
+          <button id="connectBtn">Connect</button>
+          <button id="disconnectBtn" class="secondary" disabled>Disconnect</button>
+        </div>
+      </div>
+      <div>
+        <span>Share this page's Peer ID:</span>
+        <code id="localId">Waiting for PeerJS…</code>
+      </div>
+      <div class="status" id="status">Initialising PeerJS…</div>
+    </section>
+
+    <section>
+      <strong>Send a file</strong>
+      <input id="fileInput" type="file" aria-label="Choose a file to send">
+      <div class="row">
+        <button id="sendBtn" disabled>Send file</button>
+        <small>Both peers must keep this page open until the transfer finishes.</small>
       </div>
     </section>
 
     <section>
-      <strong>Last image sent</strong>
-      <img id="sentPreview" alt="Preview of the last PNG you sent" />
+      <strong>Received files</strong>
+      <div id="receivedList" class="received">
+        <em>No files yet.</em>
+      </div>
     </section>
 
-    <section>
-      <strong>Last image received</strong>
-      <img id="receivedPreview" alt="Preview of the last PNG you received" />
-    </section>
-
-    <script type="module">
-      import { createLibp2p } from 'https://esm.sh/libp2p@3.0.7';
-      import { webRTC } from 'https://esm.sh/@libp2p/webrtc@6.0.7';
-      import { noise } from 'https://esm.sh/@chainsafe/libp2p-noise@17.0.0';
-      import { yamux } from 'https://esm.sh/@chainsafe/libp2p-yamux@4.0.1';
-      import { identify, identifyPush } from 'https://esm.sh/@libp2p/identify@4.0.6';
-      import { multiaddr } from 'https://esm.sh/@multiformats/multiaddr@13.0.1';
-
-      const PROTOCOL = '/poc2/png/1.0.0';
-
+    <script>
       const statusEl = document.getElementById('status');
-      const multiaddrsEl = document.getElementById('multiaddrs');
-      const remoteAddrEl = document.getElementById('remoteAddr');
+      const localIdEl = document.getElementById('localId');
+      const remoteIdEl = document.getElementById('remoteId');
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      const fileInput = document.getElementById('fileInput');
       const sendBtn = document.getElementById('sendBtn');
-      const receiveBtn = document.getElementById('receiveBtn');
-      const sentPreview = document.getElementById('sentPreview');
-      const receivedPreview = document.getElementById('receivedPreview');
+      const receivedList = document.getElementById('receivedList');
       const pageHashEl = document.getElementById('pageHash');
       const hashColorEl = document.getElementById('hashColor');
 
-      const setStatus = (msg) => {
-        console.info(msg);
-        statusEl.textContent = msg;
+      let peer;
+      let conn;
+
+      const setStatus = (message) => {
+        statusEl.textContent = message;
       };
 
-      const getLibp2pNode = async () => {
-        setStatus('Initializing libp2p node…');
-        const node = await createLibp2p({
-          transports: [
-            webRTC({
-              rtcConfiguration: {
-                iceServers: [
-                  { urls: 'stun:stun.l.google.com:19302' }
-                ]
-              }
-            })
-          ],
-          connectionEncrypters: [noise()],
-          streamMuxers: [yamux()],
-          addresses: {
-            listen: ['/webrtc']
-          },
-          services: {
-            identify: identify(),
-            identifyPush: identifyPush()
-          }
-        });
-
-        node.addEventListener('peer:connect', (evt) => {
-          setStatus(`Connected to peer ${evt.detail.remotePeer.toString()}`);
-        });
-
-        await node.start();
-        setStatus('libp2p ready. Share your multiaddrs to connect.');
-        multiaddrsEl.value = node.getMultiaddrs().map((addr) => addr.toString()).join('\n') || 'No multiaddrs available.';
-        return node;
+      const resetReceivedList = () => {
+        receivedList.innerHTML = '';
+        const placeholder = document.createElement('em');
+        placeholder.textContent = 'No files yet.';
+        receivedList.appendChild(placeholder);
       };
 
-      const readAll = async (source) => {
-        const chunks = [];
-        for await (const chunk of source) {
-          if (chunk instanceof Uint8Array) {
-            chunks.push(chunk);
-          } else if (Array.isArray(chunk)) {
-            chunks.push(Uint8Array.from(chunk));
-          } else {
-            chunks.push(new Uint8Array(chunk));
-          }
+      const appendReceivedFile = (name, blob) => {
+        if (receivedList.firstElementChild && receivedList.firstElementChild.tagName === 'EM') {
+          receivedList.innerHTML = '';
         }
-        const total = chunks.reduce((size, chunk) => size + chunk.length, 0);
-        const merged = new Uint8Array(total);
-        let offset = 0;
-        for (const chunk of chunks) {
-          merged.set(chunk, offset);
-          offset += chunk.length;
-        }
-        return merged;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = name;
+        link.textContent = `Download ${name} (${Math.round(blob.size / 1024)} KB)`;
+        receivedList.appendChild(link);
       };
 
-      const streamWriter = async (stream, bytes) => {
-        async function* singleChunk() {
-          yield bytes;
-        }
-        await stream.sink(singleChunk());
-      };
-
-      const generatePngBytes = () => new Promise((resolve, reject) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 480;
-        canvas.height = 240;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Canvas not supported in this browser.'));
-          return;
+      const wireConnection = (connection, origin) => {
+        if (conn && conn !== connection) {
+          conn.close();
         }
 
-        const time = new Date();
-        const timestamp = time.toLocaleString();
-        const hue = Math.floor(Math.random() * 360);
+        conn = connection;
 
-        // Background
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, `hsl(${hue}, 70%, 60%)`);
-        gradient.addColorStop(1, `hsl(${(hue + 60) % 360}, 70%, 40%)`);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Timestamp overlay
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.fillRect(20, canvas.height - 80, canvas.width - 40, 60);
-        ctx.fillStyle = '#111827';
-        ctx.font = '20px "Fira Code", "Menlo", monospace';
-        ctx.fillText('Random PNG @', 30, canvas.height - 50);
-        ctx.font = '24px "Fira Code", "Menlo", monospace';
-        ctx.fillText(timestamp, 30, canvas.height - 20);
-
-        canvas.toBlob(async (blob) => {
-          if (!blob) {
-            reject(new Error('Failed to create PNG blob.'));
-            return;
-          }
-          const arrayBuffer = await blob.arrayBuffer();
-          resolve({ bytes: new Uint8Array(arrayBuffer), blob });
-        }, 'image/png');
-      });
-
-      let node;
-      let readyToReceive = false;
-
-      receiveBtn.addEventListener('click', () => {
-        readyToReceive = true;
-        setStatus('Armed to receive the next image.');
-        receiveBtn.disabled = true;
-        setTimeout(() => {
-          receiveBtn.disabled = false;
-        }, 1500);
-      });
-
-      const initNode = async () => {
-        node = await getLibp2pNode();
-
-        node.handle(PROTOCOL, async ({ stream }) => {
-          setStatus('Incoming image stream…');
-          const bytes = await readAll(stream.source);
-          if (!readyToReceive) {
-            setStatus('Received image but receive button was not pressed. Displaying anyway.');
-          } else {
-            readyToReceive = false;
-            setStatus('Image received and displayed.');
-          }
-          const blob = new Blob([bytes], { type: 'image/png' });
-          const url = URL.createObjectURL(blob);
-          receivedPreview.src = url;
-        });
-      };
-
-      sendBtn.addEventListener('click', async () => {
-        if (!node) {
-          setStatus('Waiting for libp2p to finish starting…');
-          return;
-        }
-
-        const remoteAddr = remoteAddrEl.value.trim();
-        if (!remoteAddr) {
-          setStatus('Enter a remote peer multiaddr first.');
-          return;
-        }
-
-        try {
-          sendBtn.disabled = true;
-          setStatus('Generating PNG…');
-          const { bytes, blob } = await generatePngBytes();
-          sentPreview.src = URL.createObjectURL(blob);
-
-          let ma;
-          try {
-            ma = multiaddr(remoteAddr);
-          } catch (err) {
-            throw new Error(`Invalid multiaddr: ${err.message}`);
-          }
-
-          setStatus(`Dialing ${remoteAddr}…`);
-          const stream = await node.dialProtocol(ma, PROTOCOL);
-
-          setStatus('Sending PNG bytes over WebRTC data channel…');
-          await streamWriter(stream, bytes);
-          setStatus('PNG sent!');
-        } catch (err) {
-          console.error(err);
-          setStatus(`Send failed: ${err.message}`);
-        } finally {
+        conn.once('open', () => {
+          setStatus(`Connected to ${conn.peer} (${origin})`);
           sendBtn.disabled = false;
+          disconnectBtn.disabled = false;
+        });
+
+        conn.on('data', (payload) => {
+          if (payload && payload.kind === 'file' && Array.isArray(payload.bytes)) {
+            const bytes = new Uint8Array(payload.bytes);
+            const blob = new Blob([bytes], { type: payload.mime || 'application/octet-stream' });
+            appendReceivedFile(payload.name || 'received.bin', blob);
+            setStatus(`File received from ${conn.peer}`);
+          } else {
+            console.log('Received non-file payload:', payload);
+          }
+        });
+
+        conn.on('close', () => {
+          setStatus(`Connection to ${conn.peer} closed.`);
+          sendBtn.disabled = true;
+          disconnectBtn.disabled = true;
+        });
+
+        conn.on('error', (err) => {
+          console.error('Connection error:', err);
+          setStatus(`Connection error: ${err.message}`);
+        });
+      };
+
+      const initialisePeer = () => {
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+          localIdEl.textContent = id;
+          localIdEl.title = 'Share this ID with the remote peer';
+          setStatus('Share your Peer ID with a partner, then connect either way.');
+        });
+
+        peer.on('error', (err) => {
+          console.error('Peer error:', err);
+          setStatus(`Peer error: ${err.type ?? err.message}`);
+        });
+
+        peer.on('connection', (incomingConn) => {
+          setStatus(`Incoming connection from ${incomingConn.peer}`);
+          wireConnection(incomingConn, 'incoming');
+        });
+      };
+
+      connectBtn.addEventListener('click', () => {
+        const remoteId = remoteIdEl.value.trim();
+        if (!remoteId) {
+          setStatus('Enter a remote peer ID first.');
+          return;
         }
+
+        if (!peer || peer.disconnected) {
+          setStatus('PeerJS still initialising. Please wait.');
+          return;
+        }
+
+        setStatus(`Connecting to ${remoteId}…`);
+        const outgoing = peer.connect(remoteId, { reliable: true });
+        wireConnection(outgoing, 'outgoing');
       });
 
-      initNode().catch((err) => {
-        console.error(err);
-        setStatus(`Failed to start libp2p: ${err.message}`);
-        multiaddrsEl.value = 'Unable to start libp2p node. See console for details.';
+      disconnectBtn.addEventListener('click', () => {
+        if (conn) {
+          conn.close();
+        }
         sendBtn.disabled = true;
-        receiveBtn.disabled = true;
+        disconnectBtn.disabled = true;
+        setStatus('Disconnected.');
       });
+
+      sendBtn.addEventListener('click', () => {
+        const file = fileInput.files?.[0];
+        if (!conn || conn.open !== true) {
+          setStatus('Connect to a peer before sending files.');
+          return;
+        }
+        if (!file) {
+          setStatus('Choose a file to send.');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const arrayBuffer = reader.result;
+          const bytes = new Uint8Array(arrayBuffer);
+          const payload = {
+            kind: 'file',
+            name: file.name,
+            mime: file.type || 'application/octet-stream',
+            size: file.size,
+            bytes: Array.from(bytes),
+          };
+
+          setStatus(`Sending ${file.name} (${Math.round(file.size / 1024)} KB)…`);
+          conn.send(payload);
+          setStatus(`Sent ${file.name}.`);
+        };
+
+        reader.onerror = () => {
+          console.error('FileReader error:', reader.error);
+          setStatus(`Failed to read file: ${reader.error?.message ?? 'unknown error'}`);
+        };
+
+        reader.readAsArrayBuffer(file);
+      });
+
+      initialisePeer();
+      resetReceivedList();
 
       const updatePageFingerprint = async () => {
         if (!window.crypto?.subtle) {
-          pageHashEl.textContent = 'Web Crypto unsupported in this browser.';
+          pageHashEl.textContent = 'Web Crypto unsupported.';
           hashColorEl.textContent = 'X';
           return;
         }
@@ -380,7 +358,7 @@
           hashColorEl.setAttribute('aria-label', `Page hash colour ${hashHex.slice(0, 6)}`);
         } catch (err) {
           console.error('Fingerprint error:', err);
-          pageHashEl.textContent = `Unable to compute hash (${err.message}).`;
+          pageHashEl.textContent = `Fingerprint unavailable (${err.message}).`;
           hashColorEl.style.backgroundColor = '#9ca3af';
           hashColorEl.textContent = '!';
           hashColorEl.title = 'Fingerprint unavailable';

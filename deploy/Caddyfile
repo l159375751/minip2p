@@ -1,0 +1,28 @@
+{
+        debug
+    log {
+        output file /var/log/caddy/caddy.log
+        format console
+    }
+}
+
+ip.0x6d.net {
+        reverse_proxy 127.0.0.1:18080 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+0x6d.net {
+    @dotgit path /.git*
+    respond @dotgit "Not allowed" 403
+
+    @minip2p_exact path /minip2p
+    redir @minip2p_exact /minip2p/
+
+    handle_path /minip2p* {
+        root * /var/www/minip2p
+        file_server
+    }
+
+    respond "not found" 404
+}

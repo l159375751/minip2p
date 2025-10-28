@@ -1,0 +1,19 @@
+### /etc/systemd/system/echoip.service
+
+
+[Unit]
+Description=echoip - IP echo service
+After=network.target
+
+[Service]
+User=nobody
+Group=nogroup
+ExecStart=/opt/echoip/echoip -l 127.0.0.1:18080 -H X-Real-IP -t /opt/echoip/html
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

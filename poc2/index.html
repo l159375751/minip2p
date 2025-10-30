@@ -344,6 +344,8 @@
       let latestDemo = null;
       let demoUrl = null;
 
+      if (connectBtn) connectBtn.disabled = true;
+
       const toHex = (value) => value.toString(16).padStart(2, '0');
       const rgbToHex = ([r, g, b]) => `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 
@@ -503,12 +505,21 @@
       };
 
       const initialisePeer = () => {
-        peer = new window.Peer();
+        const options = {
+          host: '0.peerjs.com',
+          port: 443,
+          path: '/',
+          secure: true,
+          key: 'peerjs',
+        };
+
+        peer = new window.Peer(undefined, options);
 
         peer.on('open', (id) => {
           localIdEl.textContent = id;
           localIdEl.title = 'Share this ID with the remote peer';
           copyIdBtn.disabled = false;
+          connectBtn.disabled = false;
           setStatus('Share your Peer ID with a partner, then connect either way.');
         });
 
@@ -535,9 +546,14 @@
           return;
         }
 
-        setStatus(`Connecting to ${remoteId}…`);
-        const outgoing = peer.connect(remoteId, { reliable: true });
-        wireConnection(outgoing, 'outgoing');
+        try {
+          setStatus(`Connecting to ${remoteId}…`);
+          const outgoing = peer.connect(remoteId, { reliable: true });
+          wireConnection(outgoing, 'outgoing');
+        } catch (err) {
+          console.error('Peer connect error:', err);
+          setStatus(`Connection failed: ${err?.message ?? err}`);
+        }
       });
 
       copyIdBtn.addEventListener('click', async () => {

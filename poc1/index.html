@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>POC1 - P2P Gutenberg</title>
     <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body {
             font-family: monospace;
@@ -129,6 +130,35 @@
         .search-result button.neutral:hover {
             background: #e0e0e0;
         }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 6px;
+        }
+
+        .icon-button span {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .fingerprint-dot {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid #999;
+            background: #ddd;
+        }
     </style>
 </head>
 <body>
@@ -138,6 +168,25 @@
         Nostr: <span id="nostr-status" style="color: red;">Disconnected</span> |
         Index: <span id="index-count">0</span> books |
         Library: <span id="library-count">0</span> books
+    </div>
+
+    <!-- PEERJS BOX -->
+    <div class="box">
+        <h2>🔗 PeerJS</h2>
+        <div class="row" style="align-items:center;">
+            <div>
+                <strong>Your Peer ID:</strong>
+                <code id="localId">Initialising…</code>
+                <button id="copyIdBtn" class="secondary icon-button" type="button" aria-label="Copy peer ID" title="Copy peer ID" disabled>
+                    <span aria-hidden="true">📋</span>
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <input type="text" id="remoteId" placeholder="Remote peer ID">
+            <button id="connectBtn" class="secondary" type="button" disabled>Connect</button>
+        </div>
+        <div class="status" id="peer-status">Initialising PeerJS…</div>
     </div>
 
     <!-- NOSTR CONFIG BOX -->
@@ -213,9 +262,9 @@
         <div class="log" id="transfer-daemon-log"></div>
     </div>
 
-    <!-- WEBRTC DEBUG -->
+    <!-- P2P DEBUG -->
     <div class="box">
-        <h2>🔍 WebRTC Debug (detailed signaling)</h2>
+        <h2>🔍 Peer Debug (detailed logs)</h2>
         <button onclick="document.getElementById('webrtc-debug').innerHTML = ''">Clear</button>
         <div class="log" id="webrtc-debug" style="font-family: monospace; font-size: 11px; max-height: 600px;"></div>
     </div>
@@ -241,9 +290,56 @@
         let connectionCheckInterval = null; // Check connection status
         let searchResults = new Map(); // Track search results: bookId -> {book, peers: [pubkey]}
         let myWhoHasQueries = new Set(); // Track which book IDs we've asked "who has?" for
-        let peerConnections = new Map(); // Track WebRTC peer connections: connectionId -> RTCPeerConnection
-        let pendingTransfers = new Map(); // Track pending transfers: connectionId -> {bookId, peer, role}
-        let pendingIceCandidates = new Map(); // Track ICE candidates that arrived before remote description: connectionId -> [candidates]
+        let peer; // PeerJS instance
+        let peerConnections = new Map(); // Track active PeerJS data connections: peerId -> DataConnection
+        let incomingTransfers = new Map(); // Track incoming transfer state: key -> {chunks, totalChunks, title, author}
+        let latestDemo = null; // Placeholder for compatibility with send button logic
+
+        const localIdEl = document.getElementById('localId');
+        const copyIdBtn = document.getElementById('copyIdBtn');
+        const remoteIdEl = document.getElementById('remoteId');
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const fileInput = document.getElementById('fileInput');
+        const peerStatusEl = document.getElementById('peer-status');
+        const sourceRadios = document.querySelectorAll('input[name="sendSource"]');
+
+        if (connectBtn) connectBtn.disabled = true;
+
+        function setStatus(message) {
+            if (peerStatusEl) {
+                peerStatusEl.textContent = message;
+            }
+        }
+
+        function getSelectedSource() {
+            const selected = Array.from(sourceRadios || []).find((radio) => radio.checked);
+            return selected ? selected.value : 'demo';
+        }
+
+        function hasActivePeerConnection() {
+            for (const conn of peerConnections.values()) {
+                if (conn.open) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateSendButtonState() {
+            if (!sendBtn) return;
+            if (!hasActivePeerConnection()) {
+                sendBtn.disabled = true;
+                return;
+            }
+
+            if (getSelectedSource() === 'demo') {
+                sendBtn.disabled = !latestDemo;
+            } else {
+                const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+                sendBtn.disabled = !hasFile;
+            }
+        }
 
         // ===== INDEXEDDB =====
         function initDB() {
@@ -634,7 +730,10 @@
                             id: id,
                             title: title,
                             author: author,
-                            peers: []
+                            peers: [],
+                            peerTransports: {},
+                            peerPeerIds: {},
+                            completedPeers: []
                         });
                         console.log('[SEARCH RESULT] Now have', searchResults.size, 'results');
                         renderSearchResults();
@@ -664,13 +763,12 @@
                 }
             }
 
-            // "I have it" Answer (kind 25558) - includes transports or WebRTC offer
+            // "I have it" Answer (kind 25558) - includes transports/PeerJS metadata
             if (kind === 25558) {
                 const idTag = ev.tags.find(t => t[0] === 'id');
-                const offerTag = ev.tags.find(t => t[0] === 'offer');
-                const connTag = ev.tags.find(t => t[0] === 'conn');
                 const toTag = ev.tags.find(t => t[0] === 'to');
                 const transportsTag = ev.tags.find(t => t[0] === 'transports');
+                const peerTag = ev.tags.find(t => t[0] === 'peer');
                 const bookId = idTag ? idTag[1] : '';
                 const fromPubkey = ev.pubkey;
 
@@ -678,7 +776,7 @@
                 const isForUs = toTag && toTag[1] === keypair.pubkey;
 
                 // Check if this is for a book we asked about
-                if (myWhoHasQueries.has(bookId)) {
+                if (myWhoHasQueries.has(bookId) || isForUs) {
                     const transports = transportsTag ? JSON.parse(transportsTag[1]) : [];
                     const transportStr = transports.length > 0 ? ` (${transports.join(', ')})` : '';
                     log('search-log', `✓ Peer ${fromPubkey.substring(0, 8)}... has file ${bookId}${transportStr}`, 'answer');
@@ -688,6 +786,7 @@
                     if (result) {
                         if (!result.peers) result.peers = [];
                         if (!result.peerTransports) result.peerTransports = {};
+                        if (!result.peerPeerIds) result.peerPeerIds = {};
 
                         if (!result.peers.includes(fromPubkey)) {
                             result.peers.push(fromPubkey);
@@ -698,119 +797,16 @@
                             result.peerTransports[fromPubkey] = transports;
                         }
 
+                        if (peerTag) {
+                            result.peerPeerIds[fromPubkey] = peerTag[1];
+                        }
+
                         renderSearchResults();
                     }
-
-                    // Handle WebRTC offer if present
-                    if (isForUs && offerTag && connTag) {
-                        const offer = JSON.parse(offerTag[1]);
-                        const connectionId = connTag[1];
-
-                        log('transfer-log', `📥 Received WebRTC offer, starting transfer...`, 'answer');
-                        // Automatically handle the offer to start the transfer
-                        setTimeout(() => handleWebRTCOffer(offer, connectionId, bookId, fromPubkey), 500);
-                    }
                 }
             }
 
-            // WebRTC Answer (kind 25559)
-            if (kind === 25559) {
-                const connTag = ev.tags.find(t => t[0] === 'conn');
-                const answerTag = ev.tags.find(t => t[0] === 'answer');
-                const toTag = ev.tags.find(t => t[0] === 'to');
-
-                if (toTag && toTag[1] === keypair.pubkey && connTag && answerTag) {
-                    const connectionId = connTag[1];
-                    const answer = JSON.parse(answerTag[1]);
-                    const pc = peerConnections.get(connectionId);
-
-                    if (pc) {
-                        console.log('[ANSWER] Received answer, PC signaling state:', pc.signalingState);
-                        // Only set remote description if we're expecting an answer (we sent an offer)
-                        if (pc.signalingState === 'have-local-offer') {
-                            log('transfer-daemon-log', `✓ Received WebRTC answer`, 'answer');
-                            await pc.setRemoteDescription(answer);
-
-                            // Process any queued ICE candidates
-                            if (pendingIceCandidates.has(connectionId)) {
-                                const candidates = pendingIceCandidates.get(connectionId);
-                                console.log(`[SENDER] Processing ${candidates.length} queued ICE candidates`);
-                                logDebug('SENDER: Processing Queued ICE', { count: candidates.length });
-                                for (const candidate of candidates) {
-                                    await pc.addIceCandidate(candidate);
-                                }
-                                pendingIceCandidates.delete(connectionId);
-                            } else {
-                                console.log('[SENDER] No queued ICE candidates');
-                                logDebug('SENDER: No Queued ICE', {});
-                            }
-                        } else {
-                            console.log('[ANSWER] Ignoring answer - wrong signaling state:', pc.signalingState);
-                        }
-                    }
-                }
-            }
-
-            // Transfer Request (kind 25561)
-            if (kind === 25561) {
-                const idTag = ev.tags.find(t => t[0] === 'id');
-                const toTag = ev.tags.find(t => t[0] === 'to');
-                const transportTag = ev.tags.find(t => t[0] === 'transport');
-                const bookId = idTag ? idTag[1] : '';
-                const transport = transportTag ? transportTag[1] : 'webrtc-direct';
-                const fromPubkey = ev.pubkey;
-
-                if (toTag && toTag[1] === keypair.pubkey) {
-                    log('transfer-daemon-log', `📥 Transfer request for ${bookId} via ${transport}`, 'query');
-
-                    const haveIt = library.find(b => b.id === bookId);
-                    if (haveIt && (transport === 'webrtc-lan' || transport === 'webrtc-wan')) {
-                        log('transfer-daemon-log', `✓ Starting WebRTC transfer (${transport})...`, 'answer');
-                        setTimeout(() => sendIHaveIt(bookId, fromPubkey), 500);
-                    } else {
-                        log('transfer-daemon-log', `⏭️  Skip: Don't have file or unsupported transport`, 'query');
-                    }
-                }
-            }
-
-            // ICE Candidate (kind 25560)
-            if (kind === 25560) {
-                const connTag = ev.tags.find(t => t[0] === 'conn');
-                const candidateTag = ev.tags.find(t => t[0] === 'candidate');
-                const toTag = ev.tags.find(t => t[0] === 'to');
-
-                if (toTag && toTag[1] === keypair.pubkey && connTag && candidateTag) {
-                    const connectionId = connTag[1];
-                    const candidate = JSON.parse(candidateTag[1]);
-                    const pc = peerConnections.get(connectionId);
-
-                    const receivedCandData = {
-                        connectionId: connectionId.substring(0, 32) + '...',
-                        type: candidate.type,
-                        protocol: candidate.protocol,
-                        address: candidate.address,
-                        port: candidate.port,
-                        hasRemoteDesc: !!pc?.remoteDescription
-                    };
-                    console.log('[ICE RECEIVED] Candidate:', receivedCandData);
-                    logDebug('Received ICE Candidate', receivedCandData);
-
-                    if (pc) {
-                        if (pc.remoteDescription) {
-                            // Remote description is set, add candidate immediately
-                            console.log('[ICE] Adding candidate immediately');
-                            await pc.addIceCandidate(candidate);
-                        } else {
-                            // Queue candidate until remote description is set
-                            console.log('[ICE] Queuing candidate (no remote description yet)');
-                            if (!pendingIceCandidates.has(connectionId)) {
-                                pendingIceCandidates.set(connectionId, []);
-                            }
-                            pendingIceCandidates.get(connectionId).push(candidate);
-                        }
-                    }
-                }
-            }
+            // Legacy WebRTC-related events (25559/25560/25561) are ignored in the PeerJS version
         }
 
         // ===== LOAD INDEX =====
@@ -948,11 +944,14 @@
 
                                 // Show one button per transport
                                 if (transports.length > 0) {
-                                    return transports.map(transport => `
-                                        <button onclick="requestTransfer('${result.id}', '${peer}', '${transport}')">
-                                            ${peer.substring(0, 8)}... via ${transport}
-                                        </button>
-                                    `).join('');
+                                    return transports.map(transport => {
+                                        const label = transport === 'peerjs' ? 'PeerJS' : transport;
+                                        return `
+                                            <button onclick="requestTransfer('${result.id}', '${peer}', '${transport}')">
+                                                ${peer.substring(0, 8)}... via ${label}
+                                            </button>
+                                        `;
+                                    }).join('');
                                 } else {
                                     // Fallback if no transports specified
                                     return `<button onclick="requestTransfer('${result.id}', '${peer}')">Request from ${peer.substring(0, 8)}...</button>`;
@@ -992,18 +991,20 @@
             if (!ws) return;
 
             // Announce available transports
-            const transports = [
-                'webrtc-lan',     // WebRTC for same LAN (local network)
-                'webrtc-wan',     // WebRTC for internet (with STUN/ICE)
-                'libp2p',         // libp2p with its own transport layer
-            ];
+            if (!peer || !peer.id) {
+                log('transfer-daemon-log', '❌ PeerJS not ready; cannot announce availability.', 'transfer');
+                return;
+            }
+
+            const transports = ['peerjs'];
 
             const event = await makeEvent(
                 25558,
                 [
                     ['id', bookId],
                     ['to', targetPubkey],
-                    ['transports', JSON.stringify(transports)]
+                    ['transports', JSON.stringify(transports)],
+                    ['peer', peer.id]
                 ],
                 `I have file ${bookId}`
             );
@@ -1012,6 +1013,7 @@
             log('transfer-daemon-log', `→ Announced: ${transports.join(', ')}`, 'answer');
         }
 
+        /* Legacy WebRTC implementation retained for reference
         async function sendIHaveIt(bookId, targetPubkey) {
             if (!ws) return;
 
@@ -1384,41 +1386,19 @@
                 log('transfer-log', `❌ Channel error: ${error}`, 'transfer');
             };
         }
+        */
 
         async function requestTransfer(bookId, peerPubkey, transport) {
             console.log('[REQUEST TRANSFER] Called with:', { bookId, peerPubkey: peerPubkey.substring(0, 16), transport });
             log('transfer-log', `→ Requesting ${bookId} from ${peerPubkey.substring(0, 8)}... via ${transport || 'default'}`, 'query');
             logDebug('REQUEST: Starting Transfer', { bookId, peer: peerPubkey.substring(0, 16) + '...', transport });
 
-            if (transport === 'libp2p') {
-                log('transfer-log', `❌ libp2p not implemented yet - needs js-libp2p integration`, 'transfer');
+            if (transport && transport !== 'peerjs') {
+                log('transfer-log', `❌ Unsupported transport: ${transport}`, 'transfer');
                 return;
             }
 
-            if (transport === 'webrtc-lan' || transport === 'webrtc-wan' || !transport) {
-                // Use WebRTC - need to request WebRTC offer from peer
-                const event = await makeEvent(
-                    25561, // New event kind for "start webrtc transfer"
-                    [
-                        ['id', bookId],
-                        ['to', peerPubkey],
-                        ['transport', transport || 'webrtc-lan']
-                    ],
-                    `Request WebRTC transfer for ${bookId}`
-                );
-                ws.send(JSON.stringify(['EVENT', event]));
-                log('transfer-log', `→ Requested WebRTC connection (${transport || 'webrtc-lan'})`, 'query');
-                return;
-            }
-
-            // Legacy path - if we already have an offer stored
-            const result = searchResults.get(bookId);
-            if (result && result.peerOffers && result.peerOffers[peerPubkey]) {
-                const { offer, connectionId } = result.peerOffers[peerPubkey];
-                await handleWebRTCOffer(offer, connectionId, bookId, peerPubkey);
-            } else {
-                log('transfer-log', `❌ No offer available from this peer yet`, 'transfer');
-            }
+            startPeerJsTransfer(bookId, peerPubkey);
         }
 
         async function sendSearchAnswer(book) {
@@ -1435,6 +1415,267 @@
             log('search-daemon-log', `→ Answered: ${book.title} (${book.id})`, 'answer');
         }
 
+        function getPeerTransferKey(peerId, bookId) {
+            return `${peerId}::${bookId}`;
+        }
+
+        function setupPeerConnection(conn, context = {}) {
+            const remoteId = conn.peer;
+            conn._context = context;
+            peerConnections.set(remoteId, conn);
+
+            conn.on('open', () => {
+                log('transfer-log', `🔌 PeerJS connection open with ${remoteId}`, 'answer');
+                if (context.role === 'requester' && context.bookId) {
+                    conn.send(JSON.stringify({ type: 'request', bookId: context.bookId, from: keypair.pubkey }));
+                    log('transfer-log', `→ Requested ${context.bookId} from ${context.peerPubkey ? context.peerPubkey.substring(0, 8) + '...' : remoteId}`, 'query');
+                } else {
+                    log('transfer-daemon-log', `📡 Incoming PeerJS connection from ${remoteId}`, 'answer');
+                }
+                setStatus('Connected to peer.');
+                updateSendButtonState();
+            });
+
+            conn.on('data', (raw) => handlePeerMessage(conn, raw));
+
+            conn.on('close', () => {
+                peerConnections.delete(remoteId);
+                updateSendButtonState();
+                for (const key of Array.from(incomingTransfers.keys())) {
+                    if (key.startsWith(`${remoteId}::`)) {
+                        incomingTransfers.delete(key);
+                    }
+                }
+                log('transfer-log', `Connection to ${remoteId} closed`, 'query');
+                setStatus('Peer connection closed.');
+            });
+
+            conn.on('error', (err) => {
+                log('transfer-log', `❌ Peer connection error: ${err?.message ?? err}`, 'transfer');
+            });
+        }
+
+        function handlePeerMessage(conn, raw) {
+            let msg;
+            try {
+                msg = JSON.parse(raw);
+            } catch (err) {
+                console.warn('[PEER] Non-JSON payload received:', raw);
+                return;
+            }
+
+            switch (msg.type) {
+                case 'request':
+                    handlePeerRequest(conn, msg);
+                    break;
+                case 'meta':
+                    prepareIncomingTransfer(conn, msg);
+                    break;
+                case 'chunk':
+                    handleIncomingChunk(conn, msg);
+                    break;
+                case 'complete':
+                    finalizeIncomingTransfer(conn, msg);
+                    break;
+                case 'error':
+                    log('transfer-log', `❌ Peer error: ${msg.message}`, 'transfer');
+                    break;
+                default:
+                    console.warn('[PEER] Unknown message type:', msg);
+            }
+        }
+
+        const PEER_CHUNK_SIZE = 128 * 1024;
+
+        function handlePeerRequest(conn, msg) {
+            const { bookId, from } = msg;
+            if (!bookId) {
+                conn.send(JSON.stringify({ type: 'error', message: 'Missing bookId in request.' }));
+                return;
+            }
+
+            if (conn._context) {
+                conn._context.peerPubkey = from || conn._context.peerPubkey || null;
+            } else {
+                conn._context = { peerPubkey: from || null };
+            }
+
+            const transferEnabled = document.getElementById('transfer-daemon-enabled');
+            if (transferEnabled && !transferEnabled.checked) {
+                log('transfer-daemon-log', '⏭️  Transfer daemon disabled, ignoring request.', 'query');
+                conn.send(JSON.stringify({ type: 'error', bookId, message: 'Transfer daemon disabled.' }));
+                return;
+            }
+
+            const book = library.find((b) => b.id === bookId);
+            if (!book) {
+                log('transfer-daemon-log', `❌ Book ${bookId} not found for request`, 'transfer');
+                conn.send(JSON.stringify({ type: 'error', bookId, message: 'Book not available.' }));
+                return;
+            }
+
+            log('transfer-daemon-log', `📦 Sending "${book.title}" to ${conn.peer}`, 'answer');
+            sendBookOverPeer(conn, book);
+        }
+
+        function sendBookOverPeer(conn, book) {
+            const data = JSON.stringify(book);
+            const totalChunks = Math.max(1, Math.ceil(data.length / PEER_CHUNK_SIZE));
+
+            conn.send(JSON.stringify({
+                type: 'meta',
+                bookId: book.id,
+                title: book.title,
+                author: book.author || 'Unknown',
+                totalChunks,
+                from: keypair.pubkey
+            }));
+
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = data.slice(i * PEER_CHUNK_SIZE, (i + 1) * PEER_CHUNK_SIZE);
+                conn.send(JSON.stringify({ type: 'chunk', bookId: book.id, index: i, chunk }));
+            }
+
+            conn.send(JSON.stringify({ type: 'complete', bookId: book.id }));
+            log('transfer-daemon-log', `✓ Sent "${book.title}" in ${totalChunks} chunks`, 'answer');
+        }
+
+        function prepareIncomingTransfer(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            incomingTransfers.set(key, {
+                chunks: new Array(msg.totalChunks).fill(''),
+                totalChunks: msg.totalChunks,
+                received: 0,
+                title: msg.title,
+                author: msg.author,
+                peerPubkey: conn._context?.peerPubkey || msg.from || null
+            });
+            log('transfer-log', `📦 Incoming "${msg.title}" (${msg.totalChunks} chunks)`, 'answer');
+            setStatus(`Receiving "${msg.title}"…`);
+        }
+
+        function handleIncomingChunk(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            const transfer = incomingTransfers.get(key);
+            if (!transfer) {
+                console.warn('[PEER] Received chunk without transfer state', msg);
+                return;
+            }
+
+            transfer.chunks[msg.index] = msg.chunk;
+            transfer.received += 1;
+            log('transfer-log', `📥 Chunk ${msg.index + 1}/${transfer.totalChunks} (${msg.chunk.length} bytes)`, 'answer');
+        }
+
+        async function finalizeIncomingTransfer(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            const transfer = incomingTransfers.get(key);
+            if (!transfer) {
+                log('transfer-log', '❌ Transfer metadata missing; cannot finalize.', 'transfer');
+                return;
+            }
+
+            const combined = transfer.chunks.join('');
+            try {
+                const book = JSON.parse(combined);
+                await saveBookToDB(book);
+                library.push(book);
+                renderLibrary();
+                document.getElementById('library-count').textContent = library.length;
+
+                log('transfer-log', `✓ Received "${book.title}" (${combined.length} bytes)`, 'answer');
+                setStatus(`Received "${book.title}".`);
+
+                const result = searchResults.get(book.id);
+                if (result) {
+                    if (!result.completedPeers) result.completedPeers = [];
+                    const peerKey = transfer.peerPubkey;
+                    if (peerKey && !result.completedPeers.includes(peerKey)) {
+                        result.completedPeers.push(peerKey);
+                        renderSearchResults();
+                    }
+                }
+            } catch (e) {
+                log('transfer-log', `❌ Error saving book: ${e.message}`, 'transfer');
+                console.error('[PEER RECEIVE ERROR]', e, 'Data length:', combined.length);
+            } finally {
+                incomingTransfers.delete(key);
+            }
+        }
+
+        function startPeerJsTransfer(bookId, peerPubkey) {
+            if (!peer || peer.disconnected) {
+                log('transfer-log', '❌ PeerJS not ready yet.', 'transfer');
+                setStatus('PeerJS not ready yet.');
+                return;
+            }
+
+            const result = searchResults.get(bookId);
+            const peerId = result?.peerPeerIds?.[peerPubkey];
+            if (!peerId) {
+                log('transfer-log', '❌ Peer ID unavailable for this provider.', 'transfer');
+                setStatus('Peer ID unavailable for this provider.');
+                return;
+            }
+
+            log('transfer-log', `🔍 Dialling ${peerPubkey.substring(0, 8)}...`, 'query');
+            setStatus(`Connecting to provider ${peerPubkey.substring(0, 8)}…`);
+            try {
+                const conn = peer.connect(peerId, { reliable: true });
+                setupPeerConnection(conn, { role: 'requester', bookId, peerPubkey });
+            } catch (err) {
+                log('transfer-log', `❌ PeerJS connection failed: ${err?.message ?? err}`, 'transfer');
+                setStatus('PeerJS connection failed.');
+            }
+        }
+
+        if (copyIdBtn) {
+            copyIdBtn.addEventListener('click', () => {
+                const id = localIdEl?.textContent?.trim();
+                if (!id) {
+                    setStatus('Peer ID unavailable to copy yet.');
+                    return;
+                }
+                copyTextToClipboard(id, 'Peer ID copied to clipboard.');
+            });
+        }
+
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => {
+                const remoteId = remoteIdEl?.value?.trim();
+                if (!remoteId) {
+                    setStatus('Enter a remote Peer ID first.');
+                    return;
+                }
+                if (!peer || peer.disconnected) {
+                    setStatus('PeerJS not ready yet.');
+                    return;
+                }
+                if (remoteId === (peer.id || '')) {
+                    setStatus('Use a partner\'s ID, not your own.');
+                    return;
+                }
+
+                log('transfer-log', `🔗 Opening PeerJS connection to ${remoteId}`, 'query');
+                setStatus(`Connecting to ${remoteId}…`);
+                try {
+                    const conn = peer.connect(remoteId, { reliable: true });
+                    setupPeerConnection(conn, { role: 'manual' });
+                } catch (err) {
+                    log('transfer-log', `❌ Connection failed: ${err?.message ?? err}`, 'transfer');
+                }
+            });
+        }
+
+        Array.from(sourceRadios).forEach((radio) => {
+            radio.addEventListener('change', updateSendButtonState);
+        });
+
+        if (fileInput) {
+            fileInput.addEventListener('change', updateSendButtonState);
+        }
+
+        updateSendButtonState();
         // ===== TRANSFER =====
         async function requestBook() {
             if (!ws) {
@@ -1451,8 +1692,7 @@
             log('transfer-log', `→ Requesting book ${bookId}`, 'transfer');
             document.getElementById('transfer-book-id').value = '';
 
-            // TODO: WebRTC setup
-            log('transfer-log', 'WebRTC transfer not yet implemented', 'transfer');
+            log('transfer-log', 'PeerJS transfer requested; awaiting peers...', 'query');
         }
 
         // ===== LIBRARY =====
@@ -1609,6 +1849,72 @@
             ).join('');
         }
 
+        async function copyTextToClipboard(text, successMessage) {
+            try {
+                await navigator.clipboard.writeText(text);
+                if (successMessage) {
+                    setStatus(successMessage);
+                }
+            } catch (err) {
+                console.warn('[CLIPBOARD]', err);
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    if (successMessage) {
+                        setStatus(successMessage);
+                    }
+                } catch (fallbackErr) {
+                    console.error('[CLIPBOARD FALLBACK]', fallbackErr);
+                    setStatus('Copy failed. Select and copy manually.');
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        async function initPeerJs() {
+            if (!window.Peer) {
+                setStatus('PeerJS script failed to load.');
+                return;
+            }
+
+            return new Promise((resolve) => {
+                setStatus('Initialising PeerJS…');
+                const options = {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    secure: true,
+                    key: 'peerjs'
+                };
+
+                peer = new window.Peer(undefined, options);
+
+                peer.on('open', (id) => {
+                    localIdEl.textContent = id;
+                    localIdEl.title = 'Share this ID with your peer';
+                    copyIdBtn.disabled = false;
+                    connectBtn.disabled = false;
+                    setStatus('Share your Peer ID, then connect to a partner.');
+                    updateSendButtonState();
+                    resolve();
+                });
+
+                peer.on('error', (err) => {
+                    console.error('[PeerJS ERROR]', err);
+                    setStatus(`PeerJS error: ${err?.type ?? err?.message ?? err}`);
+                    resolve();
+                });
+
+                peer.on('connection', (conn) => {
+                    setupPeerConnection(conn, { role: 'provider' });
+                });
+            });
+        }
+
         // Initialize
         async function init() {
             await initDB();
@@ -1618,6 +1924,8 @@
             renderLibrary();
             renderSearchResults();
             log('transfer-log', `Loaded ${library.length} books from storage`, 'answer');
+
+            await initPeerJs();
 
             // Auto-connect to Nostr and load index
             connectNostr();

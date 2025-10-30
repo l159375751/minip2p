@@ -1,327 +1,1870 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POC9 - Unzip & Create Torrents for Individual Files</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
+    <title>POC9 - Complete Offline Gutenberg Library</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <script src="https://unpkg.com/nostr-tools@2.1.4/lib/nostr.bundle.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer data-peerjs></script>
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
-        :root {
-            color-scheme: light dark;
-            font-family: system-ui, sans-serif;
-        }
         body {
-            margin: 0;
-            padding: 2rem;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            min-height: 100vh;
-        }
-        .container {
+            font-family: monospace;
             max-width: 1000px;
-            margin: 0 auto;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fafafa;
         }
-        h1 {
-            color: white;
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        .card {
+
+        .box {
             background: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-            margin-bottom: 1.5rem;
+            border: 2px solid #333;
+            padding: 20px;
+            margin-bottom: 20px;
         }
-        h2 {
-            margin: 0 0 1.5rem 0;
-            color: #f5576c;
-            font-size: 1.5rem;
+
+        .box h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
         }
-        .file-drop-zone {
-            border: 3px dashed #f5576c;
-            border-radius: 0.75rem;
-            padding: 3rem;
-            text-align: center;
-            background: #fff5f7;
-            cursor: pointer;
-            transition: all 0.3s;
+
+        input, button, select {
+            font-family: monospace;
+            padding: 8px;
+            margin: 5px;
         }
-        .file-drop-zone:hover {
-            background: #ffebef;
-            border-color: #f093fb;
+
+        input[type="text"] {
+            width: 300px;
         }
-        input[type="file"] {
-            display: none;
-        }
-        button {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            border: none;
-            padding: 1rem 2rem;
-            border-radius: 0.5rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s;
-            width: 100%;
-            margin-top: 1rem;
-        }
-        button:hover {
-            transform: translateY(-2px);
-        }
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-        }
+
         .status {
-            background: #fff5f7;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin: 1rem 0;
-            border-left: 4px solid #f5576c;
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
         }
-        .file-list {
-            max-height: 400px;
-            overflow-y: auto;
-            margin: 1rem 0;
-        }
-        .file-item {
-            background: #f8f9ff;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin: 0.5rem 0;
-            border-left: 3px solid #f093fb;
-        }
-        .file-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        .file-name {
-            font-weight: 600;
-            color: #333;
-        }
-        .file-size {
-            color: #666;
-            font-size: 0.9rem;
-        }
-        .magnet-link {
-            background: #1a1a2e;
-            color: #0ff;
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-            font-family: monospace;
-            font-size: 0.75rem;
-            word-break: break-all;
-            cursor: pointer;
-            margin-top: 0.5rem;
-        }
-        .magnet-link:hover {
-            background: #252547;
-        }
-        .progress {
-            height: 20px;
-            background: #e0e0e0;
-            border-radius: 0.25rem;
-            overflow: hidden;
-            margin-top: 0.5rem;
-        }
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            transition: width 0.3s;
-            text-align: center;
-            color: white;
-            font-size: 0.8rem;
-            line-height: 20px;
-        }
+
         .log {
-            background: #1a1a2e;
-            color: #0f0;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            max-height: 300px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            max-height: 200px;
             overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.85rem;
+            font-size: 12px;
         }
+
         .log-entry {
-            margin: 0.25rem 0;
+            padding: 3px 0;
+            border-left: 3px solid #999;
+            padding-left: 8px;
+            margin: 3px 0;
+        }
+
+        .log-entry.query { border-color: #00f; }
+        .log-entry.answer { border-color: #0f0; }
+        .log-entry.transfer { border-color: #f90; }
+
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .book-card {
+            border: 1px solid #ccc;
+            padding: 12px;
+            background: #fafafa;
+        }
+
+        .book-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+        }
+
+        .book-card button {
+            font-size: 11px;
+            padding: 4px 8px;
+            margin: 2px;
+        }
+
+        .search-result {
+            background: #f0f9ff;
+            border: 1px solid #0891b2;
+            padding: 10px;
+            margin: 8px 0;
+        }
+
+        .search-result h4 {
+            margin: 0 0 5px 0;
+        }
+
+        .search-result .peer {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .search-result button {
+            font-size: 12px;
+            padding: 5px 10px;
+            margin-top: 5px;
+            background: #B5F5B5;
+            border: 1px solid #5DA85D;
+            cursor: pointer;
+        }
+
+        .search-result button:hover {
+            background: #A0E8A0;
+        }
+
+        .search-result button.completed {
+            background: #006400;
+            color: white;
+            cursor: default;
+        }
+
+        .search-result button.neutral {
+            background: #f0f0f0;
+            border: 1px solid #999;
+        }
+
+        .search-result button.neutral:hover {
+            background: #e0e0e0;
+        }
+
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .icon-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            border-radius: 6px;
+        }
+
+        .icon-button span {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .fingerprint-dot {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid #999;
+            background: #ddd;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🗂️ POC9 - Unzip & Create Individual Torrents</h1>
+    <h1>POC9 - Complete Offline Gutenberg Library (Fetch ALL via WebTorrent, Serve ALL from Index)</h1>
 
-        <div class="card">
-            <h2>1. Select ZIP File</h2>
-            <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">🗂️</div>
-                <div><strong>Click to select</strong> or drag & drop your ZIP file</div>
-                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Will unzip and create individual torrents</div>
-            </div>
-            <input type="file" id="fileInput" accept=".zip">
-            <div id="fileInfo" style="display: none; margin-top: 1rem;">
-                <div class="status">
-                    <strong>Selected:</strong> <span id="fileName"></span> (<span id="fileSize"></span>)
-                </div>
-            </div>
+    <div class="status">
+        Nostr: <span id="nostr-status" style="color: red;">Disconnected</span> |
+        Index: <span id="index-count">0</span> books |
+        Library: <span id="library-count">0</span> books |
+        Storage: <span id="storage-info">Checking...</span>
+    </div>
+
+    <!-- WEBTORRENT COLLECTION BOX -->
+    <div class="box" style="background: #ffffee; border-color: #d4a017;">
+        <h2>📚 Download Full Gutenberg Collection (10.9GB via WebTorrent)</h2>
+        <div class="status" id="torrent-status">Ready to download complete collection (~70,000 books)</div>
+        <div style="margin: 10px 0;">
+            <strong>Magnet Link:</strong>
+            <input type="text" id="magnet-link" placeholder="Paste magnet link for txt-files.tar.zip" style="width: 100%;" value="magnet:?xt=urn:btih:PLACEHOLDER">
         </div>
-
-        <div class="card" id="unzipCard" style="display: none;">
-            <h2>2. Unzip & Create Torrents</h2>
-            <div class="status" id="unzipStatus">Ready to unzip</div>
-            <button id="unzipBtn" onclick="unzipAndSeed()">Unzip & Create Torrents for Each File</button>
-
-            <div id="unzipProgress" style="display: none; margin: 1rem 0;">
-                <div class="progress">
-                    <div class="progress-bar" id="progressBar">0%</div>
-                </div>
+        <button onclick="downloadGutenbergCollection()">Download Collection via WebTorrent</button>
+        <div id="torrent-progress" style="display: none; margin-top: 10px;">
+            <div style="background: #ddd; height: 30px; border-radius: 5px; overflow: hidden;">
+                <div id="torrent-progress-bar" style="background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;"></div>
             </div>
-
-            <div id="fileList" class="file-list" style="display: none;"></div>
-        </div>
-
-        <div class="card">
-            <h2>📝 Console Log</h2>
-            <div class="log" id="log"></div>
+            <div style="margin-top: 5px; font-size: 12px;">
+                <span id="torrent-details">Connecting...</span>
+            </div>
         </div>
     </div>
 
+    <!-- PEERJS BOX -->
+    <div class="box">
+        <h2>🔗 PeerJS</h2>
+        <div class="row" style="align-items:center;">
+            <div>
+                <strong>Your Peer ID:</strong>
+                <code id="localId">Initialising…</code>
+                <button id="copyIdBtn" class="secondary icon-button" type="button" aria-label="Copy peer ID" title="Copy peer ID" disabled>
+                    <span aria-hidden="true">📋</span>
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <input type="text" id="remoteId" placeholder="Remote peer ID">
+            <button id="connectBtn" class="secondary" type="button" disabled>Connect</button>
+        </div>
+        <div class="status" id="peer-status">Initialising PeerJS…</div>
+    </div>
+
+    <!-- NOSTR CONFIG BOX -->
+    <div class="box">
+        <h2>🔑 Nostr Config (testing)</h2>
+        <div>
+            <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
+            <button onclick="nextRelay()">Next Relay</button>
+            <button onclick="generateKeypair()">New Keypair</button>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px;">
+            <div><strong>Pubkey:</strong> <code id="pubkey" style="word-break: break-all;">-</code></div>
+            <div style="margin-top: 5px;"><strong>Privkey:</strong> <code id="privkey" style="word-break: break-all;">-</code></div>
+        </div>
+    </div>
+
+    <!-- SEARCH BOX -->
+    <div class="box">
+        <h2>📖 Search</h2>
+        <div>
+            <input type="text" id="search-query" placeholder="Search for books..." value="dracula" onkeypress="if(event.key === 'Enter') searchBooks()">
+            <button onclick="searchBooks()">Search Network</button>
+        </div>
+        <h3>Search Results</h3>
+        <div id="search-results"></div>
+        <h3>Network Activity</h3>
+        <div class="log" id="search-log"></div>
+    </div>
+
+    <!-- SEARCH DAEMON DEBUG -->
+    <div class="box">
+        <h2>🔍 Search Daemon - Debug</h2>
+        <div class="log" id="search-daemon-log"></div>
+    </div>
+
+    <!-- LIBRARY BOX -->
+    <div class="box">
+        <h2>📚 My Library</h2>
+        <div>
+            <button onclick="addTestBook()">Add Test Book</button>
+        </div>
+        <div id="library" class="book-grid">
+            <p>No books yet. Download some to get started!</p>
+        </div>
+    </div>
+
+    <!-- TRANSFER BOX -->
+    <div class="box">
+        <h2>📥 Transfer Client</h2>
+        <div>
+            <input type="text" id="transfer-book-id" placeholder="Book ID">
+            <button onclick="requestBook()">Request Book</button>
+        </div>
+        <div class="log" id="transfer-log"></div>
+    </div>
+
+    <!-- DAEMON CONTROLS -->
+    <div class="box">
+        <h2>🤖 Daemon Controls</h2>
+        <div>
+            <button onclick="loadIndex()">Load Index</button>
+            <button onclick="forceLoadTestBooks()">Load 5 Test Books</button>
+        </div>
+        <div style="margin-top: 10px;">
+            <label><input type="checkbox" id="search-daemon-enabled" checked> Search Daemon (auto-respond to queries)</label><br>
+            <label><input type="checkbox" id="transfer-daemon-enabled" checked> Transfer Daemon (auto-serve books)</label>
+        </div>
+    </div>
+
+    <!-- TRANSFER DAEMON DEBUG -->
+    <div class="box">
+        <h2>📡 Transfer Daemon - Debug</h2>
+        <div class="log" id="transfer-daemon-log"></div>
+    </div>
+
+    <!-- P2P DEBUG -->
+    <div class="box">
+        <h2>🔍 Peer Debug (detailed logs)</h2>
+        <button onclick="document.getElementById('webrtc-debug').innerHTML = ''">Clear</button>
+        <div class="log" id="webrtc-debug" style="font-family: monospace; font-size: 11px; max-height: 600px;"></div>
+    </div>
+
     <script>
-        const client = new WebTorrent();
-        let selectedFile = null;
-        let zipFiles = [];
-        let torrents = [];
+        console.log('%c🚀 POC9 Complete Offline Gutenberg Library', 'background: #2563eb; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+        console.log('Fetch ALL data (10.9GB) via WebTorrent, full index of ~70,000 books, serve ALL books from zip on-demand.');
 
-        console.log('%c🗂️ POC9 - Unzip & Torrent Creator', 'background: #f5576c; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+        // ===== STATE =====
+        let ws = null;
+        let books = []; // index
+        let library = []; // downloaded books
+        const relays = [
+            'wss://relay.snort.social',
+            'wss://nostr.wine',
+            'wss://relay.nostr.band',
+            'wss://nos.lol',           // Requires POW - skip for now
+            'wss://relay.damus.io'     // Rate limits easily
+        ];
+        let currentRelayIndex = 0;
+        let relay = relays[currentRelayIndex];
+        let keypair = { pubkey: '', privkey: '' };
+        let db = null;
+        let mySearches = new Set(); // Track our own searches to match responses
+        let answeredQueries = new Map(); // Track what we've answered: eventId -> timestamp
+        let connectionCheckInterval = null; // Check connection status
+        let searchResults = new Map(); // Track search results: bookId -> {book, peers: [pubkey]}
+        let myWhoHasQueries = new Set(); // Track which book IDs we've asked "who has?" for
+        let peer; // PeerJS instance
+        let peerConnections = new Map(); // Track active PeerJS data connections: peerId -> DataConnection
+        let incomingTransfers = new Map(); // Track incoming transfer state: key -> {chunks, totalChunks, title, author}
+        let latestDemo = null; // Placeholder for compatibility with send button logic
 
-        function log(message) {
-            const logEl = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            const timestamp = new Date().toLocaleTimeString();
-            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
-            logEl.appendChild(entry);
-            logEl.scrollTop = logEl.scrollHeight;
-            console.log(message);
+        const localIdEl = document.getElementById('localId');
+        const copyIdBtn = document.getElementById('copyIdBtn');
+        const remoteIdEl = document.getElementById('remoteId');
+        const connectBtn = document.getElementById('connectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const fileInput = document.getElementById('fileInput');
+        const peerStatusEl = document.getElementById('peer-status');
+        const sourceRadios = document.querySelectorAll('input[name="sendSource"]');
+
+        if (connectBtn) connectBtn.disabled = true;
+
+        function setStatus(message) {
+            if (peerStatusEl) {
+                peerStatusEl.textContent = message;
+            }
         }
 
-        document.getElementById('fileInput').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) handleFile(file);
-        });
-
-        const dropZone = document.getElementById('dropZone');
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            const file = e.dataTransfer.files[0];
-            if (file) handleFile(file);
-        });
-
-        function handleFile(file) {
-            selectedFile = file;
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = formatBytes(file.size);
-            document.getElementById('fileInfo').style.display = 'block';
-            document.getElementById('unzipCard').style.display = 'block';
-            log(`📁 Selected: ${file.name} (${formatBytes(file.size)})`);
+        function getSelectedSource() {
+            const selected = Array.from(sourceRadios || []).find((radio) => radio.checked);
+            return selected ? selected.value : 'demo';
         }
 
-        async function unzipAndSeed() {
-            if (!selectedFile) {
-                alert('Please select a file first');
+        function hasActivePeerConnection() {
+            for (const conn of peerConnections.values()) {
+                if (conn.open) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function updateSendButtonState() {
+            if (!sendBtn) return;
+            if (!hasActivePeerConnection()) {
+                sendBtn.disabled = true;
                 return;
             }
 
-            log(`📦 Unzipping ${selectedFile.name}...`);
-            document.getElementById('unzipStatus').textContent = 'Unzipping...';
-            document.getElementById('unzipBtn').disabled = true;
-            document.getElementById('unzipProgress').style.display = 'block';
-
-            try {
-                const zip = await JSZip.loadAsync(selectedFile);
-                const files = Object.keys(zip.files).filter(name => !zip.files[name].dir);
-                log(`✅ Found ${files.length} files in zip`);
-
-                document.getElementById('unzipStatus').textContent = `Found ${files.length} files. Creating torrents...`;
-                document.getElementById('fileList').style.display = 'block';
-
-                let completed = 0;
-                for (const fileName of files) {
-                    const fileData = await zip.files[fileName].async('blob');
-                    const file = new File([fileData], fileName);
-
-                    log(`🔨 Creating torrent for ${fileName}...`);
-
-                    const fileEl = document.createElement('div');
-                    fileEl.className = 'file-item';
-                    fileEl.id = `file-${completed}`;
-                    fileEl.innerHTML = `
-                        <div class="file-item-header">
-                            <div class="file-name">${fileName}</div>
-                            <div class="file-size">${formatBytes(file.size)}</div>
-                        </div>
-                        <div style="color: #666; font-size: 0.9rem;">Creating torrent...</div>
-                    `;
-                    document.getElementById('fileList').appendChild(fileEl);
-
-                    await new Promise((resolve) => {
-                        client.seed(file, {
-                            name: fileName,
-                            announceList: [
-                                ['wss://tracker.openwebtorrent.com'],
-                                ['wss://tracker.btorrent.xyz'],
-                                ['wss://tracker.webtorrent.dev']
-                            ]
-                        }, (torrent) => {
-                            torrents.push(torrent);
-                            log(`✅ Torrent created for ${fileName}`);
-
-                            fileEl.innerHTML = `
-                                <div class="file-item-header">
-                                    <div class="file-name">✅ ${fileName}</div>
-                                    <div class="file-size">${formatBytes(file.size)}</div>
-                                </div>
-                                <div style="color: #10b981; font-weight: 600; margin: 0.5rem 0;">Seeding</div>
-                                <div class="magnet-link" onclick="copyToClipboard('${torrent.magnetURI.replace(/'/g, "\\'")}', '${fileName}')"
-                                     title="Click to copy">
-                                    ${torrent.magnetURI}
-                                </div>
-                            `;
-
-                            completed++;
-                            const progress = Math.round((completed / files.length) * 100);
-                            document.getElementById('progressBar').style.width = progress + '%';
-                            document.getElementById('progressBar').textContent = progress + '%';
-                            resolve();
-                        });
-                    });
-                }
-
-                log(`🎉 All ${files.length} torrents created and seeding!`);
-                document.getElementById('unzipStatus').textContent = `✅ All ${files.length} files seeding!`;
-
-            } catch (e) {
-                log(`❌ Error: ${e.message}`);
-                document.getElementById('unzipStatus').textContent = `Error: ${e.message}`;
+            if (getSelectedSource() === 'demo') {
+                sendBtn.disabled = !latestDemo;
+            } else {
+                const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+                sendBtn.disabled = !hasFile;
             }
         }
 
-        function copyToClipboard(text, fileName) {
-            navigator.clipboard.writeText(text).then(() => {
-                log(`📋 Copied magnet link for ${fileName}`);
-                alert(`Magnet link copied for ${fileName}!`);
+        // ===== WEBRTC DEBUGGING =====
+        function wrapConnectionWithDebug(connection, label) {
+            console.group(`%c🔌 ${label} Connection Wrapper`, 'color: #8b5cf6; font-weight: bold;');
+            console.log('Peer ID:', connection.peer);
+            console.log('Connection ID:', connection.connectionId);
+            console.groupEnd();
+
+            // Access the underlying RTCPeerConnection
+            const getPeerConnection = () => {
+                return connection.peerConnection || connection._pc;
+            };
+
+            // Monitor connection state periodically
+            setTimeout(() => {
+                const pc = getPeerConnection();
+                if (!pc) {
+                    console.warn(`%c⚠️ ${label} RTCPeerConnection not accessible yet`, 'color: #f59e0b;');
+                    return;
+                }
+
+                console.group(`%c🎯 ${label} RTCPeerConnection Found`, 'color: #10b981; font-weight: bold;');
+                console.log('Connection state:', pc.connectionState);
+                console.log('ICE connection state:', pc.iceConnectionState);
+                console.log('ICE gathering state:', pc.iceGatheringState);
+                console.log('Signaling state:', pc.signalingState);
+                console.groupEnd();
+
+                // ICE candidate logging
+                pc.addEventListener('icecandidate', (event) => {
+                    if (event.candidate) {
+                        console.group(`%c🧊 ${label} ICE Candidate`, 'color: #3b82f6; font-weight: bold;');
+                        console.log('Candidate:', event.candidate.candidate);
+                        console.log('Type:', event.candidate.type);
+                        console.log('Protocol:', event.candidate.protocol);
+                        console.log('Address:', event.candidate.address);
+                        console.log('Port:', event.candidate.port);
+                        console.log('Priority:', event.candidate.priority);
+                        console.groupEnd();
+                    } else {
+                        console.log(`%c✅ ${label} ICE Candidate Gathering Complete`, 'color: #10b981; font-weight: bold;');
+                    }
+                });
+
+                // State change logging
+                pc.addEventListener('iceconnectionstatechange', () => {
+                    console.log(`%c🔄 ${label} ICE Connection State:`, 'color: #8b5cf6; font-weight: bold;', pc.iceConnectionState);
+                });
+
+                pc.addEventListener('icegatheringstatechange', () => {
+                    console.log(`%c📡 ${label} ICE Gathering State:`, 'color: #06b6d4; font-weight: bold;', pc.iceGatheringState);
+                });
+
+                pc.addEventListener('connectionstatechange', () => {
+                    console.log(`%c🔗 ${label} Connection State:`, 'color: #f59e0b; font-weight: bold;', pc.connectionState);
+                });
+
+                pc.addEventListener('signalingstatechange', () => {
+                    console.log(`%c📞 ${label} Signaling State:`, 'color: #ec4899; font-weight: bold;', pc.signalingState);
+                });
+
+                // Log ICE servers configuration
+                const config = pc.getConfiguration();
+                if (config.iceServers) {
+                    console.group(`%c🌐 ${label} ICE Servers (STUN/TURN)`, 'color: #10b981; font-weight: bold;');
+                    config.iceServers.forEach((server, index) => {
+                        console.log(`Server ${index + 1}:`, {
+                            urls: server.urls,
+                            username: server.username || '(none)',
+                            credential: server.credential ? '(present)' : '(none)',
+                        });
+                    });
+                    console.groupEnd();
+                }
+            }, 100);
+        }
+
+        // ===== INDEXEDDB =====
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open('GutenbergP2P', 1);
+
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('library')) {
+                        const store = db.createObjectStore('library', { keyPath: 'id' });
+                        store.createIndex('title', 'title', { unique: false });
+                    }
+                };
+            });
+        }
+
+        async function saveBookToDB(book) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readwrite');
+                const store = tx.objectStore('library');
+                const request = store.put(book);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function loadLibraryFromDB() {
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readonly');
+                const store = tx.objectStore('library');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteBookFromDB(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['library'], 'readwrite');
+                const store = tx.objectStore('library');
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function forceLoadTestBooks() {
+            // Force load test books (ignores existing library)
+            await loadTestBooksImpl();
+        }
+
+        async function seedTestBooks() {
+            // Add some test books to the library if empty
+            if (library.length > 0) return;
+            await loadTestBooksImpl();
+        }
+
+        async function loadTestBooksImpl() {
+
+            const bookFiles = [
+                { id: '11', title: "Alice's Adventures in Wonderland", author: 'Lewis Carroll', file: 'alice.txt' },
+                { id: '1342', title: 'Pride and Prejudice', author: 'Jane Austen', file: 'pride.txt' },
+                { id: '84', title: 'Frankenstein', author: 'Mary Wollstonecraft Shelley', file: 'frankenstein.txt' },
+                { id: '345', title: 'Dracula', author: 'Bram Stoker', file: 'dracula.txt' },
+                { id: '48320', title: 'Adventures of Sherlock Holmes', author: 'Arthur Conan Doyle', file: 'sherlock.txt' }
+            ];
+
+            let loaded = 0;
+            let skipped = 0;
+
+            for (const bookMeta of bookFiles) {
+                // Skip if already in library
+                if (library.find(b => b.id === bookMeta.id)) {
+                    skipped++;
+                    console.log(`[SEED] Skipping ${bookMeta.title} - already in library`);
+                    continue;
+                }
+
+                try {
+                    const response = await fetch(bookMeta.file);
+                    if (!response.ok) continue;
+                    const content = await response.text();
+
+                    const book = {
+                        id: bookMeta.id,
+                        title: bookMeta.title,
+                        author: bookMeta.author,
+                        content: content
+                    };
+
+                    await saveBookToDB(book);
+                    library.push(book);
+                    loaded++;
+                } catch (e) {
+                    console.log(`[SEED] Could not load ${bookMeta.file}: ${e.message}`);
+                }
+            }
+
+            renderLibrary();
+            document.getElementById('library-count').textContent = library.length;
+            log('transfer-log', `Loaded ${loaded} books (${skipped} already present)`, 'answer');
+        }
+
+        // ===== LOGGING =====
+        function logDebug(label, data) {
+            const container = document.getElementById('webrtc-debug');
+            if (!container) return;
+
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+            div.style.padding = '8px';
+            div.style.background = '#f5f5f5';
+            div.style.border = '1px solid #ddd';
+            div.style.borderRadius = '3px';
+
+            const time = new Date().toLocaleTimeString();
+            const labelSpan = document.createElement('div');
+            labelSpan.style.fontWeight = 'bold';
+            labelSpan.style.color = '#0066cc';
+            labelSpan.textContent = `[${time}] ${label}`;
+
+            const pre = document.createElement('pre');
+            pre.style.margin = '5px 0 0 0';
+            pre.style.whiteSpace = 'pre-wrap';
+            pre.style.fontSize = '10px';
+            pre.textContent = JSON.stringify(data, null, 2);
+
+            div.appendChild(labelSpan);
+            div.appendChild(pre);
+            container.prepend(div);
+        }
+
+        function log(boxId, msg, type = '') {
+            console.log(`[LOG] ${boxId}: ${msg}`);
+            const container = document.getElementById(boxId);
+            if (!container) {
+                console.error(`[LOG ERROR] Container not found: ${boxId}`);
+                return;
+            }
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            container.prepend(div);
+        }
+
+        // ===== NOSTR CONNECTION =====
+        function toggleNostrConnection() {
+            if (ws) {
+                disconnectNostr();
+            } else {
+                connectNostr();
+            }
+        }
+
+        function nextRelay() {
+            log('search-daemon-log', 'Switching to next relay...', 'query');
+            if (ws) disconnectNostr();
+            currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+            relay = relays[currentRelayIndex];
+            setTimeout(() => connectNostr(), 500);
+        }
+
+        function connectNostr() {
+            if (ws) {
+                log('search-daemon-log', 'Already connected');
+                return;
+            }
+
+            log('search-daemon-log', `Connecting to ${relay}...`);
+            ws = new WebSocket(relay);
+
+            ws.onopen = () => {
+                const statusEl = document.getElementById('nostr-status');
+                statusEl.textContent = `Connected (${relay.replace('wss://', '')})`;
+                statusEl.style.color = 'green';
+                const connectBtn = document.getElementById('connect-btn');
+                if (connectBtn) connectBtn.textContent = 'Disconnect';
+                log('search-daemon-log', `Connected to ${relay}!`, 'answer');
+
+                // Subscribe to search queries and answers (only NEW events from now on)
+                const now = Math.floor(Date.now() / 1000);
+                const sub = JSON.stringify([
+                    'REQ',
+                    'gutenberg',
+                    {
+                        kinds: [25555, 25556, 25557, 25558, 25559, 25560], // search, metadata, who-has, offer, answer, ice
+                        since: now // only events from now forward
+                    }
+                ]);
+                ws.send(sub);
+                log('search-daemon-log', 'Subscribed to TEST events (kinds 25555-25560)');
+
+                // Check connection status every 5 seconds
+                connectionCheckInterval = setInterval(() => {
+                    if (ws) {
+                        const states = {
+                            0: { text: `Connecting... (${relay.replace('wss://', '')})`, color: 'orange' },
+                            1: { text: `Connected (${relay.replace('wss://', '')})`, color: 'green' },
+                            2: { text: 'Closing...', color: 'orange' },
+                            3: { text: 'Disconnected', color: 'red' }
+                        };
+                        const status = states[ws.readyState] || { text: 'Unknown', color: 'gray' };
+                        const statusEl = document.getElementById('nostr-status');
+                        statusEl.textContent = status.text;
+                        statusEl.style.color = status.color;
+
+                        // Auto-reconnect if connection dropped
+                        if (ws.readyState === 3) {
+                            log('search-daemon-log', 'Connection lost, reconnecting...', 'query');
+                            setTimeout(connectNostr, 2000);
+                        }
+                    }
+                }, 5000);
+            };
+
+            ws.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                console.log('[NOSTR RECEIVED]', msg);
+
+                if (msg[0] === 'EVENT') {
+                    const ev = msg[2];
+                    console.log('[EVENT RECEIVED] Kind:', ev.kind, 'Content:', ev.content);
+                    handleNostrEvent(ev);
+                }
+
+                // EOSE = End Of Stored Events (confirms subscription is active)
+                if (msg[0] === 'EOSE') {
+                    log('search-daemon-log', '✓ Listening for events on network', 'answer');
+                }
+
+                // OK response to our events
+                if (msg[0] === 'OK') {
+                    console.log('[EVENT ACCEPTED]', msg);
+                    // Check for rate limiting
+                    if (msg[2] === false && msg[3] && msg[3].includes('rate-limit')) {
+                        log('search-daemon-log', `⚠️ Rate limited by ${relay}, switching relay...`, 'query');
+                        disconnectNostr();
+                        setTimeout(() => {
+                            currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+                            relay = relays[currentRelayIndex];
+                            connectNostr();
+                        }, 1000);
+                    }
+                }
+            };
+
+            ws.onerror = () => {
+                log('search-daemon-log', `Connection error with ${relay}`, 'query');
+            };
+
+            ws.onclose = () => {
+                const statusEl = document.getElementById('nostr-status');
+                statusEl.textContent = 'Disconnected';
+                statusEl.style.color = 'red';
+                const connectBtn = document.getElementById('connect-btn');
+                if (connectBtn) connectBtn.textContent = 'Connect to Nostr';
+                log('search-daemon-log', 'Disconnected');
+
+                // Clear connection check interval
+                if (connectionCheckInterval) {
+                    clearInterval(connectionCheckInterval);
+                    connectionCheckInterval = null;
+                }
+
+                ws = null;
+
+                // Try next relay after 2 seconds
+                setTimeout(() => {
+                    if (!ws) {
+                        currentRelayIndex = (currentRelayIndex + 1) % relays.length;
+                        relay = relays[currentRelayIndex];
+                        log('search-daemon-log', `Trying next relay: ${relay}`, 'query');
+                        connectNostr();
+                    }
+                }, 2000);
+            };
+        }
+
+        function disconnectNostr() {
+            if (!ws) {
+                log('search-daemon-log', 'Not connected');
+                return;
+            }
+
+            log('search-daemon-log', 'Disconnecting...');
+            ws.close();
+        }
+
+        // ===== NOSTR EVENT HANDLER =====
+        async function handleNostrEvent(ev) {
+            const kind = ev.kind;
+
+            // Search Query (kind 25555)
+            if (kind === 25555) {
+                const queryTag = ev.tags.find(t => t[0] === 'q');
+                const query = queryTag ? queryTag[1] : '';
+                const eventId = ev.id;
+                const fromPubkey = ev.pubkey;
+
+                // Show all queries in search log (real-time feed)
+                const isOwnQuery = fromPubkey === keypair.pubkey;
+                if (isOwnQuery) {
+                    log('search-log', `🔁 Your search echoed back: "${query}"`, 'answer');
+                } else {
+                    log('search-log', `🔍 Network search: "${query}"`, 'query');
+                }
+
+                // DAEMON DECISION LOGIC
+                if (document.getElementById('search-daemon-enabled').checked) {
+                    log('search-daemon-log', `📥 Query received: "${query}" from ${fromPubkey.substring(0, 8)}...`, 'query');
+
+                    // Decision 1: Skip if it's our own query
+                    if (fromPubkey === keypair.pubkey) {
+                        log('search-daemon-log', `⏭️  Skip: Our own query`, 'query');
+                        return;
+                    }
+
+                    // Decision 2: Skip if we already answered this exact event
+                    if (answeredQueries.has(eventId)) {
+                        log('search-daemon-log', `⏭️  Skip: Already answered`, 'query');
+                        return;
+                    }
+
+                    // Decision 3: Skip if we don't have the index loaded
+                    if (books.length === 0) {
+                        log('search-daemon-log', `⏭️  Skip: Index not loaded`, 'query');
+                        return;
+                    }
+
+                    // Decision 4: Search for matches
+                    const matches = books.filter(b =>
+                        b.title.toLowerCase().includes(query.toLowerCase()) ||
+                        b.id === query
+                    ).slice(0, 5);
+
+                    if (matches.length > 0) {
+                        log('search-daemon-log', `✓ Found ${matches.length} match(es), responding...`, 'answer');
+
+                        // Mark as answered
+                        answeredQueries.set(eventId, Date.now());
+
+                        // Respond after a small delay
+                        setTimeout(() => {
+                            matches.forEach(book => {
+                                sendSearchAnswer(book);
+                            });
+                        }, 500);
+
+                        // Clean up old answered queries after 5 minutes
+                        setTimeout(() => answeredQueries.delete(eventId), 300000);
+                    } else {
+                        log('search-daemon-log', `⏭️  Skip: No matches found`, 'query');
+                    }
+                }
+            }
+
+            // Search Answer (kind 25556) - metadata only
+            if (kind === 25556) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const titleTag = ev.tags.find(t => t[0] === 'title');
+                const authorTag = ev.tags.find(t => t[0] === 'author');
+                const id = idTag ? idTag[1] : 'unknown';
+                const title = titleTag ? titleTag[1] : 'unknown';
+                const author = authorTag ? authorTag[1] : 'Unknown';
+
+                // Check if this is a response to our search
+                const isMyResult = Array.from(mySearches).some(query =>
+                    title.toLowerCase().includes(query.toLowerCase()) ||
+                    id === query
+                );
+
+                if (isMyResult) {
+                    log('search-log', `✓ Metadata: "${title}" (${id})`, 'answer');
+                    console.log('[SEARCH RESULT] Adding to results:', id, title);
+
+                    // Add to search results (metadata only, no peers yet)
+                    if (!searchResults.has(id)) {
+                        searchResults.set(id, {
+                            id: id,
+                            title: title,
+                            author: author,
+                            peers: [],
+                            peerTransports: {},
+                            peerPeerIds: {},
+                            completedPeers: []
+                        });
+                        console.log('[SEARCH RESULT] Now have', searchResults.size, 'results');
+                        renderSearchResults();
+                    }
+                } else {
+                    log('search-log', `← Found: "${title}" (${id})`, 'answer');
+                }
+            }
+
+            // "Who has?" Query (kind 25557)
+            if (kind === 25557) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const bookId = idTag ? idTag[1] : '';
+                const fromPubkey = ev.pubkey;
+
+                log('search-daemon-log', `📥 "Who has ${bookId}?" from ${fromPubkey.substring(0, 8)}...`, 'query');
+
+                // Check if we have this book in our library
+                if (document.getElementById('transfer-daemon-enabled').checked) {
+                    const haveIt = library.find(b => b.id === bookId);
+                    if (haveIt) {
+                        log('transfer-daemon-log', `✓ We have it! Announcing transports...`, 'answer');
+                        setTimeout(() => announceAvailability(bookId, fromPubkey), 500);
+                    } else {
+                        log('transfer-daemon-log', `⏭️  Skip: Don't have file ${bookId}`, 'query');
+                    }
+                }
+            }
+
+            // "I have it" Answer (kind 25558) - includes transports/PeerJS metadata
+            if (kind === 25558) {
+                const idTag = ev.tags.find(t => t[0] === 'id');
+                const toTag = ev.tags.find(t => t[0] === 'to');
+                const transportsTag = ev.tags.find(t => t[0] === 'transports');
+                const peerTag = ev.tags.find(t => t[0] === 'peer');
+                const bookId = idTag ? idTag[1] : '';
+                const fromPubkey = ev.pubkey;
+
+                // Check if this message is for us
+                const isForUs = toTag && toTag[1] === keypair.pubkey;
+
+                // Check if this is for a book we asked about
+                if (myWhoHasQueries.has(bookId) || isForUs) {
+                    const transports = transportsTag ? JSON.parse(transportsTag[1]) : [];
+                    const transportStr = transports.length > 0 ? ` (${transports.join(', ')})` : '';
+                    log('search-log', `✓ Peer ${fromPubkey.substring(0, 8)}... has file ${bookId}${transportStr}`, 'answer');
+
+                    // Add peer to search results with transports
+                    const result = searchResults.get(bookId);
+                    if (result) {
+                        if (!result.peers) result.peers = [];
+                        if (!result.peerTransports) result.peerTransports = {};
+                        if (!result.peerPeerIds) result.peerPeerIds = {};
+
+                        if (!result.peers.includes(fromPubkey)) {
+                            result.peers.push(fromPubkey);
+                        }
+
+                        // Store available transports for this peer
+                        if (transports.length > 0) {
+                            result.peerTransports[fromPubkey] = transports;
+                        }
+
+                        if (peerTag) {
+                            result.peerPeerIds[fromPubkey] = peerTag[1];
+                        }
+
+                        renderSearchResults();
+                    }
+                }
+            }
+
+            // Legacy WebRTC-related events (25559/25560/25561) are ignored in the PeerJS version
+        }
+
+        // ===== LOAD INDEX =====
+        async function loadIndex() {
+            log('search-daemon-log', 'Downloading index... (~9 MB)', 'query');
+
+            try {
+                const response = await fetch('GUTINDEX.ALL.new');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                log('search-daemon-log', 'Download complete! Parsing...', 'answer');
+                const text = await response.text();
+                const lines = text.split('\n');
+
+                console.log('[INDEX] Total lines:', lines.length);
+                console.log('[INDEX] First 5 lines:', lines.slice(0, 5));
+                console.log('[INDEX] Sample line 100000:', lines[100000]);
+
+                books = [];
+                let current = null;
+                let matchCount = 0;
+
+                for (const line of lines) {
+                    const match = line.match(/^(.+?)\s{2,}(\d+)\r?$/); // Handle CRLF
+                    if (match) {
+                        matchCount++;
+                        if (matchCount <= 5) {
+                            console.log('[INDEX] Match:', match[0]);
+                        }
+                        if (current) books.push(current);
+
+                        const content = match[1].trim();
+                        const id = match[2];
+
+                        let title, author;
+                        if (content.includes(', by ')) {
+                            [title, author] = content.split(', by ', 2);
+                        } else {
+                            title = content;
+                            author = 'Unknown';
+                        }
+
+                        current = { id, title, author };
+                    }
+                }
+
+                if (current) books.push(current);
+
+                console.log('[INDEX] Total matches found:', matchCount);
+                console.log('[INDEX] Books array length:', books.length);
+
+                document.getElementById('index-count').textContent = books.length;
+                log('search-daemon-log', `Loaded ${books.length} books`, 'answer');
+            } catch (e) {
+                log('search-daemon-log', `Failed to load index: ${e.message}`, 'query');
+            }
+        }
+
+        // ===== FILL CDN =====
+        function fillCDN() {
+            log('transfer-daemon-log', 'Fill CDN not yet implemented (for later)', 'transfer');
+            // TODO: Download random books from network to become a seeder
+        }
+
+        // ===== SEARCH =====
+        async function searchBooks() {
+            console.log('[DEBUG] searchBooks() called');
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('search-log', 'Not connected, connecting...', 'query');
+                console.log('[DEBUG] Auto-connecting...');
+                connectNostr();
+                // Wait a bit for connection then retry
+                setTimeout(searchBooks, 1500);
+                return;
+            }
+
+            console.log('[DEBUG] WebSocket state:', ws.readyState);
+
+            const query = document.getElementById('search-query').value.trim();
+            console.log('[DEBUG] Query:', query);
+
+            if (!query) {
+                log('search-log', '⚠️ Please enter a search term', 'query');
+                return;
+            }
+
+            // Track this search so we can identify responses
+            mySearches.add(query);
+
+            const event = await makeEvent(25555, [['q', query]], `Searching for: ${query}`);
+            console.log('[DEBUG] Sending event:', event);
+
+            ws.send(JSON.stringify(['EVENT', event]));
+
+            log('search-log', `→ 🔎 YOU SEARCHED: "${query}" - waiting for responses...`, 'query');
+            document.getElementById('search-query').value = '';
+
+            // Clear old searches after 60 seconds
+            setTimeout(() => mySearches.delete(query), 60000);
+
+            // Clear previous search results
+            searchResults.clear();
+            renderSearchResults();
+        }
+
+        function renderSearchResults() {
+            const container = document.getElementById('search-results');
+            if (searchResults.size === 0) {
+                container.innerHTML = '<p style="color: #666;">No results yet. Search for a book and wait for metadata responses.</p>';
+                return;
+            }
+
+            let html = '';
+            for (const [bookId, result] of searchResults) {
+                const hasPeers = result.peers && result.peers.length > 0;
+                const completedPeers = result.completedPeers || [];
+                const inLibrary = library.find(b => b.id === result.id);
+                const hasCollection = gutenbergZip !== null;
+
+                html += `
+                    <div class="search-result">
+                        <h4>${result.title}</h4>
+                        <div>by ${result.author} | ID: ${result.id}</div>
+                        ${inLibrary ? `
+                            <button class="completed" disabled>✓ In Your Library</button>
+                            <button onclick="openBook('${result.id}')" style="background: #4CAF50; color: white;">📖 Read Now</button>
+                        ` : hasCollection ? `
+                            <button onclick="openBook('${result.id}')" style="background: #2196F3; color: white;">📖 Read from Collection</button>
+                        ` : ''}
+                        ${hasPeers ? `
+                            <div class="peer">Available from ${result.peers.length} peer(s)</div>
+                            ${result.peers.map(peer => {
+                                const isCompleted = completedPeers.includes(peer);
+                                const transports = result.peerTransports && result.peerTransports[peer] ? result.peerTransports[peer] : [];
+
+                                if (isCompleted) {
+                                    return `<button class="completed" disabled>✓ Received from ${peer.substring(0, 8)}...</button>`;
+                                }
+
+                                // Show one button per transport
+                                if (transports.length > 0) {
+                                    return transports.map(transport => {
+                                        const label = transport === 'peerjs' ? 'PeerJS' : transport;
+                                        return `
+                                            <button onclick="requestTransfer('${result.id}', '${peer}', '${transport}')">
+                                                ${peer.substring(0, 8)}... via ${label}
+                                            </button>
+                                        `;
+                                    }).join('');
+                                } else {
+                                    // Fallback if no transports specified
+                                    return `<button onclick="requestTransfer('${result.id}', '${peer}')">Request from ${peer.substring(0, 8)}...</button>`;
+                                }
+                            }).join('')}
+                        ` : !inLibrary && !hasCollection ? `
+                            <button class="neutral" onclick="askWhoHas('${result.id}')">Who has this?</button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        async function askWhoHas(bookId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('search-log', '❌ Not connected to Nostr!', 'query');
+                return;
+            }
+
+            myWhoHasQueries.add(bookId);
+
+            const event = await makeEvent(
+                25557,
+                [['id', bookId]],
+                `Who has file ${bookId}?`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('search-log', `→ Asking: "Who has file ${bookId}?"`, 'query');
+
+            // Clear after 60 seconds
+            setTimeout(() => myWhoHasQueries.delete(bookId), 60000);
+        }
+
+        async function announceAvailability(bookId, targetPubkey) {
+            if (!ws) return;
+
+            // Announce available transports
+            if (!peer || !peer.id) {
+                log('transfer-daemon-log', '❌ PeerJS not ready; cannot announce availability.', 'transfer');
+                return;
+            }
+
+            const transports = ['peerjs'];
+
+            const event = await makeEvent(
+                25558,
+                [
+                    ['id', bookId],
+                    ['to', targetPubkey],
+                    ['transports', JSON.stringify(transports)],
+                    ['peer', peer.id]
+                ],
+                `I have file ${bookId}`
+            );
+
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('transfer-daemon-log', `→ Announced: ${transports.join(', ')}`, 'answer');
+        }
+
+        async function requestTransfer(bookId, peerPubkey, transport) {
+            console.log('[REQUEST TRANSFER] Called with:', { bookId, peerPubkey: peerPubkey.substring(0, 16), transport });
+            log('transfer-log', `→ Requesting ${bookId} from ${peerPubkey.substring(0, 8)}... via ${transport || 'default'}`, 'query');
+            logDebug('REQUEST: Starting Transfer', { bookId, peer: peerPubkey.substring(0, 16) + '...', transport });
+
+            if (transport && transport !== 'peerjs') {
+                log('transfer-log', `❌ Unsupported transport: ${transport}`, 'transfer');
+                return;
+            }
+
+            startPeerJsTransfer(bookId, peerPubkey);
+        }
+
+        async function sendSearchAnswer(book) {
+            const event = await makeEvent(
+                25556,
+                [
+                    ['id', book.id],
+                    ['title', book.title],
+                    ['author', book.author || 'Unknown']
+                ],
+                `I have: ${book.title}`
+            );
+            ws.send(JSON.stringify(['EVENT', event]));
+            log('search-daemon-log', `→ Answered: ${book.title} (${book.id})`, 'answer');
+        }
+
+        function getPeerTransferKey(peerId, bookId) {
+            return `${peerId}::${bookId}`;
+        }
+
+        function setupPeerConnection(conn, context = {}) {
+            const remoteId = conn.peer;
+            conn._context = context;
+            peerConnections.set(remoteId, conn);
+
+            // Enable WebRTC debugging for this connection
+            const label = (context.role || 'UNKNOWN').toUpperCase();
+            wrapConnectionWithDebug(conn, label);
+
+            conn.on('open', () => {
+                log('transfer-log', `🔌 PeerJS connection open with ${remoteId}`, 'answer');
+                if (context.role === 'requester' && context.bookId) {
+                    conn.send(JSON.stringify({ type: 'request', bookId: context.bookId, from: keypair.pubkey }));
+                    log('transfer-log', `→ Requested ${context.bookId} from ${context.peerPubkey ? context.peerPubkey.substring(0, 8) + '...' : remoteId}`, 'query');
+                } else {
+                    log('transfer-daemon-log', `📡 Incoming PeerJS connection from ${remoteId}`, 'answer');
+                }
+                setStatus('Connected to peer.');
+                updateSendButtonState();
+            });
+
+            conn.on('data', (raw) => handlePeerMessage(conn, raw));
+
+            conn.on('close', () => {
+                peerConnections.delete(remoteId);
+                updateSendButtonState();
+                for (const key of Array.from(incomingTransfers.keys())) {
+                    if (key.startsWith(`${remoteId}::`)) {
+                        incomingTransfers.delete(key);
+                    }
+                }
+                log('transfer-log', `Connection to ${remoteId} closed`, 'query');
+                setStatus('Peer connection closed.');
+            });
+
+            conn.on('error', (err) => {
+                log('transfer-log', `❌ Peer connection error: ${err?.message ?? err}`, 'transfer');
+            });
+        }
+
+        function handlePeerMessage(conn, raw) {
+            let msg;
+            try {
+                msg = JSON.parse(raw);
+            } catch (err) {
+                console.warn('[PEER] Non-JSON payload received:', raw);
+                return;
+            }
+
+            switch (msg.type) {
+                case 'request':
+                    handlePeerRequest(conn, msg);
+                    break;
+                case 'meta':
+                    prepareIncomingTransfer(conn, msg);
+                    break;
+                case 'chunk':
+                    handleIncomingChunk(conn, msg);
+                    break;
+                case 'complete':
+                    finalizeIncomingTransfer(conn, msg);
+                    break;
+                case 'error':
+                    log('transfer-log', `❌ Peer error: ${msg.message}`, 'transfer');
+                    break;
+                default:
+                    console.warn('[PEER] Unknown message type:', msg);
+            }
+        }
+
+        const PEER_CHUNK_SIZE = 128 * 1024;
+
+        function handlePeerRequest(conn, msg) {
+            const { bookId, from } = msg;
+            if (!bookId) {
+                conn.send(JSON.stringify({ type: 'error', message: 'Missing bookId in request.' }));
+                return;
+            }
+
+            if (conn._context) {
+                conn._context.peerPubkey = from || conn._context.peerPubkey || null;
+            } else {
+                conn._context = { peerPubkey: from || null };
+            }
+
+            const transferEnabled = document.getElementById('transfer-daemon-enabled');
+            if (transferEnabled && !transferEnabled.checked) {
+                log('transfer-daemon-log', '⏭️  Transfer daemon disabled, ignoring request.', 'query');
+                conn.send(JSON.stringify({ type: 'error', bookId, message: 'Transfer daemon disabled.' }));
+                return;
+            }
+
+            const book = library.find((b) => b.id === bookId);
+            if (!book) {
+                log('transfer-daemon-log', `❌ Book ${bookId} not found for request`, 'transfer');
+                conn.send(JSON.stringify({ type: 'error', bookId, message: 'Book not available.' }));
+                return;
+            }
+
+            log('transfer-daemon-log', `📦 Sending "${book.title}" to ${conn.peer}`, 'answer');
+            sendBookOverPeer(conn, book);
+        }
+
+        function sendBookOverPeer(conn, book) {
+            const data = JSON.stringify(book);
+            const totalChunks = Math.max(1, Math.ceil(data.length / PEER_CHUNK_SIZE));
+
+            conn.send(JSON.stringify({
+                type: 'meta',
+                bookId: book.id,
+                title: book.title,
+                author: book.author || 'Unknown',
+                totalChunks,
+                from: keypair.pubkey
+            }));
+
+            for (let i = 0; i < totalChunks; i++) {
+                const chunk = data.slice(i * PEER_CHUNK_SIZE, (i + 1) * PEER_CHUNK_SIZE);
+                conn.send(JSON.stringify({ type: 'chunk', bookId: book.id, index: i, chunk }));
+            }
+
+            conn.send(JSON.stringify({ type: 'complete', bookId: book.id }));
+            log('transfer-daemon-log', `✓ Sent "${book.title}" in ${totalChunks} chunks`, 'answer');
+        }
+
+        function prepareIncomingTransfer(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            incomingTransfers.set(key, {
+                chunks: new Array(msg.totalChunks).fill(''),
+                totalChunks: msg.totalChunks,
+                received: 0,
+                title: msg.title,
+                author: msg.author,
+                peerPubkey: conn._context?.peerPubkey || msg.from || null
+            });
+            log('transfer-log', `📦 Incoming "${msg.title}" (${msg.totalChunks} chunks)`, 'answer');
+            setStatus(`Receiving "${msg.title}"…`);
+        }
+
+        function handleIncomingChunk(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            const transfer = incomingTransfers.get(key);
+            if (!transfer) {
+                console.warn('[PEER] Received chunk without transfer state', msg);
+                return;
+            }
+
+            transfer.chunks[msg.index] = msg.chunk;
+            transfer.received += 1;
+            log('transfer-log', `📥 Chunk ${msg.index + 1}/${transfer.totalChunks} (${msg.chunk.length} bytes)`, 'answer');
+        }
+
+        async function finalizeIncomingTransfer(conn, msg) {
+            const key = getPeerTransferKey(conn.peer, msg.bookId);
+            const transfer = incomingTransfers.get(key);
+            if (!transfer) {
+                log('transfer-log', '❌ Transfer metadata missing; cannot finalize.', 'transfer');
+                return;
+            }
+
+            const combined = transfer.chunks.join('');
+            try {
+                const book = JSON.parse(combined);
+                await saveBookToDB(book);
+                library.push(book);
+                renderLibrary();
+                document.getElementById('library-count').textContent = library.length;
+
+                log('transfer-log', `✓ Received "${book.title}" (${combined.length} bytes)`, 'answer');
+                setStatus(`Received "${book.title}".`);
+
+                const result = searchResults.get(book.id);
+                if (result) {
+                    if (!result.completedPeers) result.completedPeers = [];
+                    const peerKey = transfer.peerPubkey;
+                    if (peerKey && !result.completedPeers.includes(peerKey)) {
+                        result.completedPeers.push(peerKey);
+                        renderSearchResults();
+                    }
+                }
+            } catch (e) {
+                log('transfer-log', `❌ Error saving book: ${e.message}`, 'transfer');
+                console.error('[PEER RECEIVE ERROR]', e, 'Data length:', combined.length);
+            } finally {
+                incomingTransfers.delete(key);
+            }
+        }
+
+        function startPeerJsTransfer(bookId, peerPubkey) {
+            if (!peer || peer.disconnected) {
+                log('transfer-log', '❌ PeerJS not ready yet.', 'transfer');
+                setStatus('PeerJS not ready yet.');
+                return;
+            }
+
+            const result = searchResults.get(bookId);
+            const peerId = result?.peerPeerIds?.[peerPubkey];
+            if (!peerId) {
+                log('transfer-log', '❌ Peer ID unavailable for this provider.', 'transfer');
+                setStatus('Peer ID unavailable for this provider.');
+                return;
+            }
+
+            log('transfer-log', `🔍 Dialling ${peerPubkey.substring(0, 8)}...`, 'query');
+            setStatus(`Connecting to provider ${peerPubkey.substring(0, 8)}…`);
+            try {
+                const conn = peer.connect(peerId, { reliable: true });
+                setupPeerConnection(conn, { role: 'requester', bookId, peerPubkey });
+            } catch (err) {
+                log('transfer-log', `❌ PeerJS connection failed: ${err?.message ?? err}`, 'transfer');
+                setStatus('PeerJS connection failed.');
+            }
+        }
+
+        if (copyIdBtn) {
+            copyIdBtn.addEventListener('click', () => {
+                const id = localIdEl?.textContent?.trim();
+                if (!id) {
+                    setStatus('Peer ID unavailable to copy yet.');
+                    return;
+                }
+                copyTextToClipboard(id, 'Peer ID copied to clipboard.');
+            });
+        }
+
+        if (connectBtn) {
+            connectBtn.addEventListener('click', () => {
+                const remoteId = remoteIdEl?.value?.trim();
+                if (!remoteId) {
+                    setStatus('Enter a remote Peer ID first.');
+                    return;
+                }
+                if (!peer || peer.disconnected) {
+                    setStatus('PeerJS not ready yet.');
+                    return;
+                }
+                if (remoteId === (peer.id || '')) {
+                    setStatus('Use a partner\'s ID, not your own.');
+                    return;
+                }
+
+                log('transfer-log', `🔗 Opening PeerJS connection to ${remoteId}`, 'query');
+                setStatus(`Connecting to ${remoteId}…`);
+                try {
+                    const conn = peer.connect(remoteId, { reliable: true });
+                    setupPeerConnection(conn, { role: 'manual' });
+                } catch (err) {
+                    log('transfer-log', `❌ Connection failed: ${err?.message ?? err}`, 'transfer');
+                }
+            });
+        }
+
+        Array.from(sourceRadios).forEach((radio) => {
+            radio.addEventListener('change', updateSendButtonState);
+        });
+
+        if (fileInput) {
+            fileInput.addEventListener('change', updateSendButtonState);
+        }
+
+        updateSendButtonState();
+        // ===== TRANSFER =====
+        async function requestBook() {
+            if (!ws) {
+                log('transfer-log', 'Not connected to Nostr!', 'query');
+                return;
+            }
+
+            const bookId = document.getElementById('transfer-book-id').value.trim();
+            if (!bookId) return;
+
+            const event = await makeEvent(25557, [['id', bookId]], `Requesting book: ${bookId}`);
+            ws.send(JSON.stringify(['EVENT', event]));
+
+            log('transfer-log', `→ Requesting book ${bookId}`, 'transfer');
+            document.getElementById('transfer-book-id').value = '';
+
+            log('transfer-log', 'PeerJS transfer requested; awaiting peers...', 'query');
+        }
+
+        // ===== LIBRARY =====
+        function renderLibrary() {
+            const container = document.getElementById('library');
+
+            if (library.length === 0) {
+                container.innerHTML = '<p>No books yet. Download some to get started!</p>';
+                return;
+            }
+
+            container.innerHTML = library.map(book => `
+                <div class="book-card">
+                    <h4>${book.title}</h4>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
+                        ${book.author}<br>
+                        ID: ${book.id}
+                    </div>
+                    <button onclick="openBook('${book.id}')">Open</button>
+                    <button onclick="saveBook('${book.id}')">Save</button>
+                    <button onclick="deleteBook('${book.id}')">Delete</button>
+                </div>
+            `).join('');
+
+            document.getElementById('library-count').textContent = library.length;
+        }
+
+        async function openBook(id) {
+            const book = library.find(b => b.id === id);
+
+            // If book is in library, open it directly
+            if (book) {
+                const newTab = window.open();
+                newTab.document.write(`
+                    <html>
+                    <head>
+                        <title>${book.title} - ${book.author}</title>
+                        <style>
+                            body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+                            h1 { font-size: 2em; margin-bottom: 0.5em; }
+                            .author { color: #666; font-style: italic; margin-bottom: 2em; }
+                            pre { white-space: pre-wrap; font-family: Georgia, serif; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${book.title}</h1>
+                        <div class="author">by ${book.author}</div>
+                        <pre>${book.content}</pre>
+                    </body>
+                    </html>
+                `);
+                newTab.document.close();
+                log('transfer-log', `✓ Opened "${book.title}" from library`, 'answer');
+                return;
+            }
+
+            // If not in library, try to extract from gutenbergZip
+            if (!gutenbergZip) {
+                log('transfer-log', `❌ Book ${id} not in library and collection not downloaded`, 'transfer');
+                alert('Book not in library. Download the Gutenberg collection first, or request this book from the network.');
+                return;
+            }
+
+            // Look up book metadata from index
+            const bookMeta = books.find(b => b.id === id);
+            if (!bookMeta) {
+                log('transfer-log', `❌ Book ${id} not found in index`, 'transfer');
+                return;
+            }
+
+            log('transfer-log', `📦 Extracting "${bookMeta.title}" from collection...`, 'query');
+
+            // Search for the book file in the zip
+            // Gutenberg uses paths like: "84/84.txt" or "84/84-0.txt"
+            const possiblePaths = [
+                `${id}/${id}.txt`,
+                `${id}/${id}-0.txt`,
+                `${id}/${id}-8.txt`,
+                `${id}/${id}.txt.utf8`,
+                `${id}/${id}-0.txt.utf8`
+            ];
+
+            let bookFile = null;
+            for (const path of possiblePaths) {
+                if (gutenbergZip.files[path]) {
+                    bookFile = gutenbergZip.files[path];
+                    break;
+                }
+            }
+
+            if (!bookFile) {
+                // Try searching for any file starting with the ID
+                const matchingFiles = Object.keys(gutenbergZip.files).filter(name =>
+                    name.startsWith(`${id}/`) && name.endsWith('.txt')
+                );
+                if (matchingFiles.length > 0) {
+                    bookFile = gutenbergZip.files[matchingFiles[0]];
+                }
+            }
+
+            if (!bookFile) {
+                log('transfer-log', `❌ Book file not found in collection`, 'transfer');
+                alert(`Book ${id} ("${bookMeta.title}") metadata found but file not in collection.`);
+                return;
+            }
+
+            try {
+                const content = await bookFile.async('text');
+                log('transfer-log', `✓ Extracted "${bookMeta.title}" (${content.length} bytes)`, 'answer');
+
+                // Open in new tab
+                const newTab = window.open();
+                newTab.document.write(`
+                    <html>
+                    <head>
+                        <title>${bookMeta.title} - ${bookMeta.author}</title>
+                        <style>
+                            body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+                            h1 { font-size: 2em; margin-bottom: 0.5em; }
+                            .author { color: #666; font-style: italic; margin-bottom: 2em; }
+                            pre { white-space: pre-wrap; font-family: Georgia, serif; }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>${bookMeta.title}</h1>
+                        <div class="author">by ${bookMeta.author}</div>
+                        <pre>${content}</pre>
+                    </body>
+                    </html>
+                `);
+                newTab.document.close();
+            } catch (e) {
+                log('transfer-log', `❌ Error extracting book: ${e.message}`, 'transfer');
+            }
+        }
+
+        function saveBook(id) {
+            const book = library.find(b => b.id === id);
+            if (!book) {
+                log('transfer-log', `❌ Book ${id} not found`, 'transfer');
+                return;
+            }
+
+            // Create a downloadable file
+            const blob = new Blob([book.content], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${book.title.replace(/[^a-z0-9]/gi, '_')}_${book.id}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log('transfer-log', `✓ Downloaded "${book.title}" to disk`, 'answer');
+        }
+
+        async function deleteBook(id) {
+            library = library.filter(b => b.id !== id);
+            await deleteBookFromDB(id);
+            renderLibrary();
+            log('transfer-log', `Deleted book ${id}`, 'query');
+        }
+
+        // Add a test book to library (for testing)
+        async function addTestBook() {
+            const testBook = {
+                id: '1984',
+                title: 'Nineteen Eighty-Four',
+                author: 'George Orwell',
+                data: 'Test book data...' // In real version, this would be the actual file
+            };
+
+            library.push(testBook);
+            await saveBookToDB(testBook);
+            renderLibrary();
+            log('transfer-log', `Added test book: ${testBook.title}`, 'answer');
+        }
+
+        // ===== NOSTR KEYPAIR =====
+        function generateKeypair() {
+            try {
+                const wasConnected = ws && ws.readyState === WebSocket.OPEN;
+
+                // Use nostr-tools to generate proper keypair
+                const sk = NostrTools.generateSecretKey();
+                const pk = NostrTools.getPublicKey(sk);
+
+                keypair.privkey = sk;
+                keypair.pubkey = pk;
+
+                // Convert to hex for display
+                const skHex = Array.from(sk).map(b => b.toString(16).padStart(2, '0')).join('');
+                const pkHex = pk;
+
+                document.getElementById('pubkey').textContent = pkHex;
+                document.getElementById('privkey').textContent = skHex;
+
+                log('search-daemon-log', 'Generated new keypair', 'answer');
+
+                // Reconnect if we were connected (to use new identity)
+                if (wasConnected) {
+                    log('search-daemon-log', 'Reconnecting with new identity...', 'answer');
+                    disconnectNostr();
+                    setTimeout(() => connectNostr(), 1000);
+                }
+            } catch (e) {
+                console.error('[KEYPAIR ERROR]', e);
+                log('search-daemon-log', 'Error generating keypair: ' + e.message, 'query');
+            }
+        }
+
+        // ===== HELPERS =====
+        async function makeEvent(kind, tags, content) {
+            // Use nostr-tools finalizeEvent to create properly signed events
+            const eventTemplate = {
+                kind: kind,
+                created_at: Math.floor(Date.now() / 1000),
+                tags: tags,
+                content: content
+            };
+
+            // finalizeEvent will add id, pubkey, and sig
+            const signedEvent = NostrTools.finalizeEvent(eventTemplate, keypair.privkey);
+
+            return signedEvent;
+        }
+
+        function randomHex(len) {
+            return Array.from({length: len}, () =>
+                Math.floor(Math.random() * 16).toString(16)
+            ).join('');
+        }
+
+        async function copyTextToClipboard(text, successMessage) {
+            try {
+                await navigator.clipboard.writeText(text);
+                if (successMessage) {
+                    setStatus(successMessage);
+                }
+            } catch (err) {
+                console.warn('[CLIPBOARD]', err);
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    if (successMessage) {
+                        setStatus(successMessage);
+                    }
+                } catch (fallbackErr) {
+                    console.error('[CLIPBOARD FALLBACK]', fallbackErr);
+                    setStatus('Copy failed. Select and copy manually.');
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        async function initPeerJs() {
+            if (!window.Peer) {
+                setStatus('PeerJS script failed to load.');
+                return;
+            }
+
+            return new Promise((resolve) => {
+                setStatus('Initialising PeerJS…');
+                const options = {
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    secure: true,
+                    key: 'peerjs',
+                    debug: 3  // Maximum debug level for comprehensive WebRTC logging
+                };
+
+                console.log('%c⚙️ Initialising PeerJS', 'color: #8b5cf6; font-weight: bold;');
+                console.log('Options:', options);
+
+                peer = new window.Peer(undefined, options);
+
+                peer.on('open', (id) => {
+                    localIdEl.textContent = id;
+                    localIdEl.title = 'Share this ID with your peer';
+                    copyIdBtn.disabled = false;
+                    connectBtn.disabled = false;
+                    setStatus('Share your Peer ID, then connect to a partner.');
+                    updateSendButtonState();
+                    console.log(`%c✅ Peer Open - ID: ${id}`, 'color: #10b981; font-weight: bold;');
+                    resolve();
+                });
+
+                peer.on('error', (err) => {
+                    console.error('%c🚨 Peer Error', 'color: #ef4444; font-weight: bold;', err);
+                    console.log('Error type:', err.type);
+                    console.log('Error message:', err.message);
+                    setStatus(`PeerJS error: ${err?.type ?? err?.message ?? err}`);
+                    resolve();
+                });
+
+                peer.on('connection', (conn) => {
+                    console.log(`%c📞 Incoming Connection from ${conn.peer}`, 'color: #f59e0b; font-weight: bold;');
+                    setupPeerConnection(conn, { role: 'provider' });
+                });
+
+                peer.on('disconnected', () => {
+                    console.warn('%c⚠️ Peer Disconnected', 'color: #f59e0b; font-weight: bold;');
+                });
+
+                peer.on('close', () => {
+                    console.log('%c❌ Peer Closed', 'color: #ef4444; font-weight: bold;');
+                });
+            });
+        }
+
+        // Initialize
+        // WebTorrent client for full collection download
+        let wtClient = null;
+        let gutenbergZip = null;
+
+        async function checkStorageQuota() {
+            if (navigator.storage && navigator.storage.estimate) {
+                const estimate = await navigator.storage.estimate();
+                const available = estimate.quota - estimate.usage;
+                const availableGB = (available / 1024 / 1024 / 1024).toFixed(2);
+                const usageGB = (estimate.usage / 1024 / 1024 / 1024).toFixed(2);
+                const quotaGB = (estimate.quota / 1024 / 1024 / 1024).toFixed(2);
+                document.getElementById('storage-info').textContent = `${availableGB}GB free (${usageGB}GB / ${quotaGB}GB used)`;
+                return available > 11000000000; // Need >11GB for 10.9GB file
+            }
+            return true;
+        }
+
+        async function downloadGutenbergCollection() {
+            const magnetLink = document.getElementById('magnet-link').value.trim();
+            if (!magnetLink || magnetLink === 'magnet:?xt=urn:btih:PLACEHOLDER') {
+                alert('Please enter a valid magnet link for the Gutenberg collection');
+                return;
+            }
+
+            const hasSpace = await checkStorageQuota();
+            if (!hasSpace) {
+                if (!confirm('You may not have enough storage space for the 10.9GB collection. Continue anyway?')) {
+                    return;
+                }
+            }
+
+            document.getElementById('torrent-status').textContent = 'Initializing WebTorrent...';
+            document.getElementById('torrent-progress').style.display = 'block';
+
+            if (!wtClient) {
+                wtClient = new WebTorrent();
+            }
+
+            log('transfer-log', '📚 Starting Gutenberg collection download via WebTorrent...', 'query');
+            log('transfer-log', '🔍 Parsing magnet link...', 'query');
+            log('transfer-log', '🔎 Searching for peers in DHT...', 'query');
+
+            wtClient.add(magnetLink, { path: '/gutenberg-collection' }, (torrent) => {
+                log('transfer-log', `✅ Torrent metadata received!`, 'answer');
+                log('transfer-log', `📦 Name: ${torrent.name}`, 'answer');
+                log('transfer-log', `📊 Size: ${formatBytes(torrent.length)}`, 'answer');
+                log('transfer-log', `🔗 InfoHash: ${torrent.infoHash}`, 'answer');
+                log('transfer-log', `🎯 Looking for peers to download from...`, 'query');
+                document.getElementById('torrent-status').textContent = `Downloading: ${torrent.name}`;
+
+                torrent.on('wire', (wire, addr) => {
+                    log('transfer-log', `🔗 Connected to peer: ${addr}`, 'answer');
+                });
+
+                torrent.on('download', (bytes) => {
+                    const progress = Math.round(torrent.progress * 100);
+                    const downloaded = formatBytes(torrent.downloaded);
+                    const total = formatBytes(torrent.length);
+                    const speed = formatBytes(torrent.downloadSpeed);
+                    const peers = torrent.numPeers;
+
+                    document.getElementById('torrent-progress-bar').style.width = progress + '%';
+                    document.getElementById('torrent-progress-bar').textContent = progress + '%';
+                    document.getElementById('torrent-details').textContent =
+                        `${downloaded} / ${total} • ${speed}/s • ${peers} peers`;
+
+                    if (progress > 0 && progress % 10 === 0) {
+                        log('transfer-log', `📥 Progress: ${progress}% (${downloaded} / ${total})`, 'query');
+                    }
+                });
+
+                torrent.on('noPeers', (announceType) => {
+                    log('transfer-log', `⚠️ No peers found via ${announceType}`, 'query');
+                    log('transfer-log', `🔄 Keep searching...`, 'query');
+                });
+
+                torrent.on('done', async () => {
+                    log('transfer-log', '🎉 Gutenberg collection downloaded!', 'answer');
+                    document.getElementById('torrent-status').textContent = 'Collection downloaded! Processing zip...';
+
+                    // Get the zip file
+                    const file = torrent.files[0];
+                    file.getBlob(async (err, blob) => {
+                        if (err) {
+                            log('transfer-log', `Error: ${err.message}`, 'error');
+                            return;
+                        }
+
+                        log('transfer-log', 'Loading zip file with JSZip...', 'query');
+                        try {
+                            gutenbergZip = await JSZip.loadAsync(blob);
+                            log('transfer-log', `✅ Zip loaded! ${Object.keys(gutenbergZip.files).length} files available`, 'answer');
+                            document.getElementById('torrent-status').textContent =
+                                `Collection ready! ${Object.keys(gutenbergZip.files).length} books available offline`;
+                        } catch (e) {
+                            log('transfer-log', `Error loading zip: ${e.message}`, 'error');
+                        }
+                    });
+                });
+
+                torrent.on('warning', (err) => {
+                    log('transfer-log', `⚠️ Warning: ${err.message}`, 'query');
+                    console.warn('WebTorrent warning:', err);
+                });
+
+                torrent.on('error', (err) => {
+                    log('transfer-log', `❌ Torrent error: ${err.message}`, 'error');
+                    document.getElementById('torrent-status').textContent = `Error: ${err.message}`;
+                    console.error('WebTorrent error:', err);
+                });
+            });
+
+            // Log if client has issues
+            wtClient.on('error', (err) => {
+                log('transfer-log', `❌ Client error: ${err.message}`, 'error');
+                console.error('WebTorrent client error:', err);
             });
         }
 
@@ -333,7 +1876,26 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
-        log('✅ Ready to unzip and create torrents');
+        async function init() {
+            await initDB();
+            library = await loadLibraryFromDB();
+            await seedTestBooks(); // Add test books if library is empty
+            generateKeypair();
+            renderLibrary();
+            renderSearchResults();
+            log('transfer-log', `Loaded ${library.length} books from storage`, 'answer');
+
+            await initPeerJs();
+
+            // Auto-connect to Nostr and load index
+            connectNostr();
+            loadIndex();
+
+            // Check storage quota
+            checkStorageQuota();
+        }
+
+        init();
     </script>
 </body>
 </html>

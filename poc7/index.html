@@ -1702,12 +1702,22 @@
             }
 
             log('transfer-log', '📚 Starting Gutenberg collection download via WebTorrent...', 'query');
+            log('transfer-log', '🔍 Parsing magnet link...', 'query');
+            log('transfer-log', '🔎 Searching for peers in DHT...', 'query');
 
             wtClient.add(magnetLink, { path: '/gutenberg-collection' }, (torrent) => {
-                log('transfer-log', `✅ Torrent added: ${torrent.name}`, 'answer');
+                log('transfer-log', `✅ Torrent metadata received!`, 'answer');
+                log('transfer-log', `📦 Name: ${torrent.name}`, 'answer');
+                log('transfer-log', `📊 Size: ${formatBytes(torrent.length)}`, 'answer');
+                log('transfer-log', `🔗 InfoHash: ${torrent.infoHash}`, 'answer');
+                log('transfer-log', `🎯 Looking for peers to download from...`, 'query');
                 document.getElementById('torrent-status').textContent = `Downloading: ${torrent.name}`;
 
-                torrent.on('download', () => {
+                torrent.on('wire', (wire, addr) => {
+                    log('transfer-log', `🔗 Connected to peer: ${addr}`, 'answer');
+                });
+
+                torrent.on('download', (bytes) => {
                     const progress = Math.round(torrent.progress * 100);
                     const downloaded = formatBytes(torrent.downloaded);
                     const total = formatBytes(torrent.length);
@@ -1718,6 +1728,15 @@
                     document.getElementById('torrent-progress-bar').textContent = progress + '%';
                     document.getElementById('torrent-details').textContent =
                         `${downloaded} / ${total} • ${speed}/s • ${peers} peers`;
+
+                    if (progress > 0 && progress % 10 === 0) {
+                        log('transfer-log', `📥 Progress: ${progress}% (${downloaded} / ${total})`, 'query');
+                    }
+                });
+
+                torrent.on('noPeers', (announceType) => {
+                    log('transfer-log', `⚠️ No peers found via ${announceType}`, 'query');
+                    log('transfer-log', `🔄 Keep searching...`, 'query');
                 });
 
                 torrent.on('done', async () => {
@@ -1744,10 +1763,22 @@
                     });
                 });
 
-                torrent.on('error', (err) => {
-                    log('transfer-log', `Torrent error: ${err.message}`, 'error');
-                    document.getElementById('torrent-status').textContent = `Error: ${err.message}`;
+                torrent.on('warning', (err) => {
+                    log('transfer-log', `⚠️ Warning: ${err.message}`, 'query');
+                    console.warn('WebTorrent warning:', err);
                 });
+
+                torrent.on('error', (err) => {
+                    log('transfer-log', `❌ Torrent error: ${err.message}`, 'error');
+                    document.getElementById('torrent-status').textContent = `Error: ${err.message}`;
+                    console.error('WebTorrent error:', err);
+                });
+            });
+
+            // Log if client has issues
+            wtClient.on('error', (err) => {
+                log('transfer-log', `❌ Client error: ${err.message}`, 'error');
+                console.error('WebTorrent client error:', err);
             });
         }
 

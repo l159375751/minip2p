@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC6 - WebTorrent Transport</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: hsl(200 20% 96%);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: hsl(200 60% 40%);
+        }
+
+        section {
+            background: hsl(0 0% 100%);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin: 0 0 1rem 0;
+            font-size: 1.3rem;
+            color: hsl(200 60% 30%);
+            border-bottom: 2px solid hsl(200 60% 90%);
+            padding-bottom: 0.5rem;
+        }
+
+        .status {
+            padding: 0.75rem;
+            background: hsl(200 60% 95%);
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid hsl(200 20% 85%);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: hsl(200 60% 50%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: hsl(200 60% 40%);
+        }
+
+        button:disabled {
+            background: hsl(0 0% 80%);
+            cursor: not-allowed;
+        }
+
+        .log {
+            background: hsl(0 0% 98%);
+            border: 1px solid hsl(0 0% 85%);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin-top: 1rem;
+        }
+
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid hsl(0 0% 92%);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-entry.info { color: hsl(200 60% 40%); }
+        .log-entry.success { color: hsl(120 60% 40%); }
+        .log-entry.error { color: hsl(0 60% 50%); }
+
+        .magnet-link {
+            word-break: break-all;
+            background: hsl(200 60% 95%);
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0.5rem 0;
+            cursor: pointer;
+            user-select: all;
+        }
+
+        .progress {
+            width: 100%;
+            height: 30px;
+            background: hsl(0 0% 90%);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: hsl(120 60% 50%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+
+        .torrent-info {
+            background: hsl(200 60% 97%);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .torrent-info div {
+            margin: 0.25rem 0;
+            font-size: 0.9rem;
+        }
+
+        .file-list {
+            margin-top: 0.5rem;
+        }
+
+        .file-item {
+            padding: 0.5rem;
+            background: white;
+            border: 1px solid hsl(0 0% 85%);
+            border-radius: 0.5rem;
+            margin: 0.25rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item button {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌊 POC6 - WebTorrent Transport</h1>
+
+    <section>
+        <h2>📤 Seed a File</h2>
+        <div class="status" id="seed-status">Ready to seed files via WebTorrent</div>
+        <input type="file" id="file-input" multiple>
+        <button onclick="seedFile()">Create Torrent & Seed</button>
+        <div id="seed-output"></div>
+    </section>
+
+    <section>
+        <h2>📥 Download via Magnet Link</h2>
+        <div class="status" id="download-status">Ready to download</div>
+        <input type="text" id="magnet-input" placeholder="Paste magnet link here...">
+        <button onclick="downloadTorrent()">Download</button>
+        <div id="download-output"></div>
+    </section>
+
+    <section>
+        <h2>📊 Active Torrents</h2>
+        <div id="torrents-list">No active torrents</div>
+    </section>
+
+    <section>
+        <h2>📝 Debug Log</h2>
+        <div class="log" id="log"></div>
+    </section>
+
+    <script>
+        // Initialize WebTorrent client
+        const client = new WebTorrent();
+
+        // Console header
+        console.log('%c🌊 POC6 WebTorrent Transport Started', 'background: #0ea5e9; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+        console.log('WebTorrent version:', WebTorrent.VERSION);
+
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(`[${type.toUpperCase()}]`, message);
+        }
+
+        function updateTorrentsList() {
+            const listEl = document.getElementById('torrents-list');
+            if (client.torrents.length === 0) {
+                listEl.innerHTML = '<div style="color: #999;">No active torrents</div>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            client.torrents.forEach((torrent, index) => {
+                const info = document.createElement('div');
+                info.className = 'torrent-info';
+
+                const progress = Math.round(torrent.progress * 100);
+                const downloaded = formatBytes(torrent.downloaded);
+                const total = formatBytes(torrent.length);
+                const downloadSpeed = formatBytes(torrent.downloadSpeed);
+                const uploadSpeed = formatBytes(torrent.uploadSpeed);
+                const peers = torrent.numPeers;
+
+                info.innerHTML = `
+                    <div><strong>${torrent.name}</strong></div>
+                    <div>Progress: ${progress}% (${downloaded} / ${total})</div>
+                    <div>↓ ${downloadSpeed}/s | ↑ ${uploadSpeed}/s | Peers: ${peers}</div>
+                    <div>InfoHash: <code>${torrent.infoHash}</code></div>
+                `;
+                listEl.appendChild(info);
+            });
+        }
+
+        function seedFile() {
+            const fileInput = document.getElementById('file-input');
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                log('Please select at least one file', 'error');
+                return;
+            }
+
+            log(`Creating torrent for ${files.length} file(s)...`, 'info');
+            document.getElementById('seed-status').textContent = 'Creating torrent...';
+
+            client.seed(files, (torrent) => {
+                log(`✅ Torrent created! Seeding ${torrent.name}`, 'success');
+                log(`InfoHash: ${torrent.infoHash}`, 'info');
+                document.getElementById('seed-status').textContent = `Seeding: ${torrent.name}`;
+
+                const magnetURI = torrent.magnetURI;
+                const outputEl = document.getElementById('seed-output');
+
+                outputEl.innerHTML = `
+                    <div class="torrent-info">
+                        <div><strong>Torrent Created!</strong></div>
+                        <div>Name: ${torrent.name}</div>
+                        <div>Size: ${formatBytes(torrent.length)}</div>
+                        <div>Files: ${torrent.files.length}</div>
+                    </div>
+                    <div><strong>Magnet Link (click to copy):</strong></div>
+                    <div class="magnet-link" onclick="copyMagnet(this.textContent)">${magnetURI}</div>
+                `;
+
+                // Monitor upload progress
+                torrent.on('upload', () => {
+                    updateTorrentsList();
+                });
+
+                torrent.on('wire', (wire, addr) => {
+                    log(`🔗 Peer connected: ${addr}`, 'success');
+                });
+
+                updateTorrentsList();
+            });
+        }
+
+        function downloadTorrent() {
+            const magnetInput = document.getElementById('magnet-input');
+            const magnetURI = magnetInput.value.trim();
+
+            if (!magnetURI) {
+                log('Please enter a magnet link', 'error');
+                return;
+            }
+
+            if (!magnetURI.startsWith('magnet:')) {
+                log('Invalid magnet link format', 'error');
+                return;
+            }
+
+            log('Starting download...', 'info');
+            document.getElementById('download-status').textContent = 'Connecting to peers...';
+
+            const outputEl = document.getElementById('download-output');
+            outputEl.innerHTML = '<div class="progress"><div class="progress-bar" id="download-progress">0%</div></div>';
+
+            client.add(magnetURI, (torrent) => {
+                log(`✅ Torrent added: ${torrent.name}`, 'success');
+                document.getElementById('download-status').textContent = `Downloading: ${torrent.name}`;
+
+                torrent.on('download', () => {
+                    const progress = Math.round(torrent.progress * 100);
+                    const progressBar = document.getElementById('download-progress');
+                    if (progressBar) {
+                        progressBar.style.width = progress + '%';
+                        progressBar.textContent = progress + '%';
+                    }
+                    updateTorrentsList();
+                });
+
+                torrent.on('done', () => {
+                    log(`🎉 Download complete: ${torrent.name}`, 'success');
+                    document.getElementById('download-status').textContent = `Complete: ${torrent.name} (now seeding)`;
+
+                    // Display files
+                    const fileListHTML = torrent.files.map((file, index) => `
+                        <div class="file-item">
+                            <span>${file.name} (${formatBytes(file.length)})</span>
+                            <button onclick="downloadFile(${index})">Save File</button>
+                        </div>
+                    `).join('');
+
+                    outputEl.innerHTML = `
+                        <div class="torrent-info">
+                            <div><strong>Download Complete! 🎉</strong></div>
+                            <div>Name: ${torrent.name}</div>
+                            <div>Size: ${formatBytes(torrent.length)}</div>
+                            <div>Files: ${torrent.files.length}</div>
+                        </div>
+                        <div class="file-list">
+                            <strong>Files:</strong>
+                            ${fileListHTML}
+                        </div>
+                    `;
+
+                    // Store torrent index for file download
+                    window.currentTorrent = torrent;
+                });
+
+                torrent.on('wire', (wire, addr) => {
+                    log(`🔗 Peer connected: ${addr}`, 'success');
+                });
+
+                torrent.on('error', (err) => {
+                    log(`❌ Error: ${err.message}`, 'error');
+                });
+
+                updateTorrentsList();
+            });
+        }
+
+        function downloadFile(fileIndex) {
+            if (!window.currentTorrent) {
+                log('No active torrent', 'error');
+                return;
+            }
+
+            const file = window.currentTorrent.files[fileIndex];
+            file.getBlobURL((err, url) => {
+                if (err) {
+                    log(`Error getting file: ${err.message}`, 'error');
+                    return;
+                }
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+                log(`📥 Downloading: ${file.name}`, 'success');
+            });
+        }
+
+        function copyMagnet(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                log('📋 Magnet link copied to clipboard!', 'success');
+            }).catch(err => {
+                log('Failed to copy: ' + err.message, 'error');
+            });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Update torrents list every second
+        setInterval(updateTorrentsList, 1000);
+
+        // Log client events
+        client.on('error', (err) => {
+            log(`Client error: ${err.message}`, 'error');
+        });
+
+        log('WebTorrent client initialized', 'success');
+    </script>
+</body>
+</html>

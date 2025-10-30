@@ -328,9 +328,10 @@
                     log(`🔗 Peer connected: ${addr}`);
                 });
 
-                torrent.on('upload', (bytes) => {
-                    log(`📤 Uploaded ${formatBytes(bytes)} to peer`);
-                });
+                // Upload events are too spammy - stats shown in UI instead
+                // torrent.on('upload', (bytes) => {
+                //     log(`📤 Uploaded ${formatBytes(bytes)} to peer`);
+                // });
 
                 torrent.on('warning', (err) => {
                     log(`⚠️ Warning: ${err.message}`);

@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:22
 
 RUN npm install -g webtorrent-hybrid
 

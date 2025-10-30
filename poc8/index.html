@@ -286,9 +286,16 @@
                 return;
             }
 
-            log(`🔨 Creating torrent for ${selectedFile.name}...`);
-            document.getElementById('torrentStatus').textContent = 'Creating torrent...';
+            log(`🔨 Creating torrent for ${selectedFile.name} (${formatBytes(selectedFile.size)})...`);
+            log(`⏳ This may take a while for large files - hashing in progress...`);
+            log(`💡 Check browser console (F12) for detailed WebTorrent logs`);
+            document.getElementById('torrentStatus').textContent = 'Creating torrent - hashing file...';
             document.getElementById('createBtn').disabled = true;
+
+            const startTime = Date.now();
+
+            // Enable WebTorrent debug logging
+            console.log('%c🔍 WebTorrent Debug Enabled', 'background: #667eea; color: white; padding: 2px 8px;');
 
             client.seed(selectedFile, {
                 name: selectedFile.name,
@@ -298,12 +305,15 @@
                     ['wss://tracker.webtorrent.dev']
                 ]
             }, (torrent) => {
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                 currentTorrent = torrent;
-                log(`✅ Torrent created!`);
-                log(`📡 Seeding: ${torrent.name}`);
+                log(`✅ Torrent created in ${elapsed}s!`);
+                log(`📡 Now seeding: ${torrent.name}`);
                 log(`🔗 InfoHash: ${torrent.infoHash}`);
+                log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
+                log(`🎯 Ready to accept peer connections...`);
 
-                document.getElementById('torrentStatus').textContent = '✅ Seeding active';
+                document.getElementById('torrentStatus').textContent = '✅ Seeding active - ready for peers';
                 document.getElementById('torrentResult').style.display = 'block';
                 document.getElementById('magnetLink').textContent = torrent.magnetURI;
                 document.getElementById('infoHash').textContent = torrent.infoHash;
@@ -317,7 +327,25 @@
                 torrent.on('wire', (wire, addr) => {
                     log(`🔗 Peer connected: ${addr}`);
                 });
+
+                torrent.on('upload', (bytes) => {
+                    log(`📤 Uploaded ${formatBytes(bytes)} to peer`);
+                });
+
+                torrent.on('warning', (err) => {
+                    log(`⚠️ Warning: ${err.message}`);
+                    console.warn('Torrent warning:', err);
+                });
+
+                torrent.on('error', (err) => {
+                    log(`❌ Error: ${err.message}`);
+                    console.error('Torrent error:', err);
+                });
             });
+
+            // Log progress during creation
+            log(`📝 File selected, starting hash calculation...`);
+            log(`🔄 Please wait - large files take longer to hash...`);
         }
 
         function copyMagnet() {

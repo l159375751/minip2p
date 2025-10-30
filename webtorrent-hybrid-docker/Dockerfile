@@ -1,6 +1,6 @@
 FROM node:22
 
-RUN npm install -g webtorrent
+RUN npm install -g webtorrent-cli
 
 WORKDIR /data
 

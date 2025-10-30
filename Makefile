@@ -17,7 +17,7 @@ setup-docker:
 	$(MAKE) build-docker
 
 build-docker:
-	docker build -t webtorrent-hybrid webtorrent-hybrid-docker/
+	docker build -t webtorrent webtorrent-hybrid-docker/
 
 seed-gutenberg: build-docker
 	@if [ -z "$(MAGNET)" ]; then \
@@ -26,13 +26,13 @@ seed-gutenberg: build-docker
 	fi
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent-hybrid download "$(MAGNET)" --keep-seeding
+		webtorrent download "$(MAGNET)" --keep-seeding
 
 seed-from-file: build-docker
 	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-		webtorrent-hybrid seed /data/gutenberg-txt-files.tar.zip
+		webtorrent seed /data/gutenberg-txt-files.tar.zip
 
 seed-stop:
 	docker stop webtorrent-gutenberg && docker rm webtorrent-gutenberg

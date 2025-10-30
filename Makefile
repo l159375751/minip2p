@@ -43,7 +43,7 @@ seed-stop:
 seed-logs:
 	docker logs -f webtorrent-gutenberg
 
-seed-test: build-docker
+seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent download "$(GUTENBERG_MAGNET)" --keep-seeding --verbose

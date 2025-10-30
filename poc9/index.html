@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC9 - Unzip & Create Torrents for Individual Files</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗂️</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            margin-bottom: 1.5rem;
+        }
+        h2 {
+            margin: 0 0 1.5rem 0;
+            color: #f5576c;
+            font-size: 1.5rem;
+        }
+        .file-drop-zone {
+            border: 3px dashed #f5576c;
+            border-radius: 0.75rem;
+            padding: 3rem;
+            text-align: center;
+            background: #fff5f7;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-drop-zone:hover {
+            background: #ffebef;
+            border-color: #f093fb;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            background: #fff5f7;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #f5576c;
+        }
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 1rem 0;
+        }
+        .file-item {
+            background: #f8f9ff;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem 0;
+            border-left: 3px solid #f093fb;
+        }
+        .file-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .file-name {
+            font-weight: 600;
+            color: #333;
+        }
+        .file-size {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .magnet-link {
+            background: #1a1a2e;
+            color: #0ff;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        .magnet-link:hover {
+            background: #252547;
+        }
+        .progress {
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 0.25rem;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            transition: width 0.3s;
+            text-align: center;
+            color: white;
+            font-size: 0.8rem;
+            line-height: 20px;
+        }
+        .log {
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .log-entry {
+            margin: 0.25rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗂️ POC9 - Unzip & Create Individual Torrents</h1>
+
+        <div class="card">
+            <h2>1. Select ZIP File</h2>
+            <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🗂️</div>
+                <div><strong>Click to select</strong> or drag & drop your ZIP file</div>
+                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Will unzip and create individual torrents</div>
+            </div>
+            <input type="file" id="fileInput" accept=".zip">
+            <div id="fileInfo" style="display: none; margin-top: 1rem;">
+                <div class="status">
+                    <strong>Selected:</strong> <span id="fileName"></span> (<span id="fileSize"></span>)
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="unzipCard" style="display: none;">
+            <h2>2. Unzip & Create Torrents</h2>
+            <div class="status" id="unzipStatus">Ready to unzip</div>
+            <button id="unzipBtn" onclick="unzipAndSeed()">Unzip & Create Torrents for Each File</button>
+
+            <div id="unzipProgress" style="display: none; margin: 1rem 0;">
+                <div class="progress">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+            </div>
+
+            <div id="fileList" class="file-list" style="display: none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Console Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const client = new WebTorrent();
+        let selectedFile = null;
+        let zipFiles = [];
+        let torrents = [];
+
+        console.log('%c🗂️ POC9 - Unzip & Torrent Creator', 'background: #f5576c; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('unzipCard').style.display = 'block';
+            log(`📁 Selected: ${file.name} (${formatBytes(file.size)})`);
+        }
+
+        async function unzipAndSeed() {
+            if (!selectedFile) {
+                alert('Please select a file first');
+                return;
+            }
+
+            log(`📦 Unzipping ${selectedFile.name}...`);
+            document.getElementById('unzipStatus').textContent = 'Unzipping...';
+            document.getElementById('unzipBtn').disabled = true;
+            document.getElementById('unzipProgress').style.display = 'block';
+
+            try {
+                const zip = await JSZip.loadAsync(selectedFile);
+                const files = Object.keys(zip.files).filter(name => !zip.files[name].dir);
+                log(`✅ Found ${files.length} files in zip`);
+
+                document.getElementById('unzipStatus').textContent = `Found ${files.length} files. Creating torrents...`;
+                document.getElementById('fileList').style.display = 'block';
+
+                let completed = 0;
+                for (const fileName of files) {
+                    const fileData = await zip.files[fileName].async('blob');
+                    const file = new File([fileData], fileName);
+
+                    log(`🔨 Creating torrent for ${fileName}...`);
+
+                    const fileEl = document.createElement('div');
+                    fileEl.className = 'file-item';
+                    fileEl.id = `file-${completed}`;
+                    fileEl.innerHTML = `
+                        <div class="file-item-header">
+                            <div class="file-name">${fileName}</div>
+                            <div class="file-size">${formatBytes(file.size)}</div>
+                        </div>
+                        <div style="color: #666; font-size: 0.9rem;">Creating torrent...</div>
+                    `;
+                    document.getElementById('fileList').appendChild(fileEl);
+
+                    await new Promise((resolve) => {
+                        client.seed(file, {
+                            name: fileName,
+                            announceList: [
+                                ['wss://tracker.openwebtorrent.com'],
+                                ['wss://tracker.btorrent.xyz'],
+                                ['wss://tracker.webtorrent.dev']
+                            ]
+                        }, (torrent) => {
+                            torrents.push(torrent);
+                            log(`✅ Torrent created for ${fileName}`);
+
+                            fileEl.innerHTML = `
+                                <div class="file-item-header">
+                                    <div class="file-name">✅ ${fileName}</div>
+                                    <div class="file-size">${formatBytes(file.size)}</div>
+                                </div>
+                                <div style="color: #10b981; font-weight: 600; margin: 0.5rem 0;">Seeding</div>
+                                <div class="magnet-link" onclick="copyToClipboard('${torrent.magnetURI.replace(/'/g, "\\'")}', '${fileName}')"
+                                     title="Click to copy">
+                                    ${torrent.magnetURI}
+                                </div>
+                            `;
+
+                            completed++;
+                            const progress = Math.round((completed / files.length) * 100);
+                            document.getElementById('progressBar').style.width = progress + '%';
+                            document.getElementById('progressBar').textContent = progress + '%';
+                            resolve();
+                        });
+                    });
+                }
+
+                log(`🎉 All ${files.length} torrents created and seeding!`);
+                document.getElementById('unzipStatus').textContent = `✅ All ${files.length} files seeding!`;
+
+            } catch (e) {
+                log(`❌ Error: ${e.message}`);
+                document.getElementById('unzipStatus').textContent = `Error: ${e.message}`;
+            }
+        }
+
+        function copyToClipboard(text, fileName) {
+            navigator.clipboard.writeText(text).then(() => {
+                log(`📋 Copied magnet link for ${fileName}`);
+                alert(`Magnet link copied for ${fileName}!`);
+            });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        log('✅ Ready to unzip and create torrents');
+    </script>
+</body>
+</html>

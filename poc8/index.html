@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC8 - Create WebTorrent from ZIP</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            margin-bottom: 1.5rem;
+        }
+        h2 {
+            margin: 0 0 1.5rem 0;
+            color: #667eea;
+            font-size: 1.5rem;
+        }
+        .file-drop-zone {
+            border: 3px dashed #667eea;
+            border-radius: 0.75rem;
+            padding: 3rem;
+            text-align: center;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .file-drop-zone:hover {
+            background: #eef0ff;
+            border-color: #764ba2;
+        }
+        .file-drop-zone.active {
+            background: #e0e7ff;
+            border-color: #764ba2;
+            transform: scale(1.02);
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+            margin-top: 1rem;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            background: #f0f4ff;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #667eea;
+        }
+        .magnet-box {
+            background: #1a1a2e;
+            color: #0ff;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.9rem;
+            cursor: pointer;
+            position: relative;
+        }
+        .magnet-box:hover {
+            background: #252547;
+        }
+        .copy-badge {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .info-item {
+            background: #f8f9ff;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 3px solid #667eea;
+        }
+        .info-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+        .info-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .log {
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .log-entry {
+            margin: 0.25rem 0;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #333;
+        }
+        .seeding-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 POC8 - Create WebTorrent from ZIP</h1>
+
+        <div class="card">
+            <h2>1. Select ZIP File</h2>
+            <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                <div class="file-icon">📦</div>
+                <div><strong>Click to select</strong> or drag & drop your ZIP file here</div>
+                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports large files (10GB+)</div>
+            </div>
+            <input type="file" id="fileInput" accept=".zip">
+            <div id="fileInfo" style="display: none; margin-top: 1rem;">
+                <div class="status">
+                    <strong>Selected:</strong> <span id="fileName"></span> (<span id="fileSize"></span>)
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="torrentCard" style="display: none;">
+            <h2>2. Create & Seed Torrent</h2>
+            <div class="status" id="torrentStatus">Ready to create torrent</div>
+            <button id="createBtn" onclick="createTorrent()">Create Torrent & Start Seeding</button>
+
+            <div id="torrentResult" style="display: none; margin-top: 1.5rem;">
+                <div class="seeding-badge">🌱 Actively Seeding</div>
+
+                <div class="info-grid" style="margin-top: 1rem;">
+                    <div class="info-item">
+                        <div class="info-label">Connected Peers</div>
+                        <div class="info-value" id="peerCount">0</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Upload Speed</div>
+                        <div class="info-value" id="uploadSpeed">0 B/s</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Uploaded</div>
+                        <div class="info-value" id="uploaded">0 B</div>
+                    </div>
+                </div>
+
+                <h3 style="margin: 1.5rem 0 0.5rem 0;">Magnet Link (click to copy):</h3>
+                <div class="magnet-box" id="magnetBox" onclick="copyMagnet()">
+                    <div class="copy-badge">📋 Click to Copy</div>
+                    <span id="magnetLink"></span>
+                </div>
+
+                <h3 style="margin: 1.5rem 0 0.5rem 0;">InfoHash:</h3>
+                <div class="magnet-box" onclick="copyInfoHash()">
+                    <div class="copy-badge">📋 Copy</div>
+                    <span id="infoHash"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Console Log</h2>
+            <div class="log" id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const client = new WebTorrent();
+        let selectedFile = null;
+        let currentTorrent = null;
+
+        console.log('%c📦 POC8 - WebTorrent Creator', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        const dropZone = document.getElementById('dropZone');
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('active');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('active');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('torrentCard').style.display = 'block';
+            log(`📁 Selected: ${file.name} (${formatBytes(file.size)})`);
+        }
+
+        function createTorrent() {
+            if (!selectedFile) {
+                alert('Please select a file first');
+                return;
+            }
+
+            log(`🔨 Creating torrent for ${selectedFile.name}...`);
+            document.getElementById('torrentStatus').textContent = 'Creating torrent...';
+            document.getElementById('createBtn').disabled = true;
+
+            client.seed(selectedFile, {
+                name: selectedFile.name,
+                announceList: [
+                    ['wss://tracker.openwebtorrent.com'],
+                    ['wss://tracker.btorrent.xyz'],
+                    ['wss://tracker.webtorrent.dev']
+                ]
+            }, (torrent) => {
+                currentTorrent = torrent;
+                log(`✅ Torrent created!`);
+                log(`📡 Seeding: ${torrent.name}`);
+                log(`🔗 InfoHash: ${torrent.infoHash}`);
+
+                document.getElementById('torrentStatus').textContent = '✅ Seeding active';
+                document.getElementById('torrentResult').style.display = 'block';
+                document.getElementById('magnetLink').textContent = torrent.magnetURI;
+                document.getElementById('infoHash').textContent = torrent.infoHash;
+
+                setInterval(() => {
+                    document.getElementById('peerCount').textContent = torrent.numPeers;
+                    document.getElementById('uploadSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
+                    document.getElementById('uploaded').textContent = formatBytes(torrent.uploaded);
+                }, 1000);
+
+                torrent.on('wire', (wire, addr) => {
+                    log(`🔗 Peer connected: ${addr}`);
+                });
+            });
+        }
+
+        function copyMagnet() {
+            const magnetLink = document.getElementById('magnetLink').textContent;
+            navigator.clipboard.writeText(magnetLink).then(() => {
+                log('📋 Magnet link copied!');
+                alert('Magnet link copied to clipboard!');
+            });
+        }
+
+        function copyInfoHash() {
+            const infoHash = document.getElementById('infoHash').textContent;
+            navigator.clipboard.writeText(infoHash).then(() => {
+                log('📋 InfoHash copied!');
+                alert('InfoHash copied to clipboard!');
+            });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        log('✅ Ready to create torrents');
+    </script>
+</body>
+</html>

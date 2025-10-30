@@ -14,13 +14,16 @@ fetch-gutenberg:
 
 setup-docker:
 	@command -v docker >/dev/null 2>&1 || (curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $$USER)
-	docker pull webtorrentio/webtorrent-cli
+	docker build -t webtorrent-hybrid webtorrent-hybrid-docker/
 
 seed-gutenberg:
-	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
+	@if [ -z "$(MAGNET)" ]; then \
+		echo "Usage: make seed-gutenberg MAGNET='magnet:?xt=...'"; \
+		exit 1; \
+	fi
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-		webtorrentio/webtorrent-cli seed /data/gutenberg-txt-files.tar.zip
+		-p 6881:6881 -p 6881:6881/udp \
+		webtorrent-hybrid download "$(MAGNET)" --keep-seeding
 
 seed-stop:
 	docker stop webtorrent-gutenberg && docker rm webtorrent-gutenberg

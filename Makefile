@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg setup-docker seed-gutenberg seed-from-file seed-stop seed-logs
+.PHONY: deploy fetch-gutenberg setup-docker build-docker seed-gutenberg seed-from-file seed-stop seed-logs
 
 deploy:
 	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new
@@ -14,9 +14,12 @@ fetch-gutenberg:
 
 setup-docker:
 	@command -v docker >/dev/null 2>&1 || (curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $$USER)
+	$(MAKE) build-docker
+
+build-docker:
 	docker build -t webtorrent-hybrid webtorrent-hybrid-docker/
 
-seed-gutenberg:
+seed-gutenberg: build-docker
 	@if [ -z "$(MAGNET)" ]; then \
 		echo "Usage: make seed-gutenberg MAGNET='magnet:?xt=...'"; \
 		exit 1; \
@@ -25,7 +28,7 @@ seed-gutenberg:
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent-hybrid download "$(MAGNET)" --keep-seeding
 
-seed-from-file:
+seed-from-file: build-docker
 	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \

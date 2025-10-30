@@ -195,7 +195,7 @@
 
     <!-- PEERJS BOX -->
     <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔗 PeerJS (Advanced)</summary>
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔗 PeerJS (Debug)</summary>
         <div class="row" style="align-items:center;">
             <div>
                 <strong>Your Peer ID:</strong>
@@ -214,7 +214,7 @@
 
     <!-- NOSTR CONFIG BOX -->
     <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔑 Nostr Config (Advanced)</summary>
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔑 Nostr Config (Debug)</summary>
         <div>
             <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
             <button onclick="nextRelay()">Next Relay</button>
@@ -267,7 +267,7 @@
 
     <!-- TRANSFER BOX -->
     <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">📥 P2P Transfer (Advanced)</summary>
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">📥 P2P Transfer (Debug)</summary>
         <h3>Transfer Client</h3>
         <div>
             <input type="text" id="transfer-book-id" placeholder="Book ID">
@@ -280,7 +280,7 @@
 
     <!-- P2P DEBUG -->
     <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔍 Peer Debug (Advanced)</summary>
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔍 Peer Debug (Verbose)</summary>
         <button onclick="document.getElementById('webrtc-debug').innerHTML = ''">Clear</button>
         <div class="log" id="webrtc-debug" style="font-family: monospace; font-size: 11px; max-height: 600px;"></div>
     </details>

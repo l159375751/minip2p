@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg setup-docker build-docker seed-gutenberg seed-from-file seed-stop seed-logs seed-test
+.PHONY: deploy fetch-gutenberg setup-docker build-docker seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:6042fc88ad1609b64ac7d09154e89e23ceb81cd4&dn=gutenberg-txt-files.tar.zip&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev
@@ -43,6 +43,13 @@ seed-stop:
 
 seed-logs:
 	docker logs -f webtorrent-gutenberg
+
+seed-status:
+	@echo "=== WebTorrent Seeder Status ==="
+	@docker ps --filter name=webtorrent-gutenberg --format "Status: {{.Status}}" || echo "Container not running"
+	@echo ""
+	@echo "=== Recent Activity (last 20 lines) ==="
+	@docker logs webtorrent-gutenberg --tail 20 2>&1 | grep -E "(Seeding|peers|Speed|Progress|Uploaded|Downloaded|Magnet|torrent)" || echo "No activity yet"
 
 seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \

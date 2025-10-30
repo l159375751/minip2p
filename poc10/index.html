@@ -17,42 +17,6 @@
             background: #fafafa;
         }
 
-        #sticky-status {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 15px 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 1000;
-            display: none;
-        }
-
-        #sticky-status.active {
-            display: block;
-        }
-
-        #sticky-progress-bar {
-            background: rgba(255,255,255,0.3);
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-
-        #sticky-progress-fill {
-            background: #10b981;
-            height: 100%;
-            width: 0%;
-            transition: width 0.3s;
-        }
-
-        body.has-sticky-status {
-            margin-top: 100px;
-        }
-
         .box {
             background: white;
             border: 2px solid #333;
@@ -201,17 +165,6 @@
     </style>
 </head>
 <body>
-    <!-- STICKY STATUS BAR -->
-    <div id="sticky-status">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-            <div style="font-weight: bold; font-size: 16px;">📥 Downloading Gutenberg Collection</div>
-            <div id="sticky-details" style="font-size: 14px;">Connecting...</div>
-        </div>
-        <div id="sticky-progress-bar">
-            <div id="sticky-progress-fill"></div>
-        </div>
-    </div>
-
     <h1>POC10 - Unofficial Gutenberg Mirror (Browser P2P, 2025 Trackers)</h1>
 
     <div class="status">
@@ -1823,10 +1776,6 @@
             document.getElementById('torrent-status').textContent = 'Initializing WebTorrent...';
             document.getElementById('torrent-progress').style.display = 'block';
 
-            // Show sticky status bar
-            document.getElementById('sticky-status').classList.add('active');
-            document.body.classList.add('has-sticky-status');
-
             if (!wtClient) {
                 wtClient = new WebTorrent();
             }
@@ -1867,11 +1816,6 @@
                     document.getElementById('torrent-details').textContent =
                         `${downloaded} / ${total} • ${speed}/s • ${peers} peers`;
 
-                    // Update sticky status bar
-                    document.getElementById('sticky-progress-fill').style.width = progress + '%';
-                    document.getElementById('sticky-details').textContent =
-                        `${progress}% • ${downloaded} / ${total} • ${speed}/s • ${peers} peers`;
-
                     // Log every 10% milestone
                     if (progress > lastLoggedProgress && progress % 10 === 0) {
                         log('transfer-log', `📥 Progress: ${progress}% (${downloaded} / ${total})`, 'query');
@@ -1881,9 +1825,6 @@
                     // Stop updating when complete
                     if (progress === 100) {
                         clearInterval(updateInterval);
-                        // Update sticky bar to show complete
-                        document.getElementById('sticky-details').textContent =
-                            `✅ Complete! ${total} downloaded • ${peers} peers`;
                     }
                 }, 1000);
 

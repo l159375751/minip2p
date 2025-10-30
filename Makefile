@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg
+.PHONY: deploy fetch-gutenberg setup-docker seed-gutenberg seed-stop seed-logs
 
 deploy:
 	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new
@@ -8,11 +8,22 @@ deploy:
 	ssh 0x6du 'cd /var/www/minip2p && git pull'
 
 fetch-gutenberg:
-	@echo "Downloading Gutenberg complete text collection (10.9GB)..."
 	wget -c -O gutenberg-txt-files.tar.zip https://www.gutenberg.org/cache/epub/feeds/txt-files.tar.zip
-	@echo "Calculating SHA256 checksum..."
 	sha256sum gutenberg-txt-files.tar.zip > gutenberg-txt-files.tar.zip.sha256
-	@echo "Adding to .gitignore..."
 	@grep -qxF "gutenberg-txt-files.tar.zip" .gitignore || echo "gutenberg-txt-files.tar.zip" >> .gitignore
-	@echo "Done! File saved as gutenberg-txt-files.tar.zip"
-	@echo "SHA256: $$(cat gutenberg-txt-files.tar.zip.sha256)"
+
+setup-docker:
+	@command -v docker >/dev/null 2>&1 || (curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $$USER)
+	docker pull webtorrentio/webtorrent-cli
+
+seed-gutenberg:
+	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
+	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
+		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
+		webtorrentio/webtorrent-cli seed /data/gutenberg-txt-files.tar.zip
+
+seed-stop:
+	docker stop webtorrent-gutenberg && docker rm webtorrent-gutenberg
+
+seed-logs:
+	docker logs -f webtorrent-gutenberg

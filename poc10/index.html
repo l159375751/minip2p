@@ -1888,6 +1888,15 @@
             checkStorageQuota();
         }
 
+        // Load comprehensive magnet link from file
+        fetch('gutenberg-magnet.txt')
+            .then(r => r.text())
+            .then(magnet => {
+                document.getElementById('magnet-link').value = magnet.trim();
+                console.log('✅ Loaded comprehensive magnet link with', magnet.split('&tr=').length - 1, 'trackers');
+            })
+            .catch(e => console.warn('Could not load magnet file, using default'));
+
         init();
     </script>
 </body>

@@ -48,8 +48,8 @@ seed-status:
 	@echo "=== WebTorrent Seeder Status ==="
 	@docker ps --filter name=webtorrent-gutenberg --format "Status: {{.Status}}" || echo "Container not running"
 	@echo ""
-	@echo "=== Recent Activity (last 20 lines) ==="
-	@docker logs webtorrent-gutenberg --tail 20 2>&1 | grep -E "(Seeding|peers|Speed|Progress|Uploaded|Downloaded|Magnet|torrent)" || echo "No activity yet"
+	@echo "=== Recent Activity (last XXX lines) ==="
+	@docker logs webtorrent-gutenberg --tail 11120 2>&1 | grep -E "(Seeding|peers|Speed|Progress|Uploaded|Downloaded|Magnet|torrent)" || echo "No activity yet"
 
 seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \

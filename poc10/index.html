@@ -1796,7 +1796,14 @@
                     log('transfer-log', `🔗 Connected to peer: ${addr}`, 'answer');
                 });
 
-                torrent.on('download', (bytes) => {
+                // Update UI every second instead of on every chunk to prevent flickering
+                let lastLoggedProgress = 0;
+                const updateInterval = setInterval(() => {
+                    if (!torrent) {
+                        clearInterval(updateInterval);
+                        return;
+                    }
+
                     const progress = Math.round(torrent.progress * 100);
                     const downloaded = formatBytes(torrent.downloaded);
                     const total = formatBytes(torrent.length);
@@ -1808,10 +1815,17 @@
                     document.getElementById('torrent-details').textContent =
                         `${downloaded} / ${total} • ${speed}/s • ${peers} peers`;
 
-                    if (progress > 0 && progress % 10 === 0) {
+                    // Log every 10% milestone
+                    if (progress > lastLoggedProgress && progress % 10 === 0) {
                         log('transfer-log', `📥 Progress: ${progress}% (${downloaded} / ${total})`, 'query');
+                        lastLoggedProgress = progress;
                     }
-                });
+
+                    // Stop updating when complete
+                    if (progress === 100) {
+                        clearInterval(updateInterval);
+                    }
+                }, 1000);
 
                 torrent.on('noPeers', (announceType) => {
                     log('transfer-log', `⚠️ No peers found via ${announceType}`, 'query');

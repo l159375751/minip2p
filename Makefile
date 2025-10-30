@@ -38,7 +38,8 @@ seed-from-file: build-docker
 		webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose
 
 seed-stop:
-	docker stop webtorrent-gutenberg && docker rm webtorrent-gutenberg
+	-docker stop webtorrent-gutenberg
+	-docker rm webtorrent-gutenberg
 
 seed-logs:
 	docker logs -f webtorrent-gutenberg

@@ -29,13 +29,13 @@ seed-gutenberg: build-docker
 	fi
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent download "$(MAGNET)" --keep-seeding --verbose
+		webtorrent download "$(MAGNET)" --keep-seeding --verbose --torrent-port 6881
 
 seed-from-file: build-docker
 	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-		webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose
+		webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose --torrent-port 6881
 
 seed-stop:
 	-docker stop webtorrent-gutenberg
@@ -54,7 +54,7 @@ seed-status:
 seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent download "$(GUTENBERG_MAGNET)" --keep-seeding --verbose
+		webtorrent download "$(GUTENBERG_MAGNET)" --keep-seeding --verbose --torrent-port 6881
 	@echo "Container started! Showing logs (Ctrl+C to exit, container keeps running)..."
 	@sleep 2
 	docker logs -f webtorrent-gutenberg

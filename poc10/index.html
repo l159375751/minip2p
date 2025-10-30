@@ -194,8 +194,8 @@
     </div>
 
     <!-- PEERJS BOX -->
-    <div class="box">
-        <h2>🔗 PeerJS</h2>
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔗 PeerJS (Advanced)</summary>
         <div class="row" style="align-items:center;">
             <div>
                 <strong>Your Peer ID:</strong>
@@ -210,11 +210,11 @@
             <button id="connectBtn" class="secondary" type="button" disabled>Connect</button>
         </div>
         <div class="status" id="peer-status">Initialising PeerJS…</div>
-    </div>
+    </details>
 
     <!-- NOSTR CONFIG BOX -->
-    <div class="box">
-        <h2>🔑 Nostr Config (testing)</h2>
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔑 Nostr Config (Advanced)</summary>
         <div>
             <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
             <button onclick="nextRelay()">Next Relay</button>
@@ -224,7 +224,7 @@
             <div><strong>Pubkey:</strong> <code id="pubkey" style="word-break: break-all;">-</code></div>
             <div style="margin-top: 5px;"><strong>Privkey:</strong> <code id="privkey" style="word-break: break-all;">-</code></div>
         </div>
-    </div>
+    </details>
 
     <!-- SEARCH BOX -->
     <div class="box">
@@ -237,11 +237,7 @@
         <div id="search-results"></div>
         <h3>Network Activity</h3>
         <div class="log" id="search-log"></div>
-    </div>
-
-    <!-- SEARCH DAEMON DEBUG -->
-    <div class="box">
-        <h2>🔍 Search Daemon - Debug</h2>
+        <h3>Search Daemon</h3>
         <div class="log" id="search-daemon-log"></div>
     </div>
 
@@ -254,16 +250,6 @@
         <div id="library" class="book-grid">
             <p>No books yet. Download some to get started!</p>
         </div>
-    </div>
-
-    <!-- TRANSFER BOX -->
-    <div class="box">
-        <h2>📥 Transfer Client</h2>
-        <div>
-            <input type="text" id="transfer-book-id" placeholder="Book ID">
-            <button onclick="requestBook()">Request Book</button>
-        </div>
-        <div class="log" id="transfer-log"></div>
     </div>
 
     <!-- DAEMON CONTROLS -->
@@ -279,18 +265,25 @@
         </div>
     </div>
 
-    <!-- TRANSFER DAEMON DEBUG -->
-    <div class="box">
-        <h2>📡 Transfer Daemon - Debug</h2>
+    <!-- TRANSFER BOX -->
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">📥 P2P Transfer (Advanced)</summary>
+        <h3>Transfer Client</h3>
+        <div>
+            <input type="text" id="transfer-book-id" placeholder="Book ID">
+            <button onclick="requestBook()">Request Book</button>
+        </div>
+        <div class="log" id="transfer-log"></div>
+        <h3>Transfer Daemon</h3>
         <div class="log" id="transfer-daemon-log"></div>
-    </div>
+    </details>
 
     <!-- P2P DEBUG -->
-    <div class="box">
-        <h2>🔍 Peer Debug (detailed logs)</h2>
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔍 Peer Debug (Advanced)</summary>
         <button onclick="document.getElementById('webrtc-debug').innerHTML = ''">Clear</button>
         <div class="log" id="webrtc-debug" style="font-family: monospace; font-size: 11px; max-height: 600px;"></div>
-    </div>
+    </details>
 
     <script>
         console.log('%c🚀 POC10 - Unofficial Gutenberg Mirror via WebTorrent', 'background: #2563eb; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');

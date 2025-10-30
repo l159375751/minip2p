@@ -193,39 +193,6 @@
         </div>
     </div>
 
-    <!-- PEERJS BOX -->
-    <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔗 PeerJS (Debug)</summary>
-        <div class="row" style="align-items:center;">
-            <div>
-                <strong>Your Peer ID:</strong>
-                <code id="localId">Initialising…</code>
-                <button id="copyIdBtn" class="secondary icon-button" type="button" aria-label="Copy peer ID" title="Copy peer ID" disabled>
-                    <span aria-hidden="true">📋</span>
-                </button>
-            </div>
-        </div>
-        <div class="row">
-            <input type="text" id="remoteId" placeholder="Remote peer ID">
-            <button id="connectBtn" class="secondary" type="button" disabled>Connect</button>
-        </div>
-        <div class="status" id="peer-status">Initialising PeerJS…</div>
-    </details>
-
-    <!-- NOSTR CONFIG BOX -->
-    <details class="box">
-        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔑 Nostr Config (Debug)</summary>
-        <div>
-            <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
-            <button onclick="nextRelay()">Next Relay</button>
-            <button onclick="generateKeypair()">New Keypair</button>
-        </div>
-        <div style="margin-top: 10px; font-size: 12px;">
-            <div><strong>Pubkey:</strong> <code id="pubkey" style="word-break: break-all;">-</code></div>
-            <div style="margin-top: 5px;"><strong>Privkey:</strong> <code id="privkey" style="word-break: break-all;">-</code></div>
-        </div>
-    </details>
-
     <!-- SEARCH BOX -->
     <div class="box">
         <h2>📖 Search</h2>
@@ -276,6 +243,39 @@
         <div class="log" id="transfer-log"></div>
         <h3>Transfer Daemon</h3>
         <div class="log" id="transfer-daemon-log"></div>
+    </details>
+
+    <!-- PEERJS BOX -->
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔗 PeerJS (Debug)</summary>
+        <div class="row" style="align-items:center;">
+            <div>
+                <strong>Your Peer ID:</strong>
+                <code id="localId">Initialising…</code>
+                <button id="copyIdBtn" class="secondary icon-button" type="button" aria-label="Copy peer ID" title="Copy peer ID" disabled>
+                    <span aria-hidden="true">📋</span>
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <input type="text" id="remoteId" placeholder="Remote peer ID">
+            <button id="connectBtn" class="secondary" type="button" disabled>Connect</button>
+        </div>
+        <div class="status" id="peer-status">Initialising PeerJS…</div>
+    </details>
+
+    <!-- NOSTR CONFIG BOX -->
+    <details class="box">
+        <summary style="cursor: pointer; font-weight: bold; font-size: 1.2em; margin-bottom: 10px;">🔑 Nostr Config (Debug)</summary>
+        <div>
+            <button id="connect-btn" onclick="toggleNostrConnection()">Disconnect</button>
+            <button onclick="nextRelay()">Next Relay</button>
+            <button onclick="generateKeypair()">New Keypair</button>
+        </div>
+        <div style="margin-top: 10px; font-size: 12px;">
+            <div><strong>Pubkey:</strong> <code id="pubkey" style="word-break: break-all;">-</code></div>
+            <div style="margin-top: 5px;"><strong>Privkey:</strong> <code id="privkey" style="word-break: break-all;">-</code></div>
+        </div>
     </details>
 
     <!-- P2P DEBUG -->

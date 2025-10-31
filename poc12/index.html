@@ -304,6 +304,10 @@
                 <div class="metric-label">Uploaded</div>
                 <div class="metric-value" id="downloadUpload">—</div>
             </div>
+            <div class="metric">
+                <div class="metric-label">Total</div>
+                <div class="metric-value" id="downloadTotalSize">—</div>
+            </div>
         </div>
         <div class="download-meta" style="flex: 0 0 auto;">
             <div class="meta-row">
@@ -546,7 +550,9 @@
             const infoHashEl = document.getElementById('downloadInfoHash');
             const pieceMapEl = document.getElementById('pieceMap');
 
-            if (!archiveEl || !speedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl) {
+            const totalSizeEl = document.getElementById('downloadTotalSize');
+
+            if (!archiveEl || !speedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl || !totalSizeEl) {
                 return;
             }
 
@@ -565,6 +571,7 @@
                 uploadEl.textContent = formatBytes(uploadedBytes);
                 infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+                totalSizeEl.textContent = totalBytes ? formatBytes(totalBytes) : '—';
 
                 updatePieceMap(currentTorrent);
                 const statusEl = document.getElementById('downloadStatusLine');
@@ -587,6 +594,7 @@
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : 'Local file';
+                totalSizeEl.textContent = formatBytes(localArchiveFile.size || 0);
                 updatePieceMap(null);
                 updateDownloadStatus('📁 Local archive loaded.');
             } else {
@@ -597,6 +605,7 @@
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
                 updatePieceMap(null);
+                totalSizeEl.textContent = '—';
                 updateDownloadStatus('No active downloads.');
             }
         }

@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test seed-multi seed-multi-stop seed-multi-logs
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:6042fc88ad1609b64ac7d09154e89e23ceb81cd4&dn=gutenberg-txt-files.tar.zip&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev
@@ -93,3 +93,33 @@ seed-test: seed-stop build-docker
 	@echo "Container started! Showing logs (Ctrl+C to exit, container keeps running)..."
 	@sleep 2
 	docker logs -f webtorrent-gutenberg
+
+seed-multi: build-docker
+	@if [ ! -f torrents.txt ]; then \
+		echo "❌ torrents.txt not found!"; \
+		echo "Create torrents.txt with one magnet link or infohash per line."; \
+		exit 1; \
+	fi
+	@if ! grep -q '^[^#]' torrents.txt; then \
+		echo "❌ No torrents found in torrents.txt (all lines are comments or empty)"; \
+		echo "Add magnet links or infohashes to torrents.txt, one per line."; \
+		exit 1; \
+	fi
+	@echo "🌱 Starting multi-torrent seeder..."
+	docker run -d --name webtorrent-multi --restart unless-stopped \
+		-v $$(pwd):/data:ro \
+		-v $$(pwd)/seed-multi.js:/app/seed-multi.js:ro \
+		-p 6881:6881 -p 6881:6881/udp \
+		-w /app \
+		webtorrent node /app/seed-multi.js /data/torrents.txt
+	@echo "✅ Multi-seeder started!"
+	@echo "📋 Check logs: make seed-multi-logs"
+	@echo "🛑 Stop: make seed-multi-stop"
+
+seed-multi-stop:
+	-docker stop webtorrent-multi
+	-docker rm webtorrent-multi
+	@echo "✅ Multi-seeder stopped"
+
+seed-multi-logs:
+	docker logs -f webtorrent-multi

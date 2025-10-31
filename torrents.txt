@@ -1,0 +1,12 @@
+# List of torrents to seed
+# One magnet link or infohash per line
+# Lines starting with # are comments
+
+# Example magnet link (uncomment to seed):
+# magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz
+
+# Example infohash (will be auto-converted to magnet, uncomment to seed):
+# a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
+
+# Add your torrents below (one per line):
+

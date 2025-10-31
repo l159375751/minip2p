@@ -320,9 +320,7 @@
             <div style="color: #999;">Loading...</div>
         </div>
         <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog… • InfoHash: —</div>
-        <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;">
-            <div style="color: #999;">Click to load...</div>
-        </div>
+        <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
     </div>
 
     <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
@@ -687,6 +685,13 @@
 
             refreshDownloadCard();
             updateDownloadStatus('No active downloads yet.');
+            refreshCatalogCard();
+            refreshBrowserFilesystem().catch(() => {
+                const fsDiv = document.getElementById('browserFilesystem');
+                if (fsDiv && fsDiv.innerHTML.trim() === '') {
+                    fsDiv.innerHTML = '<div style="color:#999;">Unable to read browser storage</div>';
+                }
+            });
             loadCatalog(); // Auto-load catalog
         });
 

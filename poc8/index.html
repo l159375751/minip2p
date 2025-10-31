@@ -169,6 +169,28 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.7; }
         }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .spinner-large {
+            width: 60px;
+            height: 60px;
+            border-width: 6px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hashing-status {
+            text-align: center;
+            padding: 2rem;
+        }
     </style>
 </head>
 <body>
@@ -193,6 +215,15 @@
         <div class="card" id="torrentCard" style="display: none;">
             <h2>2. Create & Seed Torrent</h2>
             <div class="status" id="torrentStatus">Ready to create torrent</div>
+            <div id="hashingStatus" class="hashing-status" style="display: none;">
+                <div class="spinner spinner-large"></div>
+                <div style="margin-top: 1rem; font-size: 1.1rem; font-weight: 600; color: #667eea;">
+                    🔨 Hashing file...
+                </div>
+                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">
+                    This may take 10-30 minutes for large files
+                </div>
+            </div>
             <button id="createBtn" onclick="createTorrent()">Create Torrent & Start Seeding</button>
 
             <div id="torrentResult" style="display: none; margin-top: 1.5rem;">
@@ -323,7 +354,8 @@
             log(`🔨 Creating torrent for ${selectedFile.name} (${formatBytes(selectedFile.size)})...`);
             log(`⏳ This may take a while for large files - hashing in progress...`);
             log(`💡 Check browser console (F12) for detailed WebTorrent logs`);
-            document.getElementById('torrentStatus').textContent = 'Creating torrent - hashing file...';
+            document.getElementById('torrentStatus').style.display = 'none';
+            document.getElementById('hashingStatus').style.display = 'block';
             document.getElementById('createBtn').disabled = true;
 
             const startTime = Date.now();
@@ -347,6 +379,9 @@
                 log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
                 log(`🎯 Ready to accept peer connections...`);
 
+                // Hide spinner, show success status
+                document.getElementById('hashingStatus').style.display = 'none';
+                document.getElementById('torrentStatus').style.display = 'block';
                 document.getElementById('torrentStatus').textContent = '✅ Seeding active - ready for peers';
                 document.getElementById('torrentResult').style.display = 'block';
                 document.getElementById('debugCard').style.display = 'block';

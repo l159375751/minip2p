@@ -317,6 +317,13 @@
         </div>
     </div>
 
+    <div class="card" id="torrentInfoCard" style="padding: 1.25rem; margin-bottom: 1rem;">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">🧩 Torrent Metadata</h2>
+        <div id="torrentMetaSummary" style="margin-bottom: 0.5rem; color: #555; font-size: 0.85rem;">Awaiting metadata…</div>
+        <div id="torrentMetaPieces" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;"></div>
+        <div id="torrentMetaFiles" style="padding: 0.75rem; background: #f8f8ff; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
+    </div>
+
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download Options</h2>
         <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
@@ -1109,15 +1116,21 @@
                 detailsEl.innerHTML = lines.map(text => `<div>${text}</div>`).join('');
             }
 
-            pieceProgress.firstVerifiedBlock = firstCompleteIndex !== -1 ? firstCompleteIndex + 1 : null;
-            pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
-            pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
+        pieceProgress.firstVerifiedBlock = firstCompleteIndex !== -1 ? firstCompleteIndex + 1 : null;
+        pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
+        pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
+        pieceProgress.blocksComplete = blocksComplete;
+        pieceProgress.blocksPartial = blocksPartial;
+        pieceProgress.totalBlocks = blockStates.length;
+        pieceProgress.totalPieces = totalPieces;
+        pieceProgress.piecesPerBlock = piecesPerBlock;
 
-            if (!isArchiveReady()) {
-                showLibrary();
-            }
+        if (!isArchiveReady()) {
+            showLibrary();
+        }
 
-            updateDownloadedFilesView(torrent);
+        updateDownloadedFilesView(torrent);
+        updateTorrentInfo(torrent);
 
             if (blockStripEl) {
                 const focusIndex = firstPartialIndex !== -1 ? firstPartialIndex : (firstCompleteIndex !== -1 ? firstCompleteIndex : 0);
@@ -1182,6 +1195,7 @@
                 if (pieceMapEl) pieceMapEl.innerHTML = '';
                 const pieceContainer = document.getElementById('pieceMapContainer');
                 if (pieceContainer) pieceContainer.style.display = 'none';
+                updateTorrentInfo(null);
                 updateDownloadStatus('Stopping previous download…');
                 refreshDownloadCard();
             }
@@ -1229,6 +1243,7 @@
                     log(`🧭 InfoHash: ${currentTorrent.infoHash}`);
                 }
                 updateDownloadStatus('📦 Metadata received. Downloading pieces...');
+                updateTorrentInfo(currentTorrent);
                 refreshDownloadCard();
 
                 // Set background color from InfoHash
@@ -1298,6 +1313,7 @@
             activeDownload.magnet = null;
             refreshDownloadCard();
             updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
+            updateTorrentInfo(null);
         }
 
         function refreshCatalogCard() {
@@ -1315,12 +1331,14 @@
             if (!torrent || !torrent.files) {
                 container.style.display = 'none';
                 container.innerHTML = '';
+                updateTorrentInfo(null);
                 return;
             }
 
             if (torrent.files.length === 0) {
                 container.style.display = '';
                 container.innerHTML = '<div style="color:#999;">Torrent active, awaiting file list…</div>';
+                updateTorrentInfo(torrent);
                 return;
             }
 
@@ -1336,6 +1354,59 @@
 
             container.innerHTML = lines.join('');
             container.style.display = lines.length ? '' : 'none';
+            updateTorrentInfo(torrent);
+        }
+
+        function updateTorrentInfo(torrent) {
+            const summaryEl = document.getElementById('torrentMetaSummary');
+            const piecesEl = document.getElementById('torrentMetaPieces');
+            const filesEl = document.getElementById('torrentMetaFiles');
+            if (!summaryEl || !piecesEl || !filesEl) return;
+
+            if (!torrent) {
+                summaryEl.textContent = 'No torrent loaded.';
+                piecesEl.innerHTML = '';
+                filesEl.innerHTML = '';
+                return;
+            }
+
+            if (!torrent.length || !torrent.pieces || !torrent.pieces.length) {
+                summaryEl.textContent = 'Torrent active, waiting for metadata…';
+                piecesEl.innerHTML = '';
+                filesEl.innerHTML = '';
+                return;
+            }
+
+            const totalSize = formatBytes(torrent.length || 0);
+            const pieceCount = torrent.pieces.length;
+            const pieceSize = torrent.pieceLength ? formatBytes(torrent.pieceLength) : '—';
+            const lastPieceSize = torrent.lastPieceLength ? formatBytes(torrent.lastPieceLength) : pieceSize;
+            const downloadedBytes = torrent.downloaded || 0;
+            const downloadedPercent = torrent.length ? ((downloadedBytes / torrent.length) * 100).toFixed(1) : '0.0';
+
+            summaryEl.textContent = `Total ${totalSize} • Pieces ${pieceCount} × ${pieceSize} (last ${lastPieceSize}) • Downloaded ${formatBytes(downloadedBytes)} (${downloadedPercent}%)`;
+
+            const blocksReady = pieceProgress.blocksComplete || 0;
+            const blocksPartial = pieceProgress.blocksPartial || 0;
+            const blockTotal = pieceProgress.totalBlocks || Math.min(50, pieceCount);
+            const nextBlockText = pieceProgress.nextPartialBlock
+                ? `Next block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`
+                : (pieceProgress.firstVerifiedBlock ? `Verified up to block ${pieceProgress.firstVerifiedBlock}` : 'No verified blocks yet');
+
+            piecesEl.innerHTML = `Blocks ready ${blocksReady}/${blockTotal} • Partial ${blocksPartial} • ${nextBlockText}`;
+
+            const files = torrent.files ? torrent.files.slice().sort((a, b) => (a.path || a.name || '').localeCompare(b.path || b.name || '')) : [];
+            const maxFiles = 10;
+            filesEl.innerHTML = files.slice(0, maxFiles).map((file, idx) => {
+                const name = file.path || file.name || `(file ${idx + 1})`;
+                const size = formatBytes(file.length || 0);
+                const pct = file.progress !== undefined ? (file.progress * 100).toFixed(1) : '0.0';
+                return `<div>${idx + 1}. ${name} — ${pct}% • ${size}</div>`;
+            }).join('');
+
+            if (files.length > maxFiles) {
+                filesEl.innerHTML += `<div style="color:#777;">… plus ${files.length - maxFiles} more files</div>`;
+            }
         }
 
         function showLibrary() {

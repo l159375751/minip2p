@@ -613,14 +613,27 @@
 
             log(`🧲 Parsing magnet link...`);
 
+            // Extract infohash from magnet link to check for duplicates
+            const infohashMatch = magnetInput.match(/btih:([a-f0-9]{40})/i);
+            if (infohashMatch) {
+                const infohash = infohashMatch[1].toLowerCase();
+                const existingTorrent = client.get(infohash);
+                if (existingTorrent) {
+                    log(`⚠️  Removing existing torrent first...`);
+                    existingTorrent.destroy();
+                }
+            }
+
             try {
                 // Parse magnet link using WebTorrent
                 client.add(magnetInput, (torrent) => {
                     log(`✅ Magnet parsed successfully`);
-                    log(`📝 Name: ${torrent.name}`);
+                    log(`📝 Name: ${torrent.name || 'Unknown (no metadata yet)'}`);
                     log(`🔗 InfoHash: ${torrent.infoHash}`);
                     log(`📊 Announced size: ${formatBytes(torrent.length)}`);
                     log(`📁 Files: ${torrent.files.length}`);
+                    log(`⚠️  NOTE: POC8 is for SEEDING, not downloading!`);
+                    log(`👉 Select the data file you want to seed with this InfoHash`);
 
                     // Display info
                     document.getElementById('torrentName').textContent = torrent.name || 'Unknown';

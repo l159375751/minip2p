@@ -190,6 +190,43 @@
                     <div class="stat-value" id="eta">Calculating...</div>
                 </div>
             </div>
+
+            <div style="margin-top: 1.5rem;">
+                <h3 style="margin-bottom: 0.75rem; font-size: 1.1rem;">📊 Torrent Details</h3>
+                <div class="stats" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                    <div class="stat">
+                        <div class="stat-label">Pieces</div>
+                        <div class="stat-value" id="piecesInfo">0 / 0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Piece Length</div>
+                        <div class="stat-value" id="pieceLength">-</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Files</div>
+                        <div class="stat-value" id="filesCount">0</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Upload Speed</div>
+                        <div class="stat-value" id="uploadSpeed">0 B/s</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Uploaded</div>
+                        <div class="stat-value" id="uploaded">0 B</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Ratio</div>
+                        <div class="stat-value" id="ratio">0.00</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1rem;">
+                    <div class="stat-label" style="margin-bottom: 0.5rem;">Status:</div>
+                    <div id="torrentStatus" style="font-size: 0.9rem; color: #666; padding: 0.75rem; background: #f8f9ff; border-radius: 0.5rem; border-left: 3px solid #667eea;">
+                        Connecting to peers...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -427,9 +464,14 @@
                 log(`✅ Got torrent metadata`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
+                log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
+
+                // Update torrent details
+                document.getElementById('filesCount').textContent = currentTorrent.files.length;
+                document.getElementById('pieceLength').textContent = formatBytes(currentTorrent.pieceLength);
             });
 
             currentTorrent.on('wire', (wire, addr) => {
@@ -451,6 +493,32 @@
                 document.getElementById('downloadSpeed').textContent = speed + '/s';
                 document.getElementById('peerCount').textContent = peers;
                 document.getElementById('eta').textContent = formatTime(timeRemaining / 1000);
+
+                // Update detailed stats
+                if (currentTorrent.pieces) {
+                    const piecesComplete = currentTorrent.pieces.filter(p => p).length;
+                    const piecesTotal = currentTorrent.pieces.length;
+                    document.getElementById('piecesInfo').textContent = `${piecesComplete} / ${piecesTotal}`;
+                }
+
+                document.getElementById('uploadSpeed').textContent = formatBytes(currentTorrent.uploadSpeed) + '/s';
+                document.getElementById('uploaded').textContent = formatBytes(currentTorrent.uploaded);
+
+                const ratio = currentTorrent.uploaded / Math.max(currentTorrent.downloaded, 1);
+                document.getElementById('ratio').textContent = ratio.toFixed(2);
+
+                // Update status message
+                let statusMsg = '';
+                if (progress === 0 && peers === 0) {
+                    statusMsg = '🔍 Searching for peers...';
+                } else if (progress === 0 && peers > 0) {
+                    statusMsg = `📡 Connected to ${peers} peer${peers !== 1 ? 's' : ''}, waiting for data...`;
+                } else if (progress < 100) {
+                    statusMsg = `⬇️ Downloading from ${peers} peer${peers !== 1 ? 's' : ''} at ${speed}/s`;
+                } else {
+                    statusMsg = `✅ Download complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''}`;
+                }
+                document.getElementById('torrentStatus').textContent = statusMsg;
             }, 1000);
 
             currentTorrent.on('done', () => {

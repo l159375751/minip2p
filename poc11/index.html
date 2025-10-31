@@ -507,16 +507,22 @@
                 const speed = formatBytes(currentTorrent.downloadSpeed);
                 const peers = currentTorrent.numPeers;
 
-                // Calculate progress from pieces (more accurate than currentTorrent.progress)
+                // Use both verified progress and piece count for accurate status
+                const verifiedProgress = Math.round(currentTorrent.progress * 100);
                 const pieces = currentTorrent.pieces ? currentTorrent.pieces.filter(p => p).length : 0;
                 const totalPieces = currentTorrent.pieces ? currentTorrent.pieces.length : 0;
-                const progress = totalPieces > 0 ? Math.round((pieces / totalPieces) * 100) : 0;
+                const downloadedProgress = totalPieces > 0 ? Math.round((pieces / totalPieces) * 100) : 0;
 
                 let statusMsg = '';
-                if (progress === 0 && peers === 0) {
+                if (verifiedProgress === 0 && peers === 0) {
                     statusMsg = '🔍 Searching for peers...';
-                } else if (progress < 100) {
-                    statusMsg = `⬇️ ${progress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                } else if (verifiedProgress < 100) {
+                    // Show both downloaded pieces and verified percentage
+                    if (downloadedProgress > verifiedProgress) {
+                        statusMsg = `⬇️ ${verifiedProgress}% verified (${pieces}/${totalPieces} pieces downloaded) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                    } else {
+                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                    }
                 } else {
                     statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''}`;
                 }

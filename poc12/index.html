@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC12 - Block Diagnostics Lab</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <script src="vendor/webtorrent.min.js"></script>
+    <script src="library-builder.js"></script>
+    <script src="vendor/pako.min.js"></script>
+    <script src="vendor/untar.js"></script>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid rgba(102, 126, 234, 0.5);
+        }
+        h1 {
+            color: white;
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .progress-container {
+            background: #e8e8e8;
+            border-radius: 0.25rem;
+            height: 24px;
+            overflow: hidden;
+            margin: 0.75rem 0;
+        }
+        .progress-bar {
+            background: #667eea;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin: 1rem 0;
+            padding: 0.75rem 0;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .stat {
+            flex: 0 0 auto;
+        }
+        .stat-label {
+            font-size: 0.75rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f8f8f8;
+            color: #333;
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border: 1px solid #e0e0e0;
+        }
+        .log > div {
+            padding: 0.25rem 0;
+            border-bottom: 1px dotted #e0e0e0;
+        }
+        .log > div:last-child {
+            border-bottom: none;
+        }
+        .book-list {
+            background: white;
+            border: 1px solid #ddd;
+            font-size: 0.8rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .book-item {
+            display: grid;
+            grid-template-columns: 1fr 2fr 40px;
+            gap: 1rem;
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #eee;
+            align-items: center;
+        }
+        .book-item:hover {
+            background: #f5f5f5;
+        }
+        .book-item a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 1.2rem;
+        }
+        .book-item a:hover {
+            opacity: 0.7;
+        }
+        .book-item a.disabled {
+            color: #bbb;
+            cursor: not-allowed;
+        }
+        .book-item a.disabled:hover {
+            opacity: 1;
+        }
+        .download-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #4a4a4a;
+            margin-bottom: 0.5rem;
+        }
+        .download-status {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 0.75rem;
+        }
+        .download-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .download-metrics .metric {
+            background: #f3f4ff;
+            border-radius: 0.4rem;
+            padding: 0.5rem 0.65rem;
+        }
+        .metric-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #6b6b6b;
+        }
+        .metric-value {
+            font-weight: 600;
+            color: #323c88;
+            margin-top: 0.2rem;
+            font-size: 0.95rem;
+        }
+        .download-meta {
+            display: grid;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .download-meta code {
+            display: block;
+            padding: 0.35rem 0.5rem;
+            background: #f8f8ff;
+            border-radius: 0.35rem;
+            word-break: break-all;
+        }
+        .meta-row {
+            display: grid;
+            gap: 0.25rem;
+        }
+        .meta-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #8a8a8a;
+        }
+        .piece-map-container {
+            margin-top: 0.75rem;
+        }
+        .piece-map-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #8a8a8a;
+            margin-bottom: 0.35rem;
+        }
+        .piece-summary {
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 0.35rem;
+        }
+        .piece-map {
+            display: grid;
+            grid-template-columns: repeat(25, 14px);
+            gap: 4px;
+        }
+        .piece-map div {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            background: #e0e0e0;
+        }
+        .piece-details {
+            font-size: 0.75rem;
+            color: #555;
+            margin-top: 0.5rem;
+            display: grid;
+            gap: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>📚 POC12 – Block Diagnostics Lab</h1>
+
+    <div class="card" style="padding: 1rem; margin-bottom: 1rem;">
+        <p style="margin: 0; color: #4a4a4a; font-size: 0.95rem;">
+            This experiment mirrors POC11’s progressive downloader but spotlights block telemetry so we can predict when the first books unlock. Use the cards below to watch piece completion, block status, and downloaded file readiness in real time.
+        </p>
+    </div>
+
+    <div style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.9); border-radius: 0.5rem; border-left: 4px solid rgba(102, 126, 234, 0.5);">
+        <div id="statusLine" style="font-size: 0.9rem; color: #666;">
+            📚 Loading catalog...
+        </div>
+        <div id="infoHashLine" style="font-size: 0.8rem; color: #888; margin-top: 0.25rem; word-break: break-all;">
+            InfoHash: —
+        </div>
+    </div>
+
+    <div class="card" id="downloadCard">
+        <div class="download-card-header">
+            <span>⬇️ Downloads</span>
+        </div>
+        <div id="downloadStatusLine" class="download-status">No active downloads yet.</div>
+        <div class="download-metrics">
+            <div class="metric">
+                <div class="metric-label">Archive</div>
+                <div class="metric-value" id="downloadArchive">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Speed</div>
+                <div class="metric-value" id="downloadSpeed">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Peers</div>
+                <div class="metric-value" id="downloadPeers">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Uploaded</div>
+                <div class="metric-value" id="downloadUpload">—</div>
+            </div>
+        </div>
+        <div class="download-meta">
+            <div class="meta-row">
+                <span class="meta-label">InfoHash</span>
+                <code id="downloadInfoHash">—</code>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Magnet</span>
+                <code id="downloadMagnet">—</code>
+            </div>
+        </div>
+        <div id="pieceMapContainer" class="piece-map-container" style="display:none;">
+            <div class="piece-map-label">Pieces</div>
+            <div id="pieceSummary" class="piece-summary">Waiting for data…</div>
+            <div id="pieceMap" class="piece-map"></div>
+            <div id="pieceDetails" class="piece-details"></div>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
+        <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download Options</h2>
+        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+            style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="startDownload()" style="flex: 1;">Start Download</button>
+            <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">or .torrent</button>
+            <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
+            <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
+            <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
+        </div>
+    </div>
+
+    <div style="margin-bottom: 1rem;">
+        <input type="text" id="searchBox" placeholder="Search books by title or author..."
+            style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; font-size: 0.95rem;">
+    </div>
+
+    <div class="book-list" id="bookList" style="max-height: 500px;"></div>
+    <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
+        Catalog loading…
+    </div>
+    <div id="readabilityWarning" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-left: 4px solid #ffc107; font-size: 0.85rem;">
+        ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">📊 Catalog & Browser Storage</h2>
+        <div id="catalogMetadata" style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
+            <div style="color: #999;">Loading...</div>
+        </div>
+        <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog… • InfoHash: —</div>
+        <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
+        <div id="downloadedFiles" style="margin-top: 0.75rem; padding: 0.75rem; background: #f0f7ff; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 200px; overflow-y: auto; display:none;"></div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">📝 Console Log</h2>
+        <div id="log" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
+    </div>
+
+    <script src="vendor/webtorrent.min.js"></script>
+
+    <script>
+        // Optimized WebTorrent client for faster downloads
+        const MAX_TORRENT_CONNECTIONS = 80;
+        let client = null;
+        if (window.WebTorrent) {
+            client = new WebTorrent({
+                maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
+                dht: true,            // Enable DHT for peer discovery
+                webSeeds: true        // Enable web seeds if available
+            });
+        } else {
+            console.warn('WebTorrent not available in this environment.');
+        }
+        let currentTorrent = null;
+        let torrentStatsInterval = null;
+        let loadedMagnetLink = null; // Store magnet link from .torrent file
+        let localArchiveFile = null;
+        let catalogBooks = []; // Store parsed catalog books
+        let currentInfoHash = null;
+        let catalogSummary = {
+            status: '📚 Loading catalog…',
+            infoHash: '—'
+        };
+        let activeDownload = { magnet: null };
+        const seenTorrentWarnings = new Set();
+        const FALLBACK_TRACKERS = [
+            'wss://tracker.openwebtorrent.com',
+            'wss://tracker.webtorrent.dev',
+            'wss://tracker.btorrent.xyz',
+            'wss://tracker.fastcast.nz',
+            'wss://tracker.files.fm:7073/announce'
+        ];
+
+        // Default magnet link with MANY trackers for better peer discovery
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz' +
+            '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
+            '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
+            '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
+            '&tr=wss%3A%2F%2Ftracker.fastcast.nz' +
+            '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
+            '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
+            '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
+
+        if (typeof window.WebTorrent === 'undefined') {
+            const message = 'WebTorrent library failed to load. Please use a modern Chromium- or Firefox-based browser.';
+            console.error(message);
+            alert(message);
+        }
+
+        console.log('%c📚 POC12 - Block Diagnostics Lab', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        if (client) {
+            client.on('warning', (warning) => {
+                const message = (warning && warning.message) ? warning.message : String(warning);
+                if (seenTorrentWarnings.has(message)) {
+                    return;
+                }
+                seenTorrentWarnings.add(message);
+
+                if (message.includes('tracker') || message.includes('WebSocket')) {
+                    log(`⚠️ Tracker warning: ${message}`);
+                } else {
+                    log(`⚠️ WebTorrent warning: ${message}`);
+                }
+                console.warn('WebTorrent warning:', warning);
+            });
+
+            client.on('error', (error) => {
+                log(`❌ WebTorrent client error: ${error.message}`);
+                console.error('WebTorrent error:', error);
+            });
+        }
+
+        function updateInfoHashDisplay(infoHash) {
+            currentInfoHash = infoHash || null;
+            const infoHashEl = document.getElementById('infoHashLine');
+            if (!infoHashEl) return;
+
+            if (infoHash) {
+                infoHashEl.textContent = `InfoHash: ${infoHash}`;
+                catalogSummary.infoHash = infoHash;
+            } else {
+                infoHashEl.textContent = 'InfoHash: —';
+                catalogSummary.infoHash = '—';
+            }
+            refreshDownloadCard();
+            refreshCatalogCard();
+        }
+
+        function isArchiveReady() {
+            if (localArchiveFile) return true;
+            if (currentTorrent && currentTorrent.progress === 1) return true;
+            return false;
+        }
+
+        function normalizeMagnet(magnetLink) {
+            if (!magnetLink) return magnetLink;
+
+            let trimmed = magnetLink.trim();
+
+            if (/%[0-9a-fA-F]{2}/.test(trimmed)) {
+                try {
+                    const decoded = decodeURIComponent(trimmed);
+                    if (decoded) {
+                        trimmed = decoded;
+                    }
+                } catch (error) {
+                    console.warn('Failed to decode magnet components, keeping original string', error);
+                }
+            }
+
+            if (trimmed.startsWith('magnet:?')) {
+                return trimmed;
+            }
+
+            if (trimmed.startsWith('magnet:')) {
+                const rest = trimmed.slice('magnet:'.length);
+                if (rest.startsWith('?')) {
+                    return `magnet:${rest}`;
+                }
+                return `magnet:?${rest.replace(/^\?+/, '')}`;
+            }
+
+            if (trimmed.startsWith('?')) {
+                return `magnet:${trimmed}`;
+            }
+
+            if (trimmed.startsWith('xt=')) {
+                return `magnet:?${trimmed}`;
+            }
+
+            // If it's just a bare info hash, build a minimal magnet
+            const infoHashMatch = trimmed.match(/^[0-9a-fA-F]{40}$/);
+            if (infoHashMatch) {
+                return `magnet:?xt=urn:btih:${trimmed}`;
+            }
+
+            return trimmed;
+        }
+
+        function magnetForDisplay(magnetLink) {
+            if (!magnetLink) return '';
+            try {
+                return decodeURIComponent(magnetLink);
+            } catch (error) {
+                return magnetLink;
+            }
+        }
+
+        function truncateMiddle(value, maxLength = 70) {
+            if (!value) return '';
+            if (value.length <= maxLength) return value;
+            const half = Math.floor((maxLength - 3) / 2);
+            return `${value.slice(0, half)}...${value.slice(-half)}`;
+        }
+
+        function updateDownloadStatus(message) {
+            const statusEl = document.getElementById('downloadStatusLine');
+            if (statusEl) {
+                statusEl.textContent = message;
+            }
+        }
+
+        function refreshDownloadCard() {
+            const archiveEl = document.getElementById('downloadArchive');
+            const speedEl = document.getElementById('downloadSpeed');
+            const peersEl = document.getElementById('downloadPeers');
+            const uploadEl = document.getElementById('downloadUpload');
+            const magnetEl = document.getElementById('downloadMagnet');
+            const infoHashEl = document.getElementById('downloadInfoHash');
+            const pieceMapEl = document.getElementById('pieceMap');
+
+            if (!archiveEl || !speedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl) {
+                return;
+            }
+
+            if (currentTorrent) {
+                const totalBytes = currentTorrent.length || 0;
+                const downloadedBytes = currentTorrent.downloaded || 0;
+                const uploadedBytes = currentTorrent.uploaded || 0;
+                const speedBytes = currentTorrent.downloadSpeed || 0;
+                const progressPercent = totalBytes ? ((downloadedBytes / totalBytes) * 100) : 0;
+
+                archiveEl.textContent = totalBytes
+                    ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} (${progressPercent.toFixed(1)}%)`
+                    : `${formatBytes(downloadedBytes)}`;
+                speedEl.textContent = speedBytes ? `${formatBytes(speedBytes)}/s` : '0 B/s';
+                peersEl.textContent = `${currentTorrent.numPeers} peer${currentTorrent.numPeers === 1 ? '' : 's'}`;
+                uploadEl.textContent = formatBytes(uploadedBytes);
+                infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+
+                updatePieceMap(currentTorrent);
+            } else if (localArchiveFile) {
+                archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
+                speedEl.textContent = '—';
+                peersEl.textContent = '—';
+                uploadEl.textContent = '—';
+                infoHashEl.textContent = currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : 'Local file';
+                updatePieceMap(null);
+            } else {
+                archiveEl.textContent = '—';
+                speedEl.textContent = '—';
+                peersEl.textContent = '—';
+                uploadEl.textContent = '—';
+                infoHashEl.textContent = currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+                updatePieceMap(null);
+            }
+        }
+
+        function sanitizeMagnet(magnetLink) {
+            if (!magnetLink || !magnetLink.includes('?')) {
+                return magnetLink;
+            }
+
+            try {
+                const questionIndex = magnetLink.indexOf('?');
+                const prefix = magnetLink.slice(0, questionIndex);
+                const query = magnetLink.slice(questionIndex + 1);
+                const parts = query.split('&').filter(Boolean);
+                const cleanedPairs = [];
+                const seenTrackers = new Set();
+
+                for (const part of parts) {
+                    const equalIndex = part.indexOf('=');
+                    const rawKey = equalIndex >= 0 ? part.slice(0, equalIndex) : part;
+                    const rawValue = equalIndex >= 0 ? part.slice(equalIndex + 1) : '';
+                    const key = rawKey.trim();
+                    if (!key) continue;
+
+                    const lowerKey = key.toLowerCase();
+
+                    const decodeSafe = (value) => {
+                        try {
+                            return decodeURIComponent(value);
+                        } catch {
+                            return value;
+                        }
+                    };
+
+                    if (lowerKey === 'tr') {
+                        const decodedTracker = decodeSafe(rawValue);
+                        if (seenTrackers.has(decodedTracker) || seenTrackers.size >= 10) {
+                            continue;
+                        }
+                        seenTrackers.add(decodedTracker);
+                        cleanedPairs.push(`${key}=${encodeURIComponent(decodedTracker)}`);
+                    } else if (lowerKey === 'xt') {
+                        const decodedXt = decodeSafe(rawValue);
+                        if (!decodedXt) continue;
+                        if (decodedXt.startsWith('urn:')) {
+                            cleanedPairs.push(`${key}=${decodedXt}`);
+                        } else {
+                            cleanedPairs.push(`${key}=${encodeURIComponent(decodedXt)}`);
+                        }
+                    } else {
+                        if (rawValue === '') {
+                            cleanedPairs.push(key);
+                        } else {
+                            const decodedValue = decodeSafe(rawValue);
+                            cleanedPairs.push(`${key}=${encodeURIComponent(decodedValue)}`);
+                        }
+                    }
+                }
+
+                const separator = prefix.endsWith('?') ? '' : '?';
+                return `${prefix}${separator}${cleanedPairs.join('&')}`;
+            } catch (error) {
+                console.warn('Failed to sanitize magnet link, using original', error);
+                return magnetLink;
+            }
+        }
+
+        function extractTrackersFromMagnet(magnetLink) {
+            if (!magnetLink || !magnetLink.includes('?')) {
+                return [];
+            }
+
+            try {
+                const questionIndex = magnetLink.indexOf('?');
+                const query = magnetLink.slice(questionIndex + 1);
+                const params = new URLSearchParams(query);
+                const trackers = [];
+                for (const [key, value] of params.entries()) {
+                    if (key.toLowerCase() === 'tr') {
+                        trackers.push(value);
+                    }
+                }
+                return trackers;
+            } catch (error) {
+                console.warn('Failed to extract trackers from magnet', error);
+                return [];
+            }
+        }
+
+        function shortPeerId(peerId) {
+            if (!peerId) return null;
+
+            if (typeof peerId === 'string') {
+                return peerId.slice(0, 12);
+            }
+
+            try {
+                const view = peerId.buffer
+                    ? new Uint8Array(peerId.buffer, peerId.byteOffset || 0, Math.min(6, peerId.byteLength || peerId.length || 0))
+                    : new Uint8Array(peerId);
+                return Array.from(view, (byte) => byte.toString(16).padStart(2, '0')).join('');
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function describePeerConnection(wire, addr) {
+            if (addr && addr !== '127.0.0.1:0') {
+                return addr;
+            }
+
+            if (wire && wire.remoteAddress) {
+                return wire.remoteAddress;
+            }
+
+            const id = shortPeerId(wire && wire.peerId);
+            return id ? `browser#${id}` : 'browser-peer';
+        }
+
+        // Simple string hash function (cyrb53)
+        function hashString(str) {
+            let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+            for (let i = 0, ch; i < str.length; i++) {
+                ch = str.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+            }
+            h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+            h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+            const hash = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+            // Convert to 40-char hex string (like InfoHash)
+            return hash.toString(16).padStart(16, '0').repeat(3).substring(0, 40);
+        }
+
+        // Load saved background color and catalog on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set background from hash of our own source code (static parts only)
+            // Hash the script content which doesn't change at runtime
+            const scripts = Array.from(document.getElementsByTagName('script'))
+                .map(s => s.textContent)
+                .join('');
+            const sourceHash = hashString(scripts);
+            setBackgroundFromHash(sourceHash);
+            console.log(`🎨 Color seed from source hash: ${sourceHash}`);
+
+            refreshDownloadCard();
+            updateDownloadStatus('No active downloads yet.');
+            refreshCatalogCard();
+            refreshBrowserFilesystem().catch(() => {
+                const fsDiv = document.getElementById('browserFilesystem');
+                if (fsDiv && fsDiv.innerHTML.trim() === '') {
+                    fsDiv.innerHTML = '<div style="color:#999;">Unable to read browser storage</div>';
+                }
+            });
+            loadCatalog(); // Auto-load catalog
+        });
+
+        function hashToColor(hash) {
+            // Convert InfoHash to two colors for gradient
+            if (!hash || hash.length < 40) {
+                return null;
+            }
+
+            // Use first 6 chars for color1, chars 20-26 for color2
+            const color1 = '#' + hash.substring(0, 6);
+            const color2 = '#' + hash.substring(20, 26);
+
+            return { color1, color2 };
+        }
+
+        function setBackgroundFromHash(hash) {
+            const colors = hashToColor(hash);
+            if (!colors) return;
+
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            // Save to localStorage
+            localStorage.setItem('poc11_bg_color', JSON.stringify(colors));
+
+            log(`🎨 Background: ${colors.color1} → ${colors.color2}`);
+        }
+
+        function loadBackgroundColor() {
+            const saved = localStorage.getItem('poc11_bg_color');
+            if (!saved) return;
+
+            const colors = JSON.parse(saved);
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            console.log(`🎨 Loaded background color: ${colors.color1} → ${colors.color2}`);
+        }
+
+        async function loadCatalog() {
+            updateStatus('📚 Loading catalog...');
+
+            try {
+                const response = await fetch('GUTINDEX.ALL.new');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const text = await response.text();
+                catalogBooks = GutIndexParser.parseIndex(text);
+
+                // Extract and display metadata
+                const fileSize = text.length;
+                const lastModified = response.headers.get('Last-Modified') || 'Unknown';
+                const contentType = response.headers.get('Content-Type') || 'text/plain';
+
+                // Calculate a simple hash for verification
+                const catalogHash = hashString(text).substring(0, 8);
+
+                updateStatus(`✅ Catalog loaded: ${catalogBooks.length.toLocaleString()} books`);
+                showLibrary();
+                displayCatalogMetadata({
+                    books: catalogBooks.length,
+                    fileSize: fileSize,
+                    lastModified: lastModified,
+                    contentType: contentType,
+                    hash: catalogHash,
+                    source: 'GUTINDEX.ALL.new'
+                });
+
+            } catch (error) {
+                updateStatus(`❌ Error loading catalog: ${error.message}`);
+                console.error('Catalog load error:', error);
+            }
+        }
+
+        function displayCatalogMetadata(meta) {
+            const metadataDiv = document.getElementById('catalogMetadata');
+            metadataDiv.innerHTML = `
+                <div style="margin-bottom: 0.5rem;"><strong>📁 Source:</strong> ${meta.source}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📚 Books:</strong> ${meta.books.toLocaleString()}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>💾 File Size:</strong> ${formatBytes(meta.fileSize)}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📅 Last Modified:</strong> ${meta.lastModified}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📝 Content Type:</strong> ${meta.contentType}</div>
+                <div><strong>🔐 Hash (first 8):</strong> ${meta.hash}</div>
+            `;
+            log(`📊 Catalog metadata: ${meta.books.toLocaleString()} books, ${formatBytes(meta.fileSize)}, hash: ${meta.hash}`);
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusLine').textContent = message;
+        }
+
+        function handleTorrentFile(file) {
+            if (!file) return;
+            if (!client) {
+                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                return;
+            }
+            log(`🔥 Loading .torrent file: ${file.name}`);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const torrentBuffer = new Uint8Array(e.target.result);
+
+                // Parse torrent to get magnet link
+                client.add(torrentBuffer, (torrent) => {
+                    const magnetLink = torrent.magnetURI;
+                    const infoHash = torrent.infoHash;
+
+                    log(`✅ Torrent file loaded: ${file.name}`);
+                    log(`🔗 InfoHash: ${infoHash}`);
+                    log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
+
+                    // Store the magnet link for later use
+                    loadedMagnetLink = magnetLink;
+                    activeDownload.magnet = magnetLink;
+                    refreshDownloadCard();
+                    updateDownloadStatus('Torrent file loaded. Click "Start Download" to connect.');
+
+                    // Show magnet link in input
+                    document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
+                    document.getElementById('magnetInput').style.fontSize = '0.75rem';
+
+                    // Set background color from InfoHash
+                    setBackgroundFromHash(infoHash);
+                    updateInfoHashDisplay(infoHash);
+
+                    // Destroy temp torrent (we'll re-add with actual download)
+                    torrent.destroy();
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function loadLocalFile() {
+            const fileInput = document.getElementById('localFileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            localArchiveFile = file;
+            log(`📁 Loading local file: ${file.name} (${formatBytes(file.size)})`);
+            log(`🔓 Starting extraction...`);
+
+            // Skip download, go straight to extraction
+            processLocalArchive(file);
+        }
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        async function refreshBrowserFilesystem() {
+            const fsDiv = document.getElementById('browserFilesystem');
+            fsDiv.innerHTML = '<div style="color: #999;">Loading...</div>';
+
+            let html = '';
+
+            // 1. Storage Quota
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const usedMB = (estimate.usage / 1024 / 1024).toFixed(2);
+                    const quotaMB = (estimate.quota / 1024 / 1024).toFixed(2);
+                    const usedPercent = ((estimate.usage / estimate.quota) * 100).toFixed(1);
+                    html += `<div style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #ddd;">`;
+                    html += `<strong>💾 Storage Quota:</strong><br>`;
+                    html += `Used: ${usedMB} MB / ${quotaMB} MB (${usedPercent}%)<br>`;
+                    html += `</div>`;
+                } catch (e) {
+                    html += `<div style="color: #999;">Storage API not available</div>`;
+                }
+            }
+
+            // 2. WebTorrent Files
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🌊 WebTorrent Files:</strong><br>`;
+            if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
+                currentTorrent.files.forEach((file, idx) => {
+                    const displayName = file.path || file.name || '(unnamed file)';
+                    const progress = file.progress !== undefined ? (file.progress * 100).toFixed(1) : '0.0';
+                    const statusLabel = file.progress === 1 ? 'complete' : 'partial';
+                    const downloadedSize = typeof file.downloaded === 'number' ? formatBytes(file.downloaded) : '—';
+                    const totalSize = typeof file.length === 'number' ? formatBytes(file.length) : '—';
+                    html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                    html += `${idx + 1}. ${displayName}<br>`;
+                    html += `   Status: ${statusLabel} | Size: ${totalSize} | Progress: ${progress}%<br>`;
+                    html += `   Downloaded: ${downloadedSize}<br>`;
+                    html += `</div>`;
+                });
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">No active torrents</div>`;
+            }
+            html += `</div>`;
+
+            // 3. LocalStorage
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🗄️ LocalStorage (${localStorage.length} items):</strong><br>`;
+            if (localStorage.length > 0) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                    html += `${i + 1}. <code>${key}</code> (${formatBytes(size)})<br>`;
+                    html += `</div>`;
+                }
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">Empty</div>`;
+            }
+            html += `</div>`;
+
+            // 4. IndexedDB Databases
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🗃️ IndexedDB:</strong><br>`;
+            if (indexedDB.databases) {
+                try {
+                    const databases = await indexedDB.databases();
+                    if (databases.length > 0) {
+                        databases.forEach((db, idx) => {
+                            html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                            html += `${idx + 1}. ${db.name} (v${db.version})<br>`;
+                            html += `</div>`;
+                        });
+                    } else {
+                        html += `<div style="margin-left: 1rem; color: #999;">No databases</div>`;
+                    }
+                } catch (e) {
+                    html += `<div style="margin-left: 1rem; color: #999;">Error: ${e.message}</div>`;
+                }
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">indexedDB.databases() not supported</div>`;
+            }
+            html += `</div>`;
+
+            fsDiv.innerHTML = html;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatTime(seconds) {
+            if (seconds === Infinity) return '∞';
+            if (isNaN(seconds)) return 'N/A';
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hours > 0) return `${hours}h ${mins}m`;
+            if (mins > 0) return `${mins}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        let pieceMapInitialized = false;
+        const pieceProgress = {
+            firstVerifiedBlock: null,
+            nextPartialBlock: null,
+            nextPartialPercent: 0
+        };
+        function updatePieceMap(torrent) {
+            const pieceMap = document.getElementById('pieceMap');
+            const pieceContainer = document.getElementById('pieceMapContainer');
+            const summaryEl = document.getElementById('pieceSummary');
+            const detailsEl = document.getElementById('pieceDetails');
+            if (!pieceMap || !pieceContainer) return;
+
+            if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
+                pieceContainer.style.display = 'none';
+                pieceMap.innerHTML = '';
+                if (summaryEl) summaryEl.textContent = 'Waiting for data…';
+                if (detailsEl) detailsEl.innerHTML = '';
+                pieceProgress.firstVerifiedBlock = null;
+                pieceProgress.nextPartialBlock = null;
+                pieceProgress.nextPartialPercent = 0;
+                pieceMapInitialized = false;
+                return;
+            }
+
+            const totalPieces = torrent.bitfield.length;
+            const numBlocks = Math.min(50, totalPieces);
+            const piecesPerBlock = Math.ceil(totalPieces / numBlocks);
+
+            if (!pieceMapInitialized || pieceMap.children.length !== numBlocks) {
+                pieceMapInitialized = true;
+                pieceMap.innerHTML = '';
+
+                for (let i = 0; i < numBlocks; i++) {
+                    pieceMap.appendChild(document.createElement('div'));
+                }
+            }
+
+            pieceContainer.style.display = '';
+
+            const children = pieceMap.children;
+            let blocksComplete = 0;
+            let blocksPartial = 0;
+            let piecesHave = 0;
+            const blockPercents = [];
+            const blockStates = [];
+            let firstCompleteIndex = -1;
+            let firstPartialIndex = -1;
+
+            for (let i = 0; i < children.length; i++) {
+                const startPiece = i * piecesPerBlock;
+                const endPiece = Math.min(startPiece + piecesPerBlock, totalPieces);
+
+                let complete = 0;
+                for (let j = startPiece; j < endPiece; j++) {
+                    if (torrent.bitfield.get(j)) complete++;
+                }
+
+                piecesHave += complete;
+                const blockSize = Math.max(1, endPiece - startPiece);
+                const percentComplete = complete / blockSize;
+                blockPercents.push(percentComplete);
+
+                if (percentComplete === 1) {
+                    children[i].style.background = '#4caf50';
+                    blocksComplete++;
+                    if (firstCompleteIndex === -1) firstCompleteIndex = i;
+                    blockStates.push({ index: i + 1, label: '✅', percent: 100 });
+                } else if (percentComplete > 0) {
+                    children[i].style.background = '#ffa726';
+                    blocksPartial++;
+                    if (firstPartialIndex === -1) firstPartialIndex = i;
+                    blockStates.push({ index: i + 1, label: '⏳', percent: percentComplete * 100 });
+                } else {
+                    children[i].style.background = '#e0e0e0';
+                    blockStates.push({ index: i + 1, label: '…', percent: 0 });
+                }
+
+                children[i].title = `Block ${i + 1}: ${(percentComplete * 100).toFixed(0)}% complete`;
+            }
+
+            if (summaryEl) {
+                const piecesPercent = (piecesHave / totalPieces) * 100;
+                const pendingBlocks = numBlocks - blocksComplete - blocksPartial;
+                const sampleSize = Math.min(5, blockPercents.length);
+                const samplePercents = blockPercents.slice(0, sampleSize).map(p => `${(p * 100).toFixed(0)}%`);
+                summaryEl.textContent =
+                    `${blocksComplete}/${numBlocks} blocks verified • ${blocksPartial} partial • ${pendingBlocks} queued • ${piecesPercent.toFixed(1)}% of pieces` +
+                    (samplePercents.length ? ` • sample: ${samplePercents.join(', ')}` : '');
+            }
+
+            if (detailsEl) {
+                const lines = [];
+                if (firstCompleteIndex !== -1) {
+                    lines.push(`First verified block: ${firstCompleteIndex + 1}`);
+                }
+                if (firstPartialIndex !== -1) {
+                    lines.push(`Next building block: ${firstPartialIndex + 1} (${(blockPercents[firstPartialIndex] * 100).toFixed(0)}%)`);
+                }
+
+                const windowSize = Math.min(8, blockStates.length);
+                const blockWindow = blockStates.slice(0, windowSize)
+                    .map(state => `${state.label} ${state.index}: ${state.percent.toFixed(0)}%`)
+                    .join(' • ');
+
+                lines.push(`Blocks 1-${windowSize}: ${blockWindow}`);
+
+                detailsEl.innerHTML = lines.map(text => `<div>${text}</div>`).join('');
+            }
+
+            pieceProgress.firstVerifiedBlock = firstCompleteIndex !== -1 ? firstCompleteIndex + 1 : null;
+            pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
+            pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
+
+            if (!isArchiveReady()) {
+                showLibrary();
+            }
+
+            updateDownloadedFilesView(torrent);
+        }
+
+        function startDownload() {
+            if (!client) {
+                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                return;
+            }
+            // Get magnet link from input or use loaded magnet or default
+            const magnetInput = document.getElementById('magnetInput').value.trim();
+            const normalizedMagnet = normalizeMagnet(magnetInput);
+            const magnetLink = loadedMagnetLink || normalizedMagnet || DEFAULT_MAGNET;
+            const sanitizedMagnet = sanitizeMagnet(magnetLink);
+            const trackersFromMagnet = extractTrackersFromMagnet(sanitizedMagnet);
+            const effectiveMagnet = sanitizedMagnet;
+            activeDownload.magnet = effectiveMagnet;
+            refreshDownloadCard();
+
+            if (!loadedMagnetLink && normalizedMagnet && normalizedMagnet !== effectiveMagnet) {
+                document.getElementById('magnetInput').value = magnetForDisplay(effectiveMagnet);
+            }
+
+            if (sanitizedMagnet !== magnetLink) {
+                log('🧹 Deduplicated tracker list to stay under browser limits');
+            }
+
+            if (currentTorrent) {
+                log('🧹 Stopping previous torrent session');
+                currentTorrent.destroy();
+                currentTorrent = null;
+                pieceMapInitialized = false;
+                const pieceMapEl = document.getElementById('pieceMap');
+                if (pieceMapEl) pieceMapEl.innerHTML = '';
+                const pieceContainer = document.getElementById('pieceMapContainer');
+                if (pieceContainer) pieceContainer.style.display = 'none';
+                updateDownloadStatus('Stopping previous download…');
+                refreshDownloadCard();
+            }
+
+            if (torrentStatsInterval) {
+                clearInterval(torrentStatsInterval);
+                torrentStatsInterval = null;
+            }
+            updateInfoHashDisplay(null);
+            updateDownloadStatus('⚙️ Preparing download...');
+
+            if (loadedMagnetLink) {
+                log('📥 Starting WebTorrent download with loaded .torrent file...');
+            } else {
+                log('📥 Starting WebTorrent download...');
+            }
+            log(`🔗 Magnet: ${effectiveMagnet.substring(0, 80)}...`);
+
+            const torrentOptions = {
+                path: '/downloads',
+                maxWebConns: 10       // Max web seed connections
+            };
+
+            if (trackersFromMagnet.length === 0) {
+                torrentOptions.announce = FALLBACK_TRACKERS;
+            }
+
+            currentTorrent = client.add(effectiveMagnet, torrentOptions);
+            pieceMapInitialized = false;
+            const pieceMapEl = document.getElementById('pieceMap');
+            if (pieceMapEl) pieceMapEl.innerHTML = '';
+            const pieceContainer = document.getElementById('pieceMapContainer');
+            if (pieceContainer) pieceContainer.style.display = 'none';
+            updateDownloadStatus('🔍 Waiting for metadata...');
+
+            currentTorrent.on('metadata', () => {
+                log(`✅ Got torrent metadata`);
+                log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
+                log(`📁 Files: ${currentTorrent.files.length}`);
+                log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
+                const trackerCount = currentTorrent.announce ? currentTorrent.announce.length : 0;
+                log(`⚡ Max connections: ${MAX_TORRENT_CONNECTIONS} | Tracker count: ${trackerCount}`);
+                if (currentTorrent.infoHash && currentTorrent.infoHash !== currentInfoHash) {
+                    updateInfoHashDisplay(currentTorrent.infoHash);
+                    log(`🧭 InfoHash: ${currentTorrent.infoHash}`);
+                }
+                updateDownloadStatus('📦 Metadata received. Downloading pieces...');
+                refreshDownloadCard();
+
+                // Set background color from InfoHash
+                setBackgroundFromHash(currentTorrent.infoHash);
+            });
+
+            currentTorrent.on('wire', (wire, addr) => {
+                const peerLabel = describePeerConnection(wire, addr);
+                log(`🔗 Peer connected: ${peerLabel} | Total: ${currentTorrent.numPeers}`);
+                refreshDownloadCard();
+            });
+
+            torrentStatsInterval = window.setInterval(() => {
+                if (!currentTorrent) return;
+
+                const speed = formatBytes(currentTorrent.downloadSpeed);
+                const peers = currentTorrent.numPeers;
+
+                // Calculate REAL progress from actual bytes
+                const downloadedBytes = currentTorrent.downloaded;
+                const totalBytes = currentTorrent.length;
+                const realProgress = totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0;
+
+                const downloaded = formatBytes(downloadedBytes);
+                const totalSize = formatBytes(totalBytes);
+                const uploaded = formatBytes(currentTorrent.uploaded);
+
+                let statusMsg = '';
+                if (realProgress === 0 && peers === 0) {
+                    statusMsg = '🔍 Searching for peers... (check if torrent has seeders!)';
+                } else if (realProgress < 100) {
+                    statusMsg = `⬇️ ${realProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                } else {
+                    statusMsg = `✅ Complete! ${totalSize} • Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
+                }
+                updateDownloadStatus(statusMsg);
+                refreshDownloadCard();
+            }, 1000);
+
+            currentTorrent.on('done', () => {
+                if (torrentStatsInterval) {
+                    clearInterval(torrentStatsInterval);
+                    torrentStatsInterval = null;
+                }
+                updateDownloadStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
+                document.getElementById('readabilityWarning').style.display = 'none';
+                showLibrary();
+                refreshDownloadCard();
+            });
+
+            currentTorrent.on('error', (err) => {
+                log(`❌ Error: ${err.message}`);
+                console.error('Torrent error:', err);
+                updateDownloadStatus(`❌ Error: ${err.message}`);
+                refreshDownloadCard();
+                if (torrentStatsInterval) {
+                    clearInterval(torrentStatsInterval);
+                    torrentStatsInterval = null;
+                }
+            });
+        }
+
+        function processLocalArchive(file) {
+            updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
+            document.getElementById('readabilityWarning').style.display = 'none';
+            showLibrary();
+            activeDownload.magnet = null;
+            refreshDownloadCard();
+            updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
+        }
+
+        function refreshCatalogCard() {
+            const summaryEl = document.getElementById('catalogSummary');
+            updateDownloadedFilesView(currentTorrent);
+            if (summaryEl) {
+                summaryEl.textContent = `${catalogSummary.status} • InfoHash: ${catalogSummary.infoHash}`;
+            }
+        }
+
+        function updateDownloadedFilesView(torrent) {
+            const container = document.getElementById('downloadedFiles');
+            if (!container) return;
+
+            if (!torrent || !torrent.files || torrent.files.length === 0) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            const files = torrent.files.map((file, index) => ({ file, index }))
+                .sort((a, b) => a.file.path.localeCompare(b.file.path));
+
+            const lines = files.map(({ file, index }) => {
+                const percent = (file.progress * 100).toFixed(1);
+                const downloaded = formatBytes(file.downloaded || 0);
+                const total = formatBytes(file.length || 0);
+                return `<div>${index + 1}. ${file.path || file.name || '(unnamed)'} — ${percent}% (${downloaded} / ${total})</div>`;
+            });
+
+            container.innerHTML = lines.join('');
+            container.style.display = lines.length ? '' : 'none';
+        }
+
+        function showLibrary() {
+            const totalBooks = catalogBooks.length;
+            const bookListHint = document.getElementById('bookListHint');
+
+            // Show warning if catalog loaded but no way to read books yet
+            const canReadBooks = isArchiveReady();
+
+            if (totalBooks > 0) {
+                if (canReadBooks) {
+                    const statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
+                    updateStatus(statusText);
+                    catalogSummary.status = statusText;
+                    if (bookListHint) {
+                        bookListHint.textContent = `${totalBooks.toLocaleString()} books ready to open`;
+                        bookListHint.style.color = '#666';
+                    }
+                } else {
+                const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
+                updateStatus(statusText);
+                catalogSummary.status = statusText;
+                if (bookListHint) {
+                    if (pieceProgress.firstVerifiedBlock) {
+                        bookListHint.textContent = `Blocks 1-${pieceProgress.firstVerifiedBlock} verified. Waiting for next block to unlock books.`;
+                    } else if (pieceProgress.nextPartialBlock) {
+                        bookListHint.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish for first books.`;
+                    } else {
+                        bookListHint.textContent = 'Catalog loaded';
+                    }
+                    bookListHint.style.color = '#999';
+                }
+            }
+            } else if (bookListHint) {
+                bookListHint.textContent = 'Catalog loading…';
+                bookListHint.style.color = '#999';
+                catalogSummary.status = '📚 Loading catalog…';
+            }
+
+            refreshCatalogCard();
+
+            if (totalBooks > 0 && !canReadBooks) {
+                document.getElementById('readabilityWarning').style.display = 'block';
+            } else {
+                document.getElementById('readabilityWarning').style.display = 'none';
+            }
+
+            const searchBox = document.getElementById('searchBox');
+            const bookList = document.getElementById('bookList');
+
+            // Show first 50 books by default
+            displayBooks(catalogBooks.slice(0, 50));
+
+            // Setup search (only once)
+            if (!searchBox.dataset.initialized) {
+                searchBox.dataset.initialized = 'true';
+                let searchTimeout;
+                searchBox.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        const query = e.target.value.trim().toLowerCase();
+
+                        if (!isArchiveReady()) {
+                            displayBooks([]);
+                            return;
+                        }
+
+                        if (query.length === 0) {
+                            displayBooks(catalogBooks.slice(0, 50));
+                            return;
+                        }
+
+                        if (query.length < 2) {
+                            bookList.innerHTML = '';
+                            return;
+                        }
+
+                        // Search books
+                        const results = catalogBooks.filter(book =>
+                            book.title.toLowerCase().includes(query) ||
+                            book.author.toLowerCase().includes(query)
+                        ).slice(0, 100);
+
+                        displayBooks(results);
+                    }, 300);
+                });
+            }
+        }
+
+        function displayBooks(books) {
+            const bookList = document.getElementById('bookList');
+            bookList.innerHTML = '';
+            const archiveReady = isArchiveReady();
+
+                if (!archiveReady) {
+                    const message = document.createElement('div');
+                    message.className = 'book-item';
+                    message.style.color = '#888';
+                    message.style.fontStyle = 'italic';
+                if (pieceProgress.firstVerifiedBlock) {
+                    message.textContent = `First verified block ${pieceProgress.firstVerifiedBlock}. Waiting for next block to finish before books unlock.`;
+                } else if (pieceProgress.nextPartialBlock) {
+                    message.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish for first books.`;
+                } else {
+                    message.textContent = 'Download the Gutenberg archive to browse books here.';
+                }
+                bookList.appendChild(message);
+                updateDownloadedFilesView(currentTorrent);
+                return;
+            }
+
+            if (!books || books.length === 0) {
+                const message = document.createElement('div');
+                message.className = 'book-item';
+                message.style.color = '#888';
+                message.style.fontStyle = 'italic';
+                message.textContent = 'No titles match this search.';
+                bookList.appendChild(message);
+                return;
+            }
+
+            books.forEach(book => {
+                const row = document.createElement('div');
+                row.className = 'book-item';
+
+                const author = document.createElement('div');
+                author.textContent = book.author;
+                author.style.color = '#666';
+
+                const title = document.createElement('div');
+                title.textContent = book.title;
+
+                const link = document.createElement('a');
+                link.href = '#';
+                link.textContent = '→';
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    if (!isArchiveReady()) {
+                        alert('Archive not ready yet. Finish download or load a local Gutenberg archive first.');
+                        return;
+                    }
+                    openBookFromTorrent(book);
+                };
+
+                row.appendChild(author);
+                row.appendChild(title);
+                row.appendChild(link);
+                bookList.appendChild(row);
+            });
+        }
+
+        async function openBookFromTorrent(book) {
+            log(`📖 Opening "${book.title}"...`);
+
+            try {
+                if (!isArchiveReady()) {
+                    throw new Error('Archive not ready yet. Download must finish or a local file must be loaded.');
+                }
+
+                let arrayBuffer;
+                let progress = 0;
+
+                // Check if we're using local file or torrent
+                if (localArchiveFile) {
+                    log(`📁 Reading from local file: ${localArchiveFile.name}`);
+                    arrayBuffer = await localArchiveFile.arrayBuffer();
+                    progress = 100;
+                } else if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
+                    // Get the .tar.gz file from WebTorrent
+                    const file = currentTorrent.files[0];
+                    progress = (file.progress * 100).toFixed(1);
+                    log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
+
+                    // Select this file with high priority to download needed pieces
+                    file.select(0); // Highest priority
+
+                    log(`🔍 Reading from downloaded blocks...`);
+
+                    // Try to get available data using streaming
+                    const stream = file.createReadStream();
+                    const chunks = [];
+                    let totalBytes = 0;
+                    const maxBytes = 500 * 1024 * 1024; // Read up to 500MB for extraction attempt
+
+                    // Read available data
+                    for await (const chunk of stream) {
+                        chunks.push(chunk);
+                        totalBytes += chunk.length;
+
+                        if (totalBytes >= maxBytes || totalBytes >= file.downloaded) {
+                            break;
+                        }
+                    }
+
+                    log(`📥 Read ${formatBytes(totalBytes)} from available blocks`);
+
+                    // Combine chunks
+                    const combinedBuffer = new Uint8Array(totalBytes);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                        combinedBuffer.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+
+                    arrayBuffer = combinedBuffer.buffer;
+                } else {
+                    throw new Error('No archive available');
+                }
+
+                log(`🔓 Decompressing with gzip...`);
+                let decompressed;
+                try {
+                    decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+                } catch (e) {
+                    // If gzip fails, try partial decompression
+                    log(`⚠️ Partial gzip data, attempting extraction...`);
+                    decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
+                }
+
+                log(`📂 Extracting books from tar archive...`);
+
+                // Look for the book file - try common patterns
+                const bookFileName = `pg${book.etextNo}.txt`;
+                const possiblePaths = [
+                    `cache/epub/${book.etextNo}/${bookFileName}`,
+                    `${book.etextNo}/${bookFileName}`,
+                    bookFileName
+                ];
+
+                log(`🔍 Looking for: ${possiblePaths[0]}`);
+
+                // Use js-untar to extract
+                const files = await untar(decompressed.buffer);
+
+                // Find the book file
+                let bookFile = null;
+                for (const path of possiblePaths) {
+                    bookFile = files.find(f => f.name === path || f.name.endsWith(path));
+                    if (bookFile) break;
+                }
+
+                if (!bookFile) {
+                    // Try fuzzy match
+                    bookFile = files.find(f => f.name.includes(`${book.etextNo}`) && f.name.endsWith('.txt'));
+                }
+
+                if (!bookFile) {
+                    throw new Error(`Book not yet available in downloaded blocks. Try again as more downloads (currently ${progress}%)`);
+                }
+
+                log(`✅ Found: ${bookFile.name}`);
+
+                // Read the text content
+                const textContent = new TextDecoder('utf-8').decode(bookFile.buffer);
+
+                // Display the book
+                displayBook(book, textContent);
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+                console.error('Book opening error:', error);
+                const downloadPct = (currentTorrent && currentTorrent.files && currentTorrent.files[0])
+                    ? (currentTorrent.files[0].progress * 100).toFixed(1)
+                    : '0';
+                alert(`Could not extract book from available blocks (${downloadPct}% downloaded)\n\n${error.message}\n\nTry again as more data downloads, or wait until download is complete.`);
+            }
+        }
+
+        function displayBook(book, content) {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:1000;overflow-y:auto;padding:1rem';
+            overlay.innerHTML = `<div style="max-width:700px;margin:0 auto;font-family:Georgia,serif;line-height:1.5">
+<a href="#" onclick="this.parentElement.parentElement.remove();return false" style="font-size:1.5rem;text-decoration:none;color:#999">×</a>
+<h3 style="margin:0.5rem 0">${book.title}</h3>
+<small style="color:#666">${book.author}</small>
+<hr style="margin:1rem 0;border:none;border-top:1px solid #ddd">
+<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:0.95rem">${content}</pre>
+</div>`;
+            document.body.appendChild(overlay);
+            log(`✅ Displaying "${book.title}"`);
+        }
+
+        window.startDownload = startDownload;
+        window.handleTorrentFile = handleTorrentFile;
+        window.loadLocalFile = loadLocalFile;
+        window.refreshBrowserFilesystem = refreshBrowserFilesystem;
+
+        log('✅ Ready to download Gutenberg collection');
+        log('💡 Click "Start Download" to begin');
+    </script>
+</body>
+</html>

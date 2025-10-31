@@ -206,6 +206,15 @@
     </details>
 
     <details style="margin-top: 1rem;">
+        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;" onclick="refreshBrowserFilesystem()">
+            💾 Browser Filesystem
+        </summary>
+        <div id="browserFilesystem" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;">
+            <div style="color: #999;">Click to load...</div>
+        </div>
+    </details>
+
+    <details style="margin-top: 1rem;">
         <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">
             📝 Console Log
         </summary>
@@ -401,6 +410,88 @@
             logEl.appendChild(entry);
             logEl.scrollTop = logEl.scrollHeight;
             console.log(message);
+        }
+
+        async function refreshBrowserFilesystem() {
+            const fsDiv = document.getElementById('browserFilesystem');
+            fsDiv.innerHTML = '<div style="color: #999;">Loading...</div>';
+
+            let html = '';
+
+            // 1. Storage Quota
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const usedMB = (estimate.usage / 1024 / 1024).toFixed(2);
+                    const quotaMB = (estimate.quota / 1024 / 1024).toFixed(2);
+                    const usedPercent = ((estimate.usage / estimate.quota) * 100).toFixed(1);
+                    html += `<div style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #ddd;">`;
+                    html += `<strong>💾 Storage Quota:</strong><br>`;
+                    html += `Used: ${usedMB} MB / ${quotaMB} MB (${usedPercent}%)<br>`;
+                    html += `</div>`;
+                } catch (e) {
+                    html += `<div style="color: #999;">Storage API not available</div>`;
+                }
+            }
+
+            // 2. WebTorrent Files
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🌊 WebTorrent Files:</strong><br>`;
+            if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
+                currentTorrent.files.forEach((file, idx) => {
+                    const progress = (file.progress * 100).toFixed(1);
+                    html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                    html += `${idx + 1}. ${file.name}<br>`;
+                    html += `   Size: ${formatBytes(file.length)} | Progress: ${progress}%<br>`;
+                    html += `   Downloaded: ${formatBytes(file.downloaded)}<br>`;
+                    html += `</div>`;
+                });
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">No active torrents</div>`;
+            }
+            html += `</div>`;
+
+            // 3. LocalStorage
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🗄️ LocalStorage (${localStorage.length} items):</strong><br>`;
+            if (localStorage.length > 0) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    const size = new Blob([value]).size;
+                    html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                    html += `${i + 1}. <code>${key}</code> (${formatBytes(size)})<br>`;
+                    html += `</div>`;
+                }
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">Empty</div>`;
+            }
+            html += `</div>`;
+
+            // 4. IndexedDB Databases
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>🗃️ IndexedDB:</strong><br>`;
+            if (indexedDB.databases) {
+                try {
+                    const databases = await indexedDB.databases();
+                    if (databases.length > 0) {
+                        databases.forEach((db, idx) => {
+                            html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                            html += `${idx + 1}. ${db.name} (v${db.version})<br>`;
+                            html += `</div>`;
+                        });
+                    } else {
+                        html += `<div style="margin-left: 1rem; color: #999;">No databases</div>`;
+                    }
+                } catch (e) {
+                    html += `<div style="margin-left: 1rem; color: #999;">Error: ${e.message}</div>`;
+                }
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">indexedDB.databases() not supported</div>`;
+            }
+            html += `</div>`;
+
+            fsDiv.innerHTML = html;
         }
 
         function formatBytes(bytes) {

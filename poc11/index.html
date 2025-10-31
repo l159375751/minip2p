@@ -331,9 +331,6 @@
             log(`📁 Loading local file: ${file.name} (${formatBytes(file.size)})`);
             log(`🔓 Starting extraction...`);
 
-            document.getElementById('downloadBtn').disabled = true;
-            document.getElementById('loadLocalBtn').disabled = true;
-
             // Skip download, go straight to extraction
             processLocalArchive(file);
         }
@@ -428,9 +425,6 @@
                 log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
             }
 
-            document.getElementById('downloadBtn').disabled = true;
-            document.getElementById('downloadProgress').style.display = 'block';
-
             currentTorrent = client.add(magnetLink, {
                 path: '/downloads'
             });
@@ -443,10 +437,6 @@
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
-
-                // Update torrent details
-                document.getElementById('filesCount').textContent = currentTorrent.files.length;
-                document.getElementById('pieceLength').textContent = formatBytes(currentTorrent.pieceLength);
             });
 
             currentTorrent.on('wire', (wire, addr) => {

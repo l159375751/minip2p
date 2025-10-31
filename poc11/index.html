@@ -123,9 +123,35 @@
             border-bottom: 1px solid #e8e8e8;
             font-size: 0.85rem;
             color: #555;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .book-item:last-child {
             border-bottom: none;
+        }
+        .book-title {
+            flex: 1;
+            cursor: pointer;
+            color: #667eea;
+            text-decoration: none;
+        }
+        .book-title:hover {
+            text-decoration: underline;
+        }
+        .book-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            margin-left: 0.5rem;
+        }
+        .book-btn:hover {
+            background: #5568d3;
         }
     </style>
 </head>
@@ -595,7 +621,20 @@
 
                     if (catalogBooks.length > 0 && bookIndex < catalogBooks.length) {
                         const book = catalogBooks[bookIndex];
-                        bookItem.textContent = `${book.title} by ${book.author}`;
+
+                        const titleSpan = document.createElement('span');
+                        titleSpan.className = 'book-title';
+                        titleSpan.textContent = `${book.title} by ${book.author}`;
+
+                        const openBtn = document.createElement('button');
+                        openBtn.className = 'book-btn';
+                        openBtn.textContent = '📖 Open';
+                        openBtn.onclick = () => {
+                            window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+                        };
+
+                        bookItem.appendChild(titleSpan);
+                        bookItem.appendChild(openBtn);
                         bookIndex++;
                     } else {
                         bookItem.textContent = `Book ${booksAdded}: Example Title by Example Author`;

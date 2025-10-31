@@ -318,8 +318,8 @@
     <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
         Catalog loading…
     </div>
-    <div id="readabilityWarning" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-left: 4px solid #ffc107; font-size: 0.85rem;">
-        ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
+    <div id="readinessHint" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.35rem; font-size: 0.85rem; color: #555;">
+        Waiting for download to unlock books.
     </div>
 
     <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
@@ -1215,7 +1215,8 @@
                     torrentStatsInterval = null;
                 }
                 updateDownloadStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
-                document.getElementById('readabilityWarning').style.display = 'none';
+                const readinessHint = document.getElementById('readinessHint');
+                if (readinessHint) readinessHint.textContent = 'Ready to read.';
                 showLibrary();
                 refreshDownloadCard();
             });
@@ -1234,7 +1235,8 @@
 
         function processLocalArchive(file) {
             updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
-            document.getElementById('readabilityWarning').style.display = 'none';
+            const readinessHint = document.getElementById('readinessHint');
+            if (readinessHint) readinessHint.textContent = 'Ready to read.';
             showLibrary();
             activeDownload.magnet = null;
             refreshDownloadCard();
@@ -1312,11 +1314,18 @@
 
             refreshCatalogCard();
 
-            if (totalBooks > 0 && !canReadBooks) {
-                document.getElementById('readabilityWarning').style.display = 'block';
+        const readinessHint = document.getElementById('readinessHint');
+        if (readinessHint) {
+            if (canReadBooks) {
+                readinessHint.textContent = 'Ready to read.';
+            } else if (pieceProgress.nextPartialBlock) {
+                readinessHint.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish.`;
+            } else if (pieceProgress.firstVerifiedBlock) {
+                readinessHint.textContent = `Block ${pieceProgress.firstVerifiedBlock} verified. Download continuing…`;
             } else {
-                document.getElementById('readabilityWarning').style.display = 'none';
+                readinessHint.textContent = 'Waiting for download to unlock books.';
             }
+        }
 
             const searchBox = document.getElementById('searchBox');
             const bookList = document.getElementById('bookList');

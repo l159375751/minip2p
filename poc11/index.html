@@ -337,50 +337,13 @@
         <div id="log" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
     </details>
 
-    <script>
-        const WEBTORRENT_SOURCES = [
-            'https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/dist/webtorrent.min.js',
-            'https://unpkg.com/webtorrent@1.9.7/dist/webtorrent.min.js',
-            'https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js'
-        ];
-
-        function loadWebTorrentLibrary() {
-            return new Promise((resolve) => {
-                const sources = [...WEBTORRENT_SOURCES];
-
-                const tryNext = () => {
-                    if (sources.length === 0) {
-                        resolve(false);
-                        return;
-                    }
-
-                    const src = sources.shift();
-                    const script = document.createElement('script');
-                    script.src = src;
-                    script.async = true;
-                    script.onload = () => resolve(true);
-                    script.onerror = () => {
-                        console.warn('Failed to load WebTorrent from', src);
-                        tryNext();
-                    };
-                    document.head.appendChild(script);
-                };
-
-                tryNext();
-            });
-        }
-    </script>
+    <script src="vendor/webtorrent.min.js"></script>
 
     <script>
-        loadWebTorrentLibrary()
-            .then((loaded) => initApp(loaded))
-            .catch(() => initApp(false));
-
-        function initApp(webTorrentLoaded) {
         // Optimized WebTorrent client for faster downloads
         const MAX_TORRENT_CONNECTIONS = 80;
         let client = null;
-        if (webTorrentLoaded && window.WebTorrent) {
+        if (window.WebTorrent) {
             client = new WebTorrent({
                 maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
                 dht: true,            // Enable DHT for peer discovery
@@ -1437,7 +1400,6 @@
 
         log('✅ Ready to download Gutenberg collection');
         log('💡 Click "Start Download" to begin');
-        }
     </script>
 </body>
 </html>

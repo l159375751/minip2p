@@ -720,7 +720,7 @@
             console.log(`🎨 Color seed from source hash: ${sourceHash}`);
 
             refreshDownloadCard();
-            updateDownloadStatus('No active downloads yet.');
+            updateDownloadStatus('Bootstrapping default download…');
             refreshCatalogCard();
             refreshBrowserFilesystem().catch(() => {
                 const fsDiv = document.getElementById('browserFilesystem');
@@ -729,6 +729,7 @@
                 }
             });
             loadCatalog(); // Auto-load catalog
+            startDownload();
         });
 
         function hashToColor(hash) {

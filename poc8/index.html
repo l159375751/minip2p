@@ -208,6 +208,15 @@
                     🔥 Load .torrent File
                 </button>
             </div>
+
+            <div style="margin-bottom: 1rem;">
+                <strong style="display: block; margin-bottom: 0.5rem;">🧲 Or paste a Magnet Link:</strong>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." style="flex: 1; margin: 0; font-family: monospace; font-size: 0.85rem;">
+                    <button onclick="handleMagnetLink()" style="margin: 0; white-space: nowrap;">Parse Magnet</button>
+                </div>
+            </div>
+
             <div class="file-drop-zone" id="dropZone">
                 <div class="file-icon">📦</div>
                 <div><strong>Drag & drop</strong> data file or .torrent file here</div>
@@ -332,6 +341,7 @@
         const client = new WebTorrent();
         let selectedFile = null;
         let loadedTorrentFile = null;
+        let loadedMagnetLink = null;
         let currentTorrent = null;
         let seedMode = 'create'; // 'create' or 'seed'
 
@@ -586,6 +596,62 @@
             };
 
             reader.readAsArrayBuffer(file);
+        }
+
+        function handleMagnetLink() {
+            const magnetInput = document.getElementById('magnetInput').value.trim();
+
+            if (!magnetInput) {
+                log('❌ Please paste a magnet link');
+                return;
+            }
+
+            if (!magnetInput.startsWith('magnet:')) {
+                log('❌ Invalid magnet link (must start with "magnet:")');
+                return;
+            }
+
+            log(`🧲 Parsing magnet link...`);
+
+            try {
+                // Parse magnet link using WebTorrent
+                client.add(magnetInput, (torrent) => {
+                    log(`✅ Magnet parsed successfully`);
+                    log(`📝 Name: ${torrent.name}`);
+                    log(`🔗 InfoHash: ${torrent.infoHash}`);
+                    log(`📊 Announced size: ${formatBytes(torrent.length)}`);
+                    log(`📁 Files: ${torrent.files.length}`);
+
+                    // Display info
+                    document.getElementById('torrentName').textContent = torrent.name || 'Unknown';
+                    document.getElementById('torrentInfoHash').textContent = torrent.infoHash;
+                    document.getElementById('torrentInfo').style.display = 'block';
+                    document.getElementById('fileInfo').style.display = 'none';
+
+                    // Store the magnet link for later
+                    loadedMagnetLink = magnetInput;
+
+                    // Remove the torrent after parsing (don't actually download)
+                    torrent.destroy();
+
+                    seedMode = 'seed';
+
+                    if (selectedFile) {
+                        // If data file already selected, update UI
+                        document.getElementById('torrentCard').style.display = 'block';
+                        document.getElementById('torrentCardTitle').textContent = '2. Seed with Magnet Link';
+                        document.getElementById('createBtn').textContent = '🚀 Start Seeding';
+                        document.getElementById('torrentStatus').textContent = 'Ready to seed with magnet link';
+                        log(`🔥 Ready to seed ${selectedFile.name} using this magnet link`);
+                    } else {
+                        log(`⚠️ Now select the data file that matches this magnet link`);
+                    }
+                });
+
+            } catch (error) {
+                log(`❌ Error parsing magnet: ${error.message}`);
+                console.error('Magnet parse error:', error);
+            }
         }
 
         function startSeeding() {

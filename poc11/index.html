@@ -315,7 +315,10 @@
 
         // Load saved background color and catalog on page load
         window.addEventListener('DOMContentLoaded', () => {
-            loadBackgroundColor();
+            // Set background from default magnet InfoHash
+            const defaultInfoHash = 'a7bb7a777b775c6f7205e90b57c44b014a4e5f0c';
+            setBackgroundFromHash(defaultInfoHash);
+
             loadCatalog(); // Auto-load catalog
         });
 

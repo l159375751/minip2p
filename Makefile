@@ -43,21 +43,20 @@ seed-gutenberg: build-docker
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent download "$(MAGNET)" --keep-seeding --verbose --torrent-port 6881
 
-seed-from-file: build-docker
-	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
-	@if [ -f gutenberg-txt-files.tar.torrent ]; then \
+seed-from-file: build-docker convert-to-targz
+	@if [ -f gutenberg-txt-files.tar.gz.torrent ]; then \
 		echo "✅ Using .torrent file (instant seeding, no rehashing!)"; \
 		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
 			-e DEBUG='webtorrent*,bittorrent-tracker*' \
-			webtorrent seed /data/gutenberg-txt-files.tar.torrent --verbose --torrent-port 6881; \
+			webtorrent seed /data/gutenberg-txt-files.tar.gz.torrent --verbose --torrent-port 6881; \
 	else \
-		echo "⚠️  No .torrent file found, seeding raw ZIP (will take 10-30 min to hash)"; \
+		echo "⚠️  No .torrent file found, seeding raw .tar.gz (will take 10-30 min to hash)"; \
 		echo "💡 Create .torrent via POC8 to enable instant seeding!"; \
 		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
 			-e DEBUG='webtorrent*,bittorrent-tracker*' \
-			webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose --torrent-port 6881; \
+			webtorrent seed /data/gutenberg-txt-files.tar.gz --verbose --torrent-port 6881; \
 	fi
 
 seed-stop:

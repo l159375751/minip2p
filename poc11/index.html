@@ -667,7 +667,7 @@
         }
 
         async function openBookFromTorrent(book) {
-            log(`📖 Opening "${book.title}" from downloaded archive...`);
+            log(`📖 Opening "${book.title}" from downloaded blocks...`);
 
             try {
                 if (!currentTorrent || !currentTorrent.files || currentTorrent.files.length === 0) {
@@ -676,21 +676,53 @@
 
                 // Get the .tar.gz file from WebTorrent
                 const file = currentTorrent.files[0];
-                log(`📦 Reading archive: ${file.name}`);
+                const progress = (file.progress * 100).toFixed(1);
+                log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
 
-                // Get file as blob
-                const blob = await new Promise((resolve, reject) => {
-                    file.getBlob((err, blob) => {
-                        if (err) reject(err);
-                        else resolve(blob);
-                    });
-                });
+                // Select this file with high priority to download needed pieces
+                file.select(0); // Highest priority
+
+                log(`🔍 Searching for book in downloaded blocks...`);
+
+                // Try to get available data using streaming
+                // This will read from whatever pieces we have
+                const stream = file.createReadStream();
+                const chunks = [];
+                let totalBytes = 0;
+                const maxBytes = 500 * 1024 * 1024; // Read up to 500MB for extraction attempt
+
+                // Read available data
+                for await (const chunk of stream) {
+                    chunks.push(chunk);
+                    totalBytes += chunk.length;
+
+                    // Try extraction periodically
+                    if (totalBytes >= maxBytes || totalBytes >= file.downloaded) {
+                        break;
+                    }
+                }
+
+                log(`📥 Read ${formatBytes(totalBytes)} from available blocks`);
+
+                // Combine chunks
+                const combinedBuffer = new Uint8Array(totalBytes);
+                let offset = 0;
+                for (const chunk of chunks) {
+                    combinedBuffer.set(chunk, offset);
+                    offset += chunk.length;
+                }
 
                 log(`🔓 Decompressing with gzip...`);
-                const arrayBuffer = await blob.arrayBuffer();
-                const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+                let decompressed;
+                try {
+                    decompressed = pako.ungzip(combinedBuffer);
+                } catch (e) {
+                    // If gzip fails, try partial decompression
+                    log(`⚠️ Partial gzip data, attempting extraction...`);
+                    decompressed = pako.inflate(combinedBuffer, { raw: true });
+                }
 
-                log(`📂 Extracting tar archive...`);
+                log(`📂 Extracting books from tar archive...`);
 
                 // Look for the book file - try common patterns
                 const bookFileName = `pg${book.etextNo}.txt`;
@@ -718,7 +750,7 @@
                 }
 
                 if (!bookFile) {
-                    throw new Error(`Book file not found in archive (etext ${book.etextNo})`);
+                    throw new Error(`Book not yet available in downloaded blocks. Try again as more downloads (currently ${progress}%)`);
                 }
 
                 log(`✅ Found: ${bookFile.name}`);
@@ -730,9 +762,10 @@
                 displayBook(book, textContent);
 
             } catch (error) {
-                log(`❌ Error opening book: ${error.message}`);
+                log(`❌ Error: ${error.message}`);
                 console.error('Book opening error:', error);
-                alert(`Could not open book from archive: ${error.message}\n\nThe archive may still be downloading or the book file may not be in the expected location.`);
+                const downloadPct = currentTorrent.files[0] ? (currentTorrent.files[0].progress * 100).toFixed(1) : '0';
+                alert(`Could not extract book from available blocks (${downloadPct}% downloaded)\n\n${error.message}\n\nTry again as more data downloads, or wait until download is complete.`);
             }
         }
 

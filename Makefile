@@ -68,11 +68,24 @@ seed-logs:
 	docker logs -f webtorrent-gutenberg
 
 seed-status:
-	@echo "=== WebTorrent Seeder Status ==="
-	@docker ps --filter name=webtorrent-gutenberg --format "Status: {{.Status}}" || echo "Container not running"
+	@echo "🌱 === WebTorrent Seeder Status ==="
+	@docker ps --filter name=webtorrent-gutenberg --format "Status: {{.Status}}" 2>/dev/null || echo "❌ Container not running"
 	@echo ""
-	@echo "=== Recent Activity (last XXX lines) ==="
-	@docker logs webtorrent-gutenberg --tail 11120 2>&1 | grep -E "(Seeding|peers|Speed|Progress|Uploaded|Downloaded|Magnet|torrent)" || echo "No activity yet"
+	@if docker ps --filter name=webtorrent-gutenberg --format "{{.Names}}" 2>/dev/null | grep -q webtorrent-gutenberg; then \
+		echo "📊 === Latest Stats ==="; \
+		docker logs webtorrent-gutenberg --tail 100 2>&1 | grep -i "speed\|upload\|download\|peers\|progress" | tail -20 || echo "No stats yet"; \
+		echo ""; \
+		echo "📈 === Speed Summary ==="; \
+		LAST_LOG=$$(docker logs webtorrent-gutenberg --tail 50 2>&1); \
+		UP_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬆️|↑|Upload:?\s*)\K[\d.]+\s*[KMG]?B/s" | tail -1); \
+		DOWN_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬇️|↓|Download:?\s*)\K[\d.]+\s*[KMG]?B/s" | tail -1); \
+		PEERS=$$(echo "$$LAST_LOG" | grep -oP "\d+(?=\s*peers?)" | tail -1); \
+		if [ -n "$$UP_SPEED" ]; then echo "⬆️  Upload: $$UP_SPEED"; else echo "⬆️  Upload: 0 B/s"; fi; \
+		if [ -n "$$DOWN_SPEED" ]; then echo "⬇️  Download: $$DOWN_SPEED"; else echo "⬇️  Download: 0 B/s"; fi; \
+		if [ -n "$$PEERS" ]; then echo "👥 Peers: $$PEERS"; else echo "👥 Peers: 0"; fi; \
+	else \
+		echo "ℹ️  Start seeding with: make seed-from-file"; \
+	fi
 
 seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \

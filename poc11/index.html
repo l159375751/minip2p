@@ -120,10 +120,10 @@
             padding: 0.5rem;
         }
         .book-item {
-            padding: 0.4rem 0.75rem;
-            border-bottom: 1px solid #e8e8e8;
+            padding: 0.3rem 0.5rem;
+            border-bottom: 1px solid #f0f0f0;
             font-size: 0.85rem;
-            color: #555;
+            color: #444;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -131,28 +131,32 @@
         .book-item:last-child {
             border-bottom: none;
         }
+        .book-item:hover {
+            background: #f8f8f8;
+        }
         .book-title {
             flex: 1;
-            cursor: pointer;
-            color: #667eea;
-            text-decoration: none;
-        }
-        .book-title:hover {
-            text-decoration: underline;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .book-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
+            background: transparent;
+            color: #667eea;
+            border: 1px solid #ddd;
+            padding: 0.2rem 0.35rem;
             border-radius: 0.25rem;
-            font-size: 0.75rem;
+            font-size: 0.9rem;
             cursor: pointer;
             white-space: nowrap;
             margin-left: 0.5rem;
+            flex-shrink: 0;
         }
         .book-btn:hover {
-            background: #5568d3;
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
         }
     </style>
 </head>
@@ -278,22 +282,23 @@
     </div>
 
     <div class="card" id="ingestCard" style="display: none;">
-        <h2>📖 Step 3: Build Library</h2>
-        <p>Adding books to library one by one...</p>
-        <div class="progress-container">
-            <div class="progress-bar" id="ingestProgressBar">0%</div>
-        </div>
+        <h2>📚 Library</h2>
         <div class="stats">
             <div class="stat">
-                <div class="stat-label">Books Added</div>
-                <div class="stat-value" id="booksAdded">0</div>
-            </div>
-            <div class="stat">
                 <div class="stat-label">Total Books</div>
-                <div class="stat-value" id="totalBooks">~70,000</div>
+                <div class="stat-value" id="totalBooks">0</div>
             </div>
         </div>
-        <div class="book-list" id="bookList"></div>
+
+        <div style="margin: 1rem 0;">
+            <input type="text" id="searchBox" placeholder="Search by title or author..."
+                style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.25rem; font-size: 0.95rem;">
+        </div>
+
+        <div class="book-list" id="bookList" style="max-height: 400px;"></div>
+        <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
+            Type to search
+        </div>
     </div>
 
     <div class="card">
@@ -607,39 +612,64 @@
         }
 
         function startIngestion() {
-            log('📖 Starting library ingestion...');
+            log('📚 Library ready!');
             document.getElementById('ingestCard').style.display = 'block';
 
-            // Use real catalog if available, otherwise simulate
-            const totalBooks = catalogBooks.length > 0 ? catalogBooks.length : 70000;
-            let booksAdded = 0;
-            let bookIndex = 0;
+            const totalBooks = catalogBooks.length;
+            document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
+            log(`✅ ${totalBooks.toLocaleString()} books available`);
 
-            const interval = setInterval(() => {
-                const increment = Math.floor(Math.random() * 100) + 50;
-                booksAdded += increment;
-                if (booksAdded > totalBooks) booksAdded = totalBooks;
+            // Setup search
+            const searchBox = document.getElementById('searchBox');
+            const bookList = document.getElementById('bookList');
+            const bookListHint = document.getElementById('bookListHint');
 
-                const progress = Math.round((booksAdded / totalBooks) * 100);
-                document.getElementById('ingestProgressBar').style.width = progress + '%';
-                document.getElementById('ingestProgressBar').textContent = progress + '%';
-                document.getElementById('booksAdded').textContent = booksAdded.toLocaleString();
+            let searchTimeout;
+            searchBox.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => {
+                    const query = e.target.value.trim().toLowerCase();
 
-                // Add books to list (show a few at a time)
-                for (let i = 0; i < Math.min(increment, 5); i++) {
-                    const bookItem = document.createElement('div');
-                    bookItem.className = 'book-item';
+                    if (query.length === 0) {
+                        bookList.innerHTML = '';
+                        bookListHint.textContent = 'Type to search';
+                        return;
+                    }
 
-                    if (catalogBooks.length > 0 && bookIndex < catalogBooks.length) {
-                        const book = catalogBooks[bookIndex];
+                    if (query.length < 2) {
+                        bookList.innerHTML = '';
+                        bookListHint.textContent = 'Type at least 2 characters';
+                        return;
+                    }
+
+                    // Search books
+                    const results = catalogBooks.filter(book =>
+                        book.title.toLowerCase().includes(query) ||
+                        book.author.toLowerCase().includes(query)
+                    ).slice(0, 100); // Limit to 100 results
+
+                    // Display results
+                    bookList.innerHTML = '';
+
+                    if (results.length === 0) {
+                        bookListHint.textContent = 'No books found';
+                        return;
+                    }
+
+                    bookListHint.textContent = `Showing ${results.length} ${results.length === 100 ? '(max)' : ''} results`;
+
+                    results.forEach(book => {
+                        const bookItem = document.createElement('div');
+                        bookItem.className = 'book-item';
 
                         const titleSpan = document.createElement('span');
                         titleSpan.className = 'book-title';
-                        titleSpan.textContent = `${book.title} by ${book.author}`;
+                        titleSpan.textContent = `${book.title} — ${book.author}`;
 
                         const openBtn = document.createElement('button');
                         openBtn.className = 'book-btn';
-                        openBtn.textContent = '📖 Open';
+                        openBtn.textContent = '📖';
+                        openBtn.title = 'Open book';
                         openBtn.onclick = () => {
                             if (currentTorrent) {
                                 openBookFromTorrent(book);
@@ -650,20 +680,10 @@
 
                         bookItem.appendChild(titleSpan);
                         bookItem.appendChild(openBtn);
-                        bookIndex++;
-                    } else {
-                        bookItem.textContent = `Book ${booksAdded}: Example Title by Example Author`;
-                    }
-
-                    document.getElementById('bookList').insertBefore(bookItem, document.getElementById('bookList').firstChild);
-                }
-
-                if (booksAdded >= totalBooks) {
-                    clearInterval(interval);
-                    log('✅ Library complete!');
-                    log(`📚 ${totalBooks.toLocaleString()} books available`);
-                }
-            }, 100);
+                        bookList.appendChild(bookItem);
+                    });
+                }, 300); // Debounce 300ms
+            });
         }
 
         async function openBookFromTorrent(book) {

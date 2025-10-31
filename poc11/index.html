@@ -198,6 +198,15 @@
 
     <details style="margin-top: 1rem;">
         <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">
+            📊 Catalog Metadata
+        </summary>
+        <div id="catalogMetadata" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
+            <div style="color: #999;">Loading...</div>
+        </div>
+    </details>
+
+    <details style="margin-top: 1rem;">
+        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">
             📝 Console Log
         </summary>
         <div id="log" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
@@ -294,13 +303,42 @@
                 const text = await response.text();
                 catalogBooks = GutIndexParser.parseIndex(text);
 
+                // Extract and display metadata
+                const fileSize = text.length;
+                const lastModified = response.headers.get('Last-Modified') || 'Unknown';
+                const contentType = response.headers.get('Content-Type') || 'text/plain';
+
+                // Calculate a simple hash for verification
+                const catalogHash = hashString(text).substring(0, 8);
+
                 updateStatus(`✅ ${catalogBooks.length.toLocaleString()} books available`);
                 showLibrary();
+                displayCatalogMetadata({
+                    books: catalogBooks.length,
+                    fileSize: fileSize,
+                    lastModified: lastModified,
+                    contentType: contentType,
+                    hash: catalogHash,
+                    source: 'GUTINDEX.ALL.new'
+                });
 
             } catch (error) {
                 updateStatus(`❌ Error loading catalog: ${error.message}`);
                 console.error('Catalog load error:', error);
             }
+        }
+
+        function displayCatalogMetadata(meta) {
+            const metadataDiv = document.getElementById('catalogMetadata');
+            metadataDiv.innerHTML = `
+                <div style="margin-bottom: 0.5rem;"><strong>📁 Source:</strong> ${meta.source}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📚 Books:</strong> ${meta.books.toLocaleString()}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>💾 File Size:</strong> ${formatBytes(meta.fileSize)}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📅 Last Modified:</strong> ${meta.lastModified}</div>
+                <div style="margin-bottom: 0.5rem;"><strong>📝 Content Type:</strong> ${meta.contentType}</div>
+                <div><strong>🔐 Hash (first 8):</strong> ${meta.hash}</div>
+            `;
+            log(`📊 Catalog metadata: ${meta.books.toLocaleString()} books, ${formatBytes(meta.fileSize)}, hash: ${meta.hash}`);
         }
 
         function updateStatus(message) {

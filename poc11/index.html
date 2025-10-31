@@ -735,56 +735,16 @@
         }
 
         function displayBook(book, content) {
-            // Create a simple book reader overlay
             const overlay = document.createElement('div');
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: white;
-                z-index: 1000;
-                overflow-y: auto;
-                padding: 2rem;
-            `;
-
-            const container = document.createElement('div');
-            container.style.cssText = `
-                max-width: 800px;
-                margin: 0 auto;
-                font-family: Georgia, serif;
-                line-height: 1.6;
-            `;
-
-            const header = document.createElement('div');
-            header.style.cssText = `
-                margin-bottom: 2rem;
-                border-bottom: 2px solid #333;
-                padding-bottom: 1rem;
-            `;
-            header.innerHTML = `
-                <h1 style="margin: 0 0 0.5rem 0;">${book.title}</h1>
-                <p style="margin: 0; color: #666;">by ${book.author}</p>
-                <button onclick="this.parentElement.parentElement.parentElement.remove()"
-                    style="margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer;">
-                    ✕ Close
-                </button>
-            `;
-
-            const textDiv = document.createElement('pre');
-            textDiv.style.cssText = `
-                white-space: pre-wrap;
-                font-family: Georgia, serif;
-                font-size: 1rem;
-            `;
-            textDiv.textContent = content;
-
-            container.appendChild(header);
-            container.appendChild(textDiv);
-            overlay.appendChild(container);
+            overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:1000;overflow-y:auto;padding:1rem';
+            overlay.innerHTML = `<div style="max-width:700px;margin:0 auto;font-family:Georgia,serif;line-height:1.5">
+<a href="#" onclick="this.parentElement.parentElement.remove();return false" style="font-size:1.5rem;text-decoration:none;color:#999">×</a>
+<h3 style="margin:0.5rem 0">${book.title}</h3>
+<small style="color:#666">${book.author}</small>
+<hr style="margin:1rem 0;border:none;border-top:1px solid #ddd">
+<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:0.95rem">${content}</pre>
+</div>`;
             document.body.appendChild(overlay);
-
             log(`✅ Displaying "${book.title}"`);
         }
 

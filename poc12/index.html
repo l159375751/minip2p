@@ -925,6 +925,8 @@
                     html += `   Downloaded: ${downloadedSize}<br>`;
                     html += `</div>`;
                 });
+            } else if (currentTorrent) {
+                html += `<div style="margin-left: 1rem; color: #999;">Torrent active • awaiting file metadata…</div>`;
             } else {
                 html += `<div style="margin-left: 1rem; color: #999;">No active torrents</div>`;
             }

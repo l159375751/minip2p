@@ -224,6 +224,12 @@
                     <div class="copy-badge">📋 Copy</div>
                     <span id="infoHash"></span>
                 </div>
+
+                <h3 style="margin: 1.5rem 0 0.5rem 0;">Download .torrent File:</h3>
+                <button onclick="downloadTorrentFile()" style="width: 100%; margin-top: 0;">💾 Download .torrent File</button>
+                <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
+                    Save this .torrent file to seed instantly without rehashing!
+                </p>
             </div>
         </div>
 
@@ -363,6 +369,30 @@
                 log('📋 InfoHash copied!');
                 alert('InfoHash copied to clipboard!');
             });
+        }
+
+        function downloadTorrentFile() {
+            if (!currentTorrent) {
+                alert('No torrent created yet!');
+                return;
+            }
+
+            // Get the .torrent file buffer from WebTorrent
+            const torrentFile = currentTorrent.torrentFile;
+            const blob = new Blob([torrentFile], { type: 'application/x-bittorrent' });
+
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = selectedFile.name.replace(/\.zip$/, '') + '.torrent';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            log(`💾 Downloaded ${a.download}`);
+            alert(`Torrent file downloaded: ${a.download}`);
         }
 
         function formatBytes(bytes) {

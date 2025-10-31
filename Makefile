@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg setup-docker build-docker seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
+.PHONY: deploy fetch-gutenberg setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:6042fc88ad1609b64ac7d09154e89e23ceb81cd4&dn=gutenberg-txt-files.tar.zip&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev
@@ -33,10 +33,20 @@ seed-gutenberg: build-docker
 
 seed-from-file: build-docker
 	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
-	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-		-e DEBUG='webtorrent*,bittorrent-tracker*' \
-		webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose --torrent-port 6881
+	@if [ -f gutenberg-txt-files.tar.torrent ]; then \
+		echo "✅ Using .torrent file (instant seeding, no rehashing!)"; \
+		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
+			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
+			-e DEBUG='webtorrent*,bittorrent-tracker*' \
+			webtorrent seed /data/gutenberg-txt-files.tar.torrent --verbose --torrent-port 6881; \
+	else \
+		echo "⚠️  No .torrent file found, seeding raw ZIP (will take 10-30 min to hash)"; \
+		echo "💡 Create .torrent via POC8 to enable instant seeding!"; \
+		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
+			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
+			-e DEBUG='webtorrent*,bittorrent-tracker*' \
+			webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose --torrent-port 6881; \
+	fi
 
 seed-stop:
 	-docker stop webtorrent-gutenberg

@@ -170,6 +170,16 @@
         Library: <span id="library-count">0</span> books
     </div>
 
+    <div class="status" style="background: #e8f5e9; font-size: 0.9em;">
+        <strong>📊 P2P Stats:</strong>
+        Peers: <span id="peer-count">0</span> |
+        ⬇️ <span id="download-speed">0 B/s</span> |
+        ⬆️ <span id="upload-speed">0 B/s</span> |
+        Downloaded: <span id="total-downloaded">0 B</span> |
+        Uploaded: <span id="total-uploaded">0 B</span> |
+        Ratio: <span id="share-ratio">0.00</span>
+    </div>
+
     <!-- PEERJS BOX -->
     <div class="box">
         <h2>🔗 PeerJS</h2>
@@ -295,6 +305,15 @@
         let incomingTransfers = new Map(); // Track incoming transfer state: key -> {chunks, totalChunks, title, author}
         let latestDemo = null; // Placeholder for compatibility with send button logic
 
+        // P2P Stats tracking
+        let totalDownloaded = 0;
+        let totalUploaded = 0;
+        let downloadSpeed = 0;
+        let uploadSpeed = 0;
+        let lastStatsUpdate = Date.now();
+        let bytesDownloadedSinceLastUpdate = 0;
+        let bytesUploadedSinceLastUpdate = 0;
+
         const localIdEl = document.getElementById('localId');
         const copyIdBtn = document.getElementById('copyIdBtn');
         const remoteIdEl = document.getElementById('remoteId');
@@ -311,6 +330,42 @@
                 peerStatusEl.textContent = message;
             }
         }
+
+        // Format bytes for display
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Update P2P stats display
+        function updateStatsDisplay() {
+            document.getElementById('peer-count').textContent = peerConnections.size;
+            document.getElementById('download-speed').textContent = formatBytes(downloadSpeed) + '/s';
+            document.getElementById('upload-speed').textContent = formatBytes(uploadSpeed) + '/s';
+            document.getElementById('total-downloaded').textContent = formatBytes(totalDownloaded);
+            document.getElementById('total-uploaded').textContent = formatBytes(totalUploaded);
+
+            const ratio = totalDownloaded > 0 ? (totalUploaded / totalDownloaded).toFixed(2) : '0.00';
+            document.getElementById('share-ratio').textContent = ratio;
+        }
+
+        // Calculate speeds and update stats every second
+        setInterval(() => {
+            const now = Date.now();
+            const elapsed = (now - lastStatsUpdate) / 1000; // seconds
+
+            downloadSpeed = bytesDownloadedSinceLastUpdate / elapsed;
+            uploadSpeed = bytesUploadedSinceLastUpdate / elapsed;
+
+            bytesDownloadedSinceLastUpdate = 0;
+            bytesUploadedSinceLastUpdate = 0;
+            lastStatsUpdate = now;
+
+            updateStatsDisplay();
+        }, 1000);
 
         function getSelectedSource() {
             const selected = Array.from(sourceRadios || []).find((radio) => radio.checked);
@@ -1434,6 +1489,7 @@
                 }
                 setStatus('Connected to peer.');
                 updateSendButtonState();
+                updateStatsDisplay();
             });
 
             conn.on('data', (raw) => handlePeerMessage(conn, raw));
@@ -1448,6 +1504,7 @@
                 }
                 log('transfer-log', `Connection to ${remoteId} closed`, 'query');
                 setStatus('Peer connection closed.');
+                updateStatsDisplay();
             });
 
             conn.on('error', (err) => {
@@ -1522,22 +1579,33 @@
             const data = JSON.stringify(book);
             const totalChunks = Math.max(1, Math.ceil(data.length / PEER_CHUNK_SIZE));
 
-            conn.send(JSON.stringify({
+            const metaMsg = JSON.stringify({
                 type: 'meta',
                 bookId: book.id,
                 title: book.title,
                 author: book.author || 'Unknown',
                 totalChunks,
                 from: keypair.pubkey
-            }));
+            });
+            conn.send(metaMsg);
+            bytesUploadedSinceLastUpdate += metaMsg.length;
+            totalUploaded += metaMsg.length;
 
             for (let i = 0; i < totalChunks; i++) {
                 const chunk = data.slice(i * PEER_CHUNK_SIZE, (i + 1) * PEER_CHUNK_SIZE);
-                conn.send(JSON.stringify({ type: 'chunk', bookId: book.id, index: i, chunk }));
+                const chunkMsg = JSON.stringify({ type: 'chunk', bookId: book.id, index: i, chunk });
+                conn.send(chunkMsg);
+                bytesUploadedSinceLastUpdate += chunkMsg.length;
+                totalUploaded += chunkMsg.length;
             }
 
-            conn.send(JSON.stringify({ type: 'complete', bookId: book.id }));
-            log('transfer-daemon-log', `✓ Sent "${book.title}" in ${totalChunks} chunks`, 'answer');
+            const completeMsg = JSON.stringify({ type: 'complete', bookId: book.id });
+            conn.send(completeMsg);
+            bytesUploadedSinceLastUpdate += completeMsg.length;
+            totalUploaded += completeMsg.length;
+
+            log('transfer-daemon-log', `✓ Sent "${book.title}" in ${totalChunks} chunks (${formatBytes(data.length)})`, 'answer');
+            updateStatsDisplay();
         }
 
         function prepareIncomingTransfer(conn, msg) {
@@ -1552,6 +1620,7 @@
             });
             log('transfer-log', `📦 Incoming "${msg.title}" (${msg.totalChunks} chunks)`, 'answer');
             setStatus(`Receiving "${msg.title}"…`);
+            updateStatsDisplay();
         }
 
         function handleIncomingChunk(conn, msg) {
@@ -1564,7 +1633,13 @@
 
             transfer.chunks[msg.index] = msg.chunk;
             transfer.received += 1;
-            log('transfer-log', `📥 Chunk ${msg.index + 1}/${transfer.totalChunks} (${msg.chunk.length} bytes)`, 'answer');
+
+            // Track download stats
+            const chunkBytes = msg.chunk.length;
+            bytesDownloadedSinceLastUpdate += chunkBytes;
+            totalDownloaded += chunkBytes;
+
+            log('transfer-log', `📥 Chunk ${msg.index + 1}/${transfer.totalChunks} (${formatBytes(chunkBytes)})`, 'answer');
         }
 
         async function finalizeIncomingTransfer(conn, msg) {

@@ -86,10 +86,8 @@ lines.forEach((line, idx) => {
   console.log(`\n[${idx + 1}/${lines.length}] Adding torrent...`)
   console.log(`🔗 ${magnetLink.substring(0, 80)}...`)
 
-  const torrent = client.add(magnetLink, {
-    path: '/tmp/webtorrent',
-    announce: DEFAULT_TRACKERS
-  })
+  // Add magnet link without options (WebTorrent handles download path automatically)
+  const torrent = client.add(magnetLink)
 
   activeTorrents++
 

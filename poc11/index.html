@@ -157,20 +157,15 @@
         </div>
 
         <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0;">
-            <details style="font-size: 0.9rem;">
-                <summary style="cursor: pointer; color: #666; user-select: none;">Optional: Load catalog first to browse ~70k book titles</summary>
-                <div style="margin-top: 1rem; padding-left: 1rem;">
-                    <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.75rem;">Download the book index (GUTINDEX - 8.8MB) to see all available titles before downloading the full collection.</p>
-                    <button id="loadCatalogBtn" onclick="loadCatalog()" style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; background: #888;">
-                        Load Catalog
-                    </button>
-                    <div id="catalogStatus" style="display: none; margin-top: 0.75rem;">
-                        <div style="padding: 0.5rem; background: #f0f4ff; border-radius: 0.25rem; font-size: 0.85rem;">
-                            <span id="catalogStatusText">Loading...</span>
-                        </div>
-                    </div>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.75rem;">Load catalog first to browse ~70k book titles (GUTINDEX - 8.8MB):</p>
+            <button id="loadCatalogBtn" onclick="loadCatalog()" style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; background: #888;">
+                Load Catalog
+            </button>
+            <div id="catalogStatus" style="display: none; margin-top: 0.75rem;">
+                <div style="padding: 0.5rem; background: #f0f4ff; border-radius: 0.25rem; font-size: 0.85rem;">
+                    <span id="catalogStatusText">Loading...</span>
                 </div>
-            </details>
+            </div>
         </div>
 
         <div id="downloadProgress" style="display: none;">

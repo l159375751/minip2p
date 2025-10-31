@@ -633,9 +633,7 @@
             let html = '<div style="font-family: monospace; font-size: 0.85rem;">';
             peers.forEach((wire, idx) => {
                 const addr = wire.remoteAddress || 'unknown';
-                const type = wire.type || 'unknown';
-                const downSpeed = formatBytes(wire.downloadSpeed || 0) + '/s';
-                const upSpeed = formatBytes(wire.uploadSpeed || 0) + '/s';
+                const type = wire.type || 'webrtc';
                 const downloaded = formatBytes(wire.downloaded || 0);
                 const uploaded = formatBytes(wire.uploaded || 0);
 
@@ -643,7 +641,7 @@
                     <div style="padding: 0.5rem; margin: 0.25rem 0; background: white; border-radius: 0.25rem; border-left: 3px solid ${type === 'webrtc' ? '#10b981' : '#3b82f6'};">
                         <div style="font-weight: bold;">#${idx + 1}: ${addr}</div>
                         <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">
-                            Type: ${type.toUpperCase()} | ↓ ${downSpeed} (${downloaded}) | ↑ ${upSpeed} (${uploaded})
+                            Type: ${type.toUpperCase()} | ↓ ${downloaded} | ↑ ${uploaded}
                         </div>
                     </div>
                 `;

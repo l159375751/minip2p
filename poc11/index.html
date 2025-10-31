@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POC11 - Progressive Library Builder</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .progress-container {
+            background: #f0f0f0;
+            border-radius: 0.5rem;
+            height: 30px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        .progress-bar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .stat {
+            background: #f8f9ff;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #667eea;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .log {
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        .book-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .book-item {
+            background: #f8f9ff;
+            padding: 0.5rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 0.25rem;
+            border-left: 3px solid #667eea;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>📚 POC11 - Progressive Library Builder</h1>
+
+    <div class="card">
+        <h2>📥 Step 1: Download Gutenberg Collection</h2>
+        <p>Download the complete Project Gutenberg text collection (11GB) via WebTorrent P2P.</p>
+        <button id="downloadBtn" onclick="startDownload()">Start Download</button>
+
+        <div id="downloadProgress" style="display: none;">
+            <div class="progress-container">
+                <div class="progress-bar" id="downloadProgressBar">0%</div>
+            </div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Downloaded</div>
+                    <div class="stat-value" id="downloaded">0 B</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Speed</div>
+                    <div class="stat-value" id="downloadSpeed">0 B/s</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Peers</div>
+                    <div class="stat-value" id="peerCount">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">ETA</div>
+                    <div class="stat-value" id="eta">Calculating...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" id="extractCard" style="display: none;">
+        <h2>🔓 Step 2: Extract Archive</h2>
+        <p id="extractStatus">Waiting for download to complete...</p>
+        <div class="progress-container">
+            <div class="progress-bar" id="extractProgressBar">0%</div>
+        </div>
+    </div>
+
+    <div class="card" id="ingestCard" style="display: none;">
+        <h2>📖 Step 3: Build Library</h2>
+        <p>Adding books to library one by one...</p>
+        <div class="progress-container">
+            <div class="progress-bar" id="ingestProgressBar">0%</div>
+        </div>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Books Added</div>
+                <div class="stat-value" id="booksAdded">0</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Total Books</div>
+                <div class="stat-value" id="totalBooks">~70,000</div>
+            </div>
+        </div>
+        <div class="book-list" id="bookList"></div>
+    </div>
+
+    <div class="card">
+        <h2>📝 Console Log</h2>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const client = new WebTorrent();
+        let currentTorrent = null;
+
+        // Use tar.gz magnet link (will be created after conversion)
+        const MAGNET_LINK = 'magnet:?xt=urn:btih:969e7f838a2f03f414dbc1d5555c669aedaa4db9&dn=gutenberg-txt-files.tar.zip';
+
+        console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function formatTime(seconds) {
+            if (seconds === Infinity) return '∞';
+            if (isNaN(seconds)) return 'N/A';
+            const hours = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hours > 0) return `${hours}h ${mins}m`;
+            if (mins > 0) return `${mins}m ${secs}s`;
+            return `${secs}s`;
+        }
+
+        function startDownload() {
+            log('📥 Starting WebTorrent download...');
+            log(`🔗 Magnet: ${MAGNET_LINK.substring(0, 80)}...`);
+
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('downloadProgress').style.display = 'block';
+
+            currentTorrent = client.add(MAGNET_LINK, {
+                path: '/downloads'
+            });
+
+            currentTorrent.on('metadata', () => {
+                log(`✅ Got torrent metadata`);
+                log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
+                log(`📁 Files: ${currentTorrent.files.length}`);
+            });
+
+            currentTorrent.on('wire', (wire, addr) => {
+                log(`🔗 Connected to peer: ${addr}`);
+            });
+
+            setInterval(() => {
+                if (!currentTorrent) return;
+
+                const progress = Math.round(currentTorrent.progress * 100);
+                const downloaded = formatBytes(currentTorrent.downloaded);
+                const speed = formatBytes(currentTorrent.downloadSpeed);
+                const peers = currentTorrent.numPeers;
+                const timeRemaining = currentTorrent.timeRemaining;
+
+                document.getElementById('downloadProgressBar').style.width = progress + '%';
+                document.getElementById('downloadProgressBar').textContent = progress + '%';
+                document.getElementById('downloaded').textContent = downloaded;
+                document.getElementById('downloadSpeed').textContent = speed + '/s';
+                document.getElementById('peerCount').textContent = peers;
+                document.getElementById('eta').textContent = formatTime(timeRemaining / 1000);
+            }, 1000);
+
+            currentTorrent.on('done', () => {
+                log('✅ Download complete!');
+                log(`📦 Total downloaded: ${formatBytes(currentTorrent.length)}`);
+                startExtraction();
+            });
+
+            currentTorrent.on('error', (err) => {
+                log(`❌ Error: ${err.message}`);
+                console.error('Torrent error:', err);
+            });
+        }
+
+        function startExtraction() {
+            log('🔓 Starting extraction...');
+            document.getElementById('extractCard').style.display = 'block';
+            document.getElementById('extractStatus').textContent = 'Extracting archive...';
+
+            // TODO: Implement tar.gz extraction
+            // For now, simulate it
+            setTimeout(() => {
+                log('✅ Extraction complete!');
+                startIngestion();
+            }, 3000);
+        }
+
+        function startIngestion() {
+            log('📖 Starting library ingestion...');
+            document.getElementById('ingestCard').style.display = 'block';
+
+            // TODO: Implement progressive book ingestion
+            // For now, simulate it
+            let booksAdded = 0;
+            const totalBooks = 70000;
+
+            const interval = setInterval(() => {
+                booksAdded += Math.floor(Math.random() * 100) + 50;
+                if (booksAdded > totalBooks) booksAdded = totalBooks;
+
+                const progress = Math.round((booksAdded / totalBooks) * 100);
+                document.getElementById('ingestProgressBar').style.width = progress + '%';
+                document.getElementById('ingestProgressBar').textContent = progress + '%';
+                document.getElementById('booksAdded').textContent = booksAdded.toLocaleString();
+
+                // Add book to list
+                const bookItem = document.createElement('div');
+                bookItem.className = 'book-item';
+                bookItem.textContent = `Book ${booksAdded}: Example Title by Example Author`;
+                document.getElementById('bookList').insertBefore(bookItem, document.getElementById('bookList').firstChild);
+
+                if (booksAdded >= totalBooks) {
+                    clearInterval(interval);
+                    log('✅ Library complete!');
+                    log(`📚 ${totalBooks.toLocaleString()} books available`);
+                }
+            }, 100);
+        }
+
+        log('✅ Ready to download Gutenberg collection');
+        log('💡 Click "Start Download" to begin');
+    </script>
+</body>
+</html>

@@ -178,7 +178,9 @@
                 style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 0.25rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.5rem;">
             <div style="display: flex; gap: 0.5rem;">
                 <button onclick="startDownload()" style="flex: 1;">Start Download</button>
+                <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">or .torrent</button>
                 <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
+                <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
                 <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
             </div>
         </div>
@@ -193,6 +195,13 @@
     <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
         <span id="totalBooks">0</span> books available
     </div>
+
+    <details style="margin-top: 1rem;">
+        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">
+            📝 Console Log
+        </summary>
+        <div id="log" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
+    </details>
 
     <script>
         const client = new WebTorrent();
@@ -276,17 +285,6 @@
 
         function updateStatus(message) {
             document.getElementById('statusLine').textContent = message;
-        }
-
-        function updateLoadMethod() {
-            const method = document.querySelector('input[name="loadMethod"]:checked').value;
-            if (method === 'download') {
-                document.getElementById('downloadMethod').style.display = 'block';
-                document.getElementById('localMethod').style.display = 'none';
-            } else {
-                document.getElementById('downloadMethod').style.display = 'none';
-                document.getElementById('localMethod').style.display = 'block';
-            }
         }
 
         function handleTorrentFile(file) {

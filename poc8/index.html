@@ -338,7 +338,15 @@
     </div>
 
     <script>
-        const client = new WebTorrent();
+        // Optimized WebTorrent client for better seeding
+        const client = new WebTorrent({
+            maxConns: 200,          // Max peer connections (default: 55)
+            dht: true,              // Enable DHT for peer discovery
+            lsd: false,             // LSD doesn't work in browser
+            webSeeds: true,         // Enable web seeds
+            utp: false              // μTP doesn't work in browser
+        });
+
         let selectedFile = null;
         let loadedTorrentFile = null;
         let loadedMagnetLink = null;
@@ -346,6 +354,7 @@
         let seedMode = 'create'; // 'create' or 'seed'
 
         console.log('%c📦 POC8 - WebTorrent Creator', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+        console.log(`%c⚙️ Max connections: 200 | DHT: enabled`, 'color: #667eea;');
 
         // Load torrent history on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -712,17 +721,28 @@
                     name: selectedFile.name,
                     announceList: [
                         ['wss://tracker.openwebtorrent.com'],
+                        ['wss://tracker.webtorrent.dev'],
                         ['wss://tracker.btorrent.xyz'],
-                        ['wss://tracker.webtorrent.dev']
+                        ['wss://tracker.fastcast.nz'],
+                        ['wss://tracker.files.fm:7073/announce'],
+                        ['ws://tracker.webtorrent.io'],
+                        // UDP trackers (announce URLs for .torrent file, won't work in browser but help other clients)
+                        ['udp://tracker.opentrackr.org:1337/announce'],
+                        ['udp://open.demonoid.ch:6969/announce'],
+                        ['udp://tracker.torrent.eu.org:451/announce'],
+                        ['udp://exodus.desync.com:6969/announce']
                     ]
                 }, (torrent) => {
                     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
                     currentTorrent = torrent;
+                    document.getElementById('hashingStatus').style.display = 'none';
                     log(`✅ Torrent created in ${elapsed}s!`);
                     log(`📡 Now seeding: ${torrent.name}`);
                     log(`🔗 InfoHash: ${torrent.infoHash}`);
                     log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
-                    log(`🎯 Ready to accept peer connections...`);
+                    log(`📡 Trackers: ${torrent.announce ? torrent.announce.length : 0}`);
+                    log(`🎯 Max connections: 200 | DHT: enabled`);
+                    log(`⏳ Announcing to trackers and DHT...`);
 
                     setupSeedingUI(torrent, elapsed);
                 });

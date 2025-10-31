@@ -532,6 +532,17 @@
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
 
                 updatePieceMap(currentTorrent);
+                const statusEl = document.getElementById('downloadStatusLine');
+                if (statusEl) {
+                    if (pieceProgress.firstVerifiedBlock || pieceProgress.nextPartialBlock) {
+                        const hint = pieceProgress.nextPartialBlock
+                            ? `block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`
+                            : `block ${pieceProgress.firstVerifiedBlock}`;
+                        statusEl.textContent = `⬇️ Blocks: ${pieceProgress.firstVerifiedBlock || 0}/${currentTorrent.pieces.length} ready • focusing ${hint}`;
+                    } else {
+                        statusEl.textContent = message;
+                    }
+                }
             } else if (localArchiveFile) {
                 archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
                 speedEl.textContent = '—';

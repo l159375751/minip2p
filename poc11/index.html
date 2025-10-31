@@ -338,17 +338,56 @@
     </details>
 
     <script>
+        const WEBTORRENT_SOURCES = [
+            'https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/dist/webtorrent.min.js',
+            'https://unpkg.com/webtorrent@1.9.7/dist/webtorrent.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js'
+        ];
+
+        function loadWebTorrentLibrary() {
+            return new Promise((resolve) => {
+                const sources = [...WEBTORRENT_SOURCES];
+
+                const tryNext = () => {
+                    if (sources.length === 0) {
+                        resolve(false);
+                        return;
+                    }
+
+                    const src = sources.shift();
+                    const script = document.createElement('script');
+                    script.src = src;
+                    script.async = true;
+                    script.onload = () => resolve(true);
+                    script.onerror = () => {
+                        console.warn('Failed to load WebTorrent from', src);
+                        tryNext();
+                    };
+                    document.head.appendChild(script);
+                };
+
+                tryNext();
+            });
+        }
+    </script>
+
+    <script>
+        loadWebTorrentLibrary()
+            .then((loaded) => initApp(loaded))
+            .catch(() => initApp(false));
+
+        function initApp(webTorrentLoaded) {
         // Optimized WebTorrent client for faster downloads
         const MAX_TORRENT_CONNECTIONS = 80;
         let client = null;
-        if (window.WebTorrent) {
+        if (webTorrentLoaded && window.WebTorrent) {
             client = new WebTorrent({
                 maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
                 dht: true,            // Enable DHT for peer discovery
                 webSeeds: true        // Enable web seeds if available
             });
         } else {
-            updateDownloadStatus('WebTorrent not supported in this browser. Try the latest Firefox or Chromium.');
+            console.warn('WebTorrent not available in this environment.');
         }
         let currentTorrent = null;
         let torrentStatsInterval = null;
@@ -1387,8 +1426,18 @@
             log(`✅ Displaying "${book.title}"`);
         }
 
+        window.startDownload = startDownload;
+        window.handleTorrentFile = handleTorrentFile;
+        window.loadLocalFile = loadLocalFile;
+        window.refreshBrowserFilesystem = refreshBrowserFilesystem;
+
+        if (!client) {
+            updateDownloadStatus('WebTorrent not supported in this browser. Try the latest Firefox or Chromium.');
+        }
+
         log('✅ Ready to download Gutenberg collection');
         log('💡 Click "Start Download" to begin');
+        }
     </script>
 </body>
 </html>

@@ -276,7 +276,8 @@
                         <span style="color: #999; font-size: 0.85rem;">Waiting for torrent...</span>
                     </div>
                     <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #4caf50; border-radius: 2px; margin-right: 4px;"></span> Downloaded
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #4caf50; border-radius: 2px; margin-right: 4px;"></span> Complete
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #ffa726; border-radius: 2px; margin: 0 4px 0 12px;"></span> Partial
                         <span style="display: inline-block; width: 12px; height: 12px; background: #e0e0e0; border-radius: 2px; margin: 0 4px 0 12px;"></span> Missing
                     </div>
                 </div>
@@ -500,30 +501,49 @@
         let pieceMapInitialized = false;
         function updatePieceMap(pieces) {
             const pieceMap = document.getElementById('pieceMap');
+            const totalPieces = pieces.length;
 
-            // Initialize on first call - show max 500 pieces for performance
+            // Group into chunks of ~26 pieces each (1301/50 = 26)
+            const numBlocks = 50;
+            const piecesPerBlock = Math.ceil(totalPieces / numBlocks);
+
+            // Initialize on first call
             if (!pieceMapInitialized) {
                 pieceMapInitialized = true;
                 pieceMap.innerHTML = '';
 
-                const totalPieces = pieces.length;
-                const displayPieces = Math.min(totalPieces, 500);
-                const step = Math.ceil(totalPieces / displayPieces);
-
-                for (let i = 0; i < displayPieces; i++) {
-                    const piece = document.createElement('div');
-                    piece.style.cssText = 'width: 12px; height: 12px; background: #e0e0e0; border-radius: 2px;';
-                    piece.dataset.index = i * step;
-                    pieceMap.appendChild(piece);
+                for (let i = 0; i < numBlocks; i++) {
+                    const block = document.createElement('div');
+                    block.style.cssText = 'width: 16px; height: 16px; background: #e0e0e0; border-radius: 2px;';
+                    block.dataset.index = i;
+                    pieceMap.appendChild(block);
                 }
             }
 
-            // Update colors
+            // Update colors based on completion of each group
             const children = pieceMap.children;
             for (let i = 0; i < children.length; i++) {
-                const pieceIndex = parseInt(children[i].dataset.index);
-                const isDownloaded = pieces[pieceIndex];
-                children[i].style.background = isDownloaded ? '#4caf50' : '#e0e0e0';
+                const startPiece = i * piecesPerBlock;
+                const endPiece = Math.min(startPiece + piecesPerBlock, totalPieces);
+
+                // Check how many pieces in this group are complete
+                let complete = 0;
+                for (let j = startPiece; j < endPiece; j++) {
+                    if (pieces[j]) complete++;
+                }
+
+                const percentComplete = complete / (endPiece - startPiece);
+
+                // Color based on completion: green if 100%, yellow if partial, gray if 0%
+                if (percentComplete === 1) {
+                    children[i].style.background = '#4caf50';
+                } else if (percentComplete > 0) {
+                    children[i].style.background = '#ffa726';
+                } else {
+                    children[i].style.background = '#e0e0e0';
+                }
+
+                children[i].title = `Block ${i + 1}: ${(percentComplete * 100).toFixed(0)}% complete`;
             }
         }
 
@@ -631,15 +651,10 @@
 
         function processLocalArchive(file) {
             log('🔓 Processing local archive...');
-            document.getElementById('extractCard').style.display = 'block';
-            document.getElementById('extractStatus').textContent = 'Reading local archive...';
+            log('✅ Archive ready for reading!');
 
-            // For now, skip extraction and go to ingestion simulation
-            // TODO: Implement actual tar.gz reading with streaming
-            setTimeout(() => {
-                log('✅ Archive loaded!');
-                startIngestion();
-            }, 2000);
+            // Skip extraction UI, go straight to library
+            startIngestion();
         }
 
         function startExtraction() {
@@ -722,10 +737,10 @@
                 openBtn.textContent = '📖';
                 openBtn.title = 'Open book';
                 openBtn.onclick = () => {
-                    if (currentTorrent) {
+                    if (currentTorrent || localArchiveFile) {
                         openBookFromTorrent(book);
                     } else {
-                        alert('Please start downloading the library first!');
+                        alert('Please start downloading or load a local file first!');
                     }
                 };
 
@@ -736,59 +751,65 @@
         }
 
         async function openBookFromTorrent(book) {
-            log(`📖 Opening "${book.title}" from downloaded blocks...`);
+            log(`📖 Opening "${book.title}"...`);
 
             try {
-                if (!currentTorrent || !currentTorrent.files || currentTorrent.files.length === 0) {
-                    throw new Error('Torrent files not available');
-                }
+                let arrayBuffer;
 
-                // Get the .tar.gz file from WebTorrent
-                const file = currentTorrent.files[0];
-                const progress = (file.progress * 100).toFixed(1);
-                log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
+                // Check if we're using local file or torrent
+                if (localArchiveFile) {
+                    log(`📁 Reading from local file: ${localArchiveFile.name}`);
+                    arrayBuffer = await localArchiveFile.arrayBuffer();
+                } else if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
+                    // Get the .tar.gz file from WebTorrent
+                    const file = currentTorrent.files[0];
+                    const progress = (file.progress * 100).toFixed(1);
+                    log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
 
-                // Select this file with high priority to download needed pieces
-                file.select(0); // Highest priority
+                    // Select this file with high priority to download needed pieces
+                    file.select(0); // Highest priority
 
-                log(`🔍 Searching for book in downloaded blocks...`);
+                    log(`🔍 Reading from downloaded blocks...`);
 
-                // Try to get available data using streaming
-                // This will read from whatever pieces we have
-                const stream = file.createReadStream();
-                const chunks = [];
-                let totalBytes = 0;
-                const maxBytes = 500 * 1024 * 1024; // Read up to 500MB for extraction attempt
+                    // Try to get available data using streaming
+                    const stream = file.createReadStream();
+                    const chunks = [];
+                    let totalBytes = 0;
+                    const maxBytes = 500 * 1024 * 1024; // Read up to 500MB for extraction attempt
 
-                // Read available data
-                for await (const chunk of stream) {
-                    chunks.push(chunk);
-                    totalBytes += chunk.length;
+                    // Read available data
+                    for await (const chunk of stream) {
+                        chunks.push(chunk);
+                        totalBytes += chunk.length;
 
-                    // Try extraction periodically
-                    if (totalBytes >= maxBytes || totalBytes >= file.downloaded) {
-                        break;
+                        if (totalBytes >= maxBytes || totalBytes >= file.downloaded) {
+                            break;
+                        }
                     }
-                }
 
-                log(`📥 Read ${formatBytes(totalBytes)} from available blocks`);
+                    log(`📥 Read ${formatBytes(totalBytes)} from available blocks`);
 
-                // Combine chunks
-                const combinedBuffer = new Uint8Array(totalBytes);
-                let offset = 0;
-                for (const chunk of chunks) {
-                    combinedBuffer.set(chunk, offset);
-                    offset += chunk.length;
+                    // Combine chunks
+                    const combinedBuffer = new Uint8Array(totalBytes);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                        combinedBuffer.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+
+                    arrayBuffer = combinedBuffer.buffer;
+                } else {
+                    throw new Error('No archive available');
                 }
 
                 log(`🔓 Decompressing with gzip...`);
                 let decompressed;
                 try {
-                    decompressed = pako.ungzip(combinedBuffer);
+                    decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
                 } catch (e) {
                     // If gzip fails, try partial decompression
                     log(`⚠️ Partial gzip data, attempting extraction...`);
-                    decompressed = pako.inflate(combinedBuffer, { raw: true });
+                    decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
                 }
 
                 log(`📂 Extracting books from tar archive...`);

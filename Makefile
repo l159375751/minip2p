@@ -1,5 +1,5 @@
 
-.PHONY: deploy fetch-gutenberg setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:6042fc88ad1609b64ac7d09154e89e23ceb81cd4&dn=gutenberg-txt-files.tar.zip&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Fopen.demonii.com%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fopen.stealth.si%3A80%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev
@@ -14,6 +14,18 @@ fetch-gutenberg:
 	wget -c -O gutenberg-txt-files.tar.zip https://www.gutenberg.org/cache/epub/feeds/txt-files.tar.zip
 	sha256sum gutenberg-txt-files.tar.zip > gutenberg-txt-files.tar.zip.sha256
 	@grep -qxF "gutenberg-txt-files.tar.zip" .gitignore || echo "gutenberg-txt-files.tar.zip" >> .gitignore
+
+convert-to-targz:
+	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
+	@if [ -f gutenberg-txt-files.tar.gz ]; then \
+		echo "✅ gutenberg-txt-files.tar.gz already exists"; \
+	else \
+		echo "🔄 Converting tar.zip to tar.gz (this takes 5-10 minutes)..."; \
+		unzip -p gutenberg-txt-files.tar.zip | gzip -9 > gutenberg-txt-files.tar.gz; \
+		ls -lh gutenberg-txt-files.tar.gz; \
+		echo "✅ Conversion complete!"; \
+	fi
+	@grep -qxF "gutenberg-txt-files.tar.gz" .gitignore || echo "gutenberg-txt-files.tar.gz" >> .gitignore
 
 setup-docker:
 	@command -v docker >/dev/null 2>&1 || (curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $$USER)

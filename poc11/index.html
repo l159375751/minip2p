@@ -218,6 +218,11 @@
             color: #8a8a8a;
             margin-bottom: 0.35rem;
         }
+        .piece-summary {
+            font-size: 0.75rem;
+            color: #555;
+            margin-bottom: 0.35rem;
+        }
         .piece-map {
             display: grid;
             grid-template-columns: repeat(25, 14px);
@@ -278,6 +283,7 @@
         </div>
         <div id="pieceMapContainer" class="piece-map-container" style="display:none;">
             <div class="piece-map-label">Pieces</div>
+            <div id="pieceSummary" class="piece-summary">Waiting for data…</div>
             <div id="pieceMap" class="piece-map"></div>
         </div>
     </div>
@@ -956,11 +962,13 @@
         function updatePieceMap(torrent) {
             const pieceMap = document.getElementById('pieceMap');
             const pieceContainer = document.getElementById('pieceMapContainer');
+            const summaryEl = document.getElementById('pieceSummary');
             if (!pieceMap || !pieceContainer) return;
 
             if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
                 pieceContainer.style.display = 'none';
                 pieceMap.innerHTML = '';
+                if (summaryEl) summaryEl.textContent = 'Waiting for data…';
                 pieceMapInitialized = false;
                 return;
             }
@@ -981,6 +989,10 @@
             pieceContainer.style.display = '';
 
             const children = pieceMap.children;
+            let blocksComplete = 0;
+            let blocksPartial = 0;
+            let piecesHave = 0;
+
             for (let i = 0; i < children.length; i++) {
                 const startPiece = i * piecesPerBlock;
                 const endPiece = Math.min(startPiece + piecesPerBlock, totalPieces);
@@ -990,18 +1002,27 @@
                     if (torrent.bitfield.get(j)) complete++;
                 }
 
+                piecesHave += complete;
                 const blockSize = Math.max(1, endPiece - startPiece);
                 const percentComplete = complete / blockSize;
 
                 if (percentComplete === 1) {
                     children[i].style.background = '#4caf50';
+                    blocksComplete++;
                 } else if (percentComplete > 0) {
                     children[i].style.background = '#ffa726';
+                    blocksPartial++;
                 } else {
                     children[i].style.background = '#e0e0e0';
                 }
 
                 children[i].title = `Block ${i + 1}: ${(percentComplete * 100).toFixed(0)}% complete`;
+            }
+
+            if (summaryEl) {
+                const piecesPercent = (piecesHave / totalPieces) * 100;
+                const pendingBlocks = numBlocks - blocksComplete - blocksPartial;
+                summaryEl.textContent = `${blocksComplete}/${numBlocks} blocks verified • ${blocksPartial} partial • ${pendingBlocks} queued • ${piecesPercent.toFixed(1)}% of pieces`;
             }
         }
 

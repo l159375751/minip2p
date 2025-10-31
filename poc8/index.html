@@ -535,7 +535,7 @@
                     loadedTorrentFile = new Uint8Array(arrayBuffer);
 
                     // Parse torrent file to extract metadata using WebTorrent
-                    client.add(loadedTorrentFile, { path: '/temp' }, (torrent) => {
+                    client.add(loadedTorrentFile, (torrent) => {
                         log(`✅ Torrent file parsed successfully`);
                         log(`📝 Name: ${torrent.name}`);
                         log(`🔗 InfoHash: ${torrent.infoHash}`);

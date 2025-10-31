@@ -1290,7 +1290,7 @@
                         bookListHint.style.color = '#666';
                     }
                 } else {
-                const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
+                    const statusText = `📚 ${totalBooks.toLocaleString()} books staged locally`;
                 updateStatus(statusText);
                 catalogSummary.status = statusText;
                 if (bookListHint) {
@@ -1299,7 +1299,7 @@
                     } else if (pieceProgress.nextPartialBlock) {
                         bookListHint.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish for first books.`;
                     } else {
-                        bookListHint.textContent = 'Catalog loaded';
+                        bookListHint.textContent = `${totalBooks.toLocaleString()} books staged locally`;
                     }
                     bookListHint.style.color = '#999';
                 }

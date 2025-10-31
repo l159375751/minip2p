@@ -137,6 +137,13 @@
         .book-item a:hover {
             opacity: 0.7;
         }
+        .book-item a.disabled {
+            color: #bbb;
+            cursor: not-allowed;
+        }
+        .book-item a.disabled:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -145,6 +152,9 @@
     <div style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.9); border-radius: 0.5rem; border-left: 4px solid rgba(102, 126, 234, 0.5);">
         <div id="statusLine" style="font-size: 0.9rem; color: #666;">
             📚 Loading catalog...
+        </div>
+        <div id="infoHashLine" style="font-size: 0.8rem; color: #888; margin-top: 0.25rem; word-break: break-all;">
+            InfoHash: —
         </div>
     </div>
 
@@ -205,15 +215,26 @@
 
     <script>
         // Optimized WebTorrent client for faster downloads
+        const MAX_TORRENT_CONNECTIONS = 80;
         const client = new WebTorrent({
-            maxConns: 200,        // Increase max peer connections (default: 55)
+            maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
             dht: true,            // Enable DHT for peer discovery
             webSeeds: true        // Enable web seeds if available
         });
         let currentTorrent = null;
+        let torrentStatsInterval = null;
         let loadedMagnetLink = null; // Store magnet link from .torrent file
         let localArchiveFile = null;
         let catalogBooks = []; // Store parsed catalog books
+        let currentInfoHash = null;
+        const seenTorrentWarnings = new Set();
+        const FALLBACK_TRACKERS = [
+            'wss://tracker.openwebtorrent.com',
+            'wss://tracker.webtorrent.dev',
+            'wss://tracker.btorrent.xyz',
+            'wss://tracker.fastcast.nz',
+            'wss://tracker.files.fm:7073/announce'
+        ];
 
         // Default magnet link with MANY trackers for better peer discovery
         const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz' +
@@ -226,6 +247,124 @@
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        client.on('warning', (warning) => {
+            const message = (warning && warning.message) ? warning.message : String(warning);
+            if (seenTorrentWarnings.has(message)) {
+                return;
+            }
+            seenTorrentWarnings.add(message);
+
+            if (message.includes('tracker') || message.includes('WebSocket')) {
+                log(`⚠️ Tracker warning: ${message}`);
+            } else {
+                log(`⚠️ WebTorrent warning: ${message}`);
+            }
+            console.warn('WebTorrent warning:', warning);
+        });
+
+        client.on('error', (error) => {
+            log(`❌ WebTorrent client error: ${error.message}`);
+            console.error('WebTorrent error:', error);
+        });
+
+        function updateInfoHashDisplay(infoHash) {
+            currentInfoHash = infoHash || null;
+            const infoHashEl = document.getElementById('infoHashLine');
+            if (!infoHashEl) return;
+
+            if (infoHash) {
+                infoHashEl.textContent = `InfoHash: ${infoHash}`;
+            } else {
+                infoHashEl.textContent = 'InfoHash: —';
+            }
+        }
+
+        function isArchiveReady() {
+            if (localArchiveFile) return true;
+            if (currentTorrent && currentTorrent.progress === 1) return true;
+            return false;
+        }
+
+        function sanitizeMagnet(magnetLink) {
+            if (!magnetLink || !magnetLink.includes('?')) {
+                return magnetLink;
+            }
+
+            try {
+                const questionIndex = magnetLink.indexOf('?');
+                const prefix = magnetLink.slice(0, questionIndex);
+                const query = magnetLink.slice(questionIndex + 1);
+                const params = new URLSearchParams(query);
+                const cleaned = new URLSearchParams();
+                const seen = new Set();
+
+                for (const [key, value] of params.entries()) {
+                    if (key.toLowerCase() === 'tr') {
+                        if (seen.has(value) || seen.size >= 10) continue;
+                        seen.add(value);
+                    }
+                    cleaned.append(key, value);
+                }
+
+                return `${prefix}?${cleaned.toString()}`;
+            } catch (error) {
+                console.warn('Failed to sanitize magnet link, using original', error);
+                return magnetLink;
+            }
+        }
+
+        function extractTrackersFromMagnet(magnetLink) {
+            if (!magnetLink || !magnetLink.includes('?')) {
+                return [];
+            }
+
+            try {
+                const questionIndex = magnetLink.indexOf('?');
+                const query = magnetLink.slice(questionIndex + 1);
+                const params = new URLSearchParams(query);
+                const trackers = [];
+                for (const [key, value] of params.entries()) {
+                    if (key.toLowerCase() === 'tr') {
+                        trackers.push(value);
+                    }
+                }
+                return trackers;
+            } catch (error) {
+                console.warn('Failed to extract trackers from magnet', error);
+                return [];
+            }
+        }
+
+        function shortPeerId(peerId) {
+            if (!peerId) return null;
+
+            if (typeof peerId === 'string') {
+                return peerId.slice(0, 12);
+            }
+
+            try {
+                const view = peerId.buffer
+                    ? new Uint8Array(peerId.buffer, peerId.byteOffset || 0, Math.min(6, peerId.byteLength || peerId.length || 0))
+                    : new Uint8Array(peerId);
+                return Array.from(view, (byte) => byte.toString(16).padStart(2, '0')).join('');
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function describePeerConnection(wire, addr) {
+            if (addr && addr !== '127.0.0.1:0') {
+                return addr;
+            }
+
+            if (wire && wire.remoteAddress) {
+                return wire.remoteAddress;
+            }
+
+            const id = shortPeerId(wire && wire.peerId);
+            return id ? `browser#${id}` : 'browser-peer';
+        }
 
         // Simple string hash function (cyrb53)
         function hashString(str) {
@@ -374,6 +513,7 @@
 
                     // Set background color from InfoHash
                     setBackgroundFromHash(infoHash);
+                    updateInfoHashDisplay(infoHash);
 
                     // Destroy temp torrent (we'll re-add with actual download)
                     torrent.destroy();
@@ -563,41 +703,66 @@
             // Get magnet link from input or use loaded magnet or default
             const magnetInput = document.getElementById('magnetInput').value.trim();
             const magnetLink = loadedMagnetLink || magnetInput || DEFAULT_MAGNET;
+            const sanitizedMagnet = sanitizeMagnet(magnetLink);
+            const trackersFromMagnet = extractTrackersFromMagnet(sanitizedMagnet);
+            const effectiveMagnet = sanitizedMagnet;
+
+            if (sanitizedMagnet !== magnetLink) {
+                log('🧹 Deduplicated tracker list to stay under browser limits');
+            }
+
+            if (currentTorrent) {
+                log('🧹 Stopping previous torrent session');
+                currentTorrent.destroy();
+                currentTorrent = null;
+            }
+
+            if (torrentStatsInterval) {
+                clearInterval(torrentStatsInterval);
+                torrentStatsInterval = null;
+            }
+            updateInfoHashDisplay(null);
 
             if (loadedMagnetLink) {
                 log('📥 Starting WebTorrent download with loaded .torrent file...');
             } else {
                 log('📥 Starting WebTorrent download...');
             }
-            log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
+            log(`🔗 Magnet: ${effectiveMagnet.substring(0, 80)}...`);
 
-            currentTorrent = client.add(magnetLink, {
+            const torrentOptions = {
                 path: '/downloads',
-                maxWebConns: 10,      // Max web seed connections
-                announceList: [       // Backup trackers
-                    ['wss://tracker.openwebtorrent.com'],
-                    ['wss://tracker.webtorrent.dev'],
-                    ['wss://tracker.btorrent.xyz'],
-                    ['wss://tracker.fastcast.nz']
-                ]
-            });
+                maxWebConns: 10       // Max web seed connections
+            };
+
+            if (trackersFromMagnet.length === 0) {
+                torrentOptions.announce = FALLBACK_TRACKERS;
+            }
+
+            currentTorrent = client.add(effectiveMagnet, torrentOptions);
 
             currentTorrent.on('metadata', () => {
                 log(`✅ Got torrent metadata`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
                 log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
-                log(`⚡ Max connections: 200 | Tracker count: ${currentTorrent.announce ? currentTorrent.announce.length : 0}`);
+                const trackerCount = currentTorrent.announce ? currentTorrent.announce.length : 0;
+                log(`⚡ Max connections: ${MAX_TORRENT_CONNECTIONS} | Tracker count: ${trackerCount}`);
+                if (currentTorrent.infoHash && currentTorrent.infoHash !== currentInfoHash) {
+                    updateInfoHashDisplay(currentTorrent.infoHash);
+                    log(`🧭 InfoHash: ${currentTorrent.infoHash}`);
+                }
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
             });
 
             currentTorrent.on('wire', (wire, addr) => {
-                log(`🔗 Peer connected: ${addr} | Total: ${currentTorrent.numPeers}`);
+                const peerLabel = describePeerConnection(wire, addr);
+                log(`🔗 Peer connected: ${peerLabel} | Total: ${currentTorrent.numPeers}`);
             });
 
-            setInterval(() => {
+            torrentStatsInterval = window.setInterval(() => {
                 if (!currentTorrent) return;
 
                 const speed = formatBytes(currentTorrent.downloadSpeed);
@@ -624,13 +789,22 @@
             }, 1000);
 
             currentTorrent.on('done', () => {
+                if (torrentStatsInterval) {
+                    clearInterval(torrentStatsInterval);
+                    torrentStatsInterval = null;
+                }
                 updateStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
                 document.getElementById('readabilityWarning').style.display = 'none';
+                showLibrary();
             });
 
             currentTorrent.on('error', (err) => {
                 log(`❌ Error: ${err.message}`);
                 console.error('Torrent error:', err);
+                if (torrentStatsInterval) {
+                    clearInterval(torrentStatsInterval);
+                    torrentStatsInterval = null;
+                }
             });
         }
 
@@ -645,9 +819,7 @@
             document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
 
             // Show warning if catalog loaded but no way to read books yet
-            const hasData = currentTorrent || localArchiveFile;
-            const downloadComplete = currentTorrent && currentTorrent.progress === 1;
-            const canReadBooks = localArchiveFile || downloadComplete;
+            const canReadBooks = isArchiveReady();
 
             if (totalBooks > 0 && !canReadBooks) {
                 document.getElementById('readabilityWarning').style.display = 'block';
@@ -696,6 +868,7 @@
         function displayBooks(books) {
             const bookList = document.getElementById('bookList');
             bookList.innerHTML = '';
+            const archiveReady = isArchiveReady();
 
             books.forEach(book => {
                 const row = document.createElement('div');
@@ -713,12 +886,17 @@
                 link.textContent = '→';
                 link.onclick = (e) => {
                     e.preventDefault();
-                    if (currentTorrent || localArchiveFile) {
-                        openBookFromTorrent(book);
-                    } else {
-                        alert('Start download or load local file first');
+                    if (!isArchiveReady()) {
+                        alert('Archive not ready yet. Finish download or load a local Gutenberg archive first.');
+                        return;
                     }
+                    openBookFromTorrent(book);
                 };
+
+                if (!archiveReady) {
+                    link.classList.add('disabled');
+                    link.title = 'Archive not ready yet';
+                }
 
                 row.appendChild(author);
                 row.appendChild(title);
@@ -731,6 +909,10 @@
             log(`📖 Opening "${book.title}"...`);
 
             try {
+                if (!isArchiveReady()) {
+                    throw new Error('Archive not ready yet. Download must finish or a local file must be loaded.');
+                }
+
                 let arrayBuffer;
                 let progress = 0;
 

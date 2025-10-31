@@ -269,6 +269,17 @@
                         Connecting to peers...
                     </div>
                 </div>
+
+                <div style="margin-top: 1rem;">
+                    <div class="stat-label" style="margin-bottom: 0.5rem;">Piece Map:</div>
+                    <div id="pieceMap" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 0.5rem; background: #fafafa; border-radius: 0.25rem; min-height: 60px; align-content: flex-start;">
+                        <span style="color: #999; font-size: 0.85rem;">Waiting for torrent...</span>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #4caf50; border-radius: 2px; margin-right: 4px;"></span> Downloaded
+                        <span style="display: inline-block; width: 12px; height: 12px; background: #e0e0e0; border-radius: 2px; margin: 0 4px 0 12px;"></span> Missing
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -486,6 +497,36 @@
             return `${secs}s`;
         }
 
+        let pieceMapInitialized = false;
+        function updatePieceMap(pieces) {
+            const pieceMap = document.getElementById('pieceMap');
+
+            // Initialize on first call - show max 500 pieces for performance
+            if (!pieceMapInitialized) {
+                pieceMapInitialized = true;
+                pieceMap.innerHTML = '';
+
+                const totalPieces = pieces.length;
+                const displayPieces = Math.min(totalPieces, 500);
+                const step = Math.ceil(totalPieces / displayPieces);
+
+                for (let i = 0; i < displayPieces; i++) {
+                    const piece = document.createElement('div');
+                    piece.style.cssText = 'width: 12px; height: 12px; background: #e0e0e0; border-radius: 2px;';
+                    piece.dataset.index = i * step;
+                    pieceMap.appendChild(piece);
+                }
+            }
+
+            // Update colors
+            const children = pieceMap.children;
+            for (let i = 0; i < children.length; i++) {
+                const pieceIndex = parseInt(children[i].dataset.index);
+                const isDownloaded = pieces[pieceIndex];
+                children[i].style.background = isDownloaded ? '#4caf50' : '#e0e0e0';
+            }
+        }
+
         function startDownload() {
             // Get magnet link from input or use default
             const magnetInput = document.getElementById('magnetInput').value.trim();
@@ -544,6 +585,9 @@
                     const piecesComplete = currentTorrent.pieces.filter(p => p).length;
                     const piecesTotal = currentTorrent.pieces.length;
                     document.getElementById('piecesInfo').textContent = `${piecesComplete} / ${piecesTotal}`;
+
+                    // Update piece map
+                    updatePieceMap(currentTorrent.pieces);
                 }
 
                 document.getElementById('uploadSpeed').textContent = formatBytes(currentTorrent.uploadSpeed) + '/s';
@@ -619,11 +663,14 @@
             document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
             log(`✅ ${totalBooks.toLocaleString()} books available`);
 
-            // Setup search
             const searchBox = document.getElementById('searchBox');
             const bookList = document.getElementById('bookList');
             const bookListHint = document.getElementById('bookListHint');
 
+            // Show first 50 books by default
+            displayBooks(catalogBooks.slice(0, 50), bookList, bookListHint, 'Showing first 50 books');
+
+            // Setup search
             let searchTimeout;
             searchBox.addEventListener('input', (e) => {
                 clearTimeout(searchTimeout);
@@ -631,8 +678,7 @@
                     const query = e.target.value.trim().toLowerCase();
 
                     if (query.length === 0) {
-                        bookList.innerHTML = '';
-                        bookListHint.textContent = 'Type to search';
+                        displayBooks(catalogBooks.slice(0, 50), bookList, bookListHint, 'Showing first 50 books');
                         return;
                     }
 
@@ -646,43 +692,46 @@
                     const results = catalogBooks.filter(book =>
                         book.title.toLowerCase().includes(query) ||
                         book.author.toLowerCase().includes(query)
-                    ).slice(0, 100); // Limit to 100 results
-
-                    // Display results
-                    bookList.innerHTML = '';
+                    ).slice(0, 100);
 
                     if (results.length === 0) {
+                        bookList.innerHTML = '';
                         bookListHint.textContent = 'No books found';
                         return;
                     }
 
-                    bookListHint.textContent = `Showing ${results.length} ${results.length === 100 ? '(max)' : ''} results`;
+                    displayBooks(results, bookList, bookListHint, `Found ${results.length} ${results.length === 100 ? '(showing max 100)' : ''} books`);
+                }, 300);
+            });
+        }
 
-                    results.forEach(book => {
-                        const bookItem = document.createElement('div');
-                        bookItem.className = 'book-item';
+        function displayBooks(books, bookList, bookListHint, hintText) {
+            bookList.innerHTML = '';
+            bookListHint.textContent = hintText;
 
-                        const titleSpan = document.createElement('span');
-                        titleSpan.className = 'book-title';
-                        titleSpan.textContent = `${book.title} — ${book.author}`;
+            books.forEach(book => {
+                const bookItem = document.createElement('div');
+                bookItem.className = 'book-item';
 
-                        const openBtn = document.createElement('button');
-                        openBtn.className = 'book-btn';
-                        openBtn.textContent = '📖';
-                        openBtn.title = 'Open book';
-                        openBtn.onclick = () => {
-                            if (currentTorrent) {
-                                openBookFromTorrent(book);
-                            } else {
-                                alert('Please start downloading the library first!');
-                            }
-                        };
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'book-title';
+                titleSpan.textContent = `${book.title} — ${book.author}`;
 
-                        bookItem.appendChild(titleSpan);
-                        bookItem.appendChild(openBtn);
-                        bookList.appendChild(bookItem);
-                    });
-                }, 300); // Debounce 300ms
+                const openBtn = document.createElement('button');
+                openBtn.className = 'book-btn';
+                openBtn.textContent = '📖';
+                openBtn.title = 'Open book';
+                openBtn.onclick = () => {
+                    if (currentTorrent) {
+                        openBookFromTorrent(book);
+                    } else {
+                        alert('Please start downloading the library first!');
+                    }
+                };
+
+                bookItem.appendChild(titleSpan);
+                bookItem.appendChild(openBtn);
+                bookList.appendChild(bookItem);
             });
         }
 

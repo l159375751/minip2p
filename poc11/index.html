@@ -6,6 +6,7 @@
     <title>POC11 - Progressive Library Builder</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <script src="library-builder.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <style>
         body {
@@ -116,7 +117,20 @@
     <h1>📚 POC11 - Progressive Library Builder</h1>
 
     <div class="card">
-        <h2>📥 Step 1: Load Gutenberg Collection</h2>
+        <h2>📥 Step 1: Load Gutenberg Catalog</h2>
+        <p>First, load the book catalog (GUTINDEX - 8.8MB) to browse titles:</p>
+        <button id="loadCatalogBtn" onclick="loadCatalog()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+            📚 Load Book Catalog (8.8MB)
+        </button>
+        <div id="catalogStatus" style="display: none; margin-top: 1rem;">
+            <div class="status">
+                <span id="catalogStatusText">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" id="downloadCard" style="display: none;">
+        <h2>📥 Step 2: Download Book Files</h2>
         <p>Choose how to load the Project Gutenberg text collection (11GB):</p>
 
         <div style="margin-bottom: 1.5rem;">
@@ -222,6 +236,45 @@
         const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:969e7f838a2f03f414dbc1d5555c669aedaa4db9&dn=gutenberg-txt-files.tar.zip';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        async function loadCatalog() {
+            log('📚 Loading book catalog (GUTINDEX.ALL.new - 8.8MB)...');
+            document.getElementById('loadCatalogBtn').disabled = true;
+            document.getElementById('catalogStatus').style.display = 'block';
+            document.getElementById('catalogStatusText').textContent = 'Downloading catalog...';
+
+            try {
+                const response = await fetch('GUTINDEX.ALL.new');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                log('✅ Catalog downloaded! Parsing...');
+                document.getElementById('catalogStatusText').textContent = 'Parsing catalog...';
+
+                const text = await response.text();
+                const books = GutIndexParser.parseIndex(text);
+
+                log(`✅ Parsed ${books.length.toLocaleString()} books from catalog!`);
+                document.getElementById('catalogStatusText').innerHTML = `<strong>✅ Catalog loaded:</strong> ${books.length.toLocaleString()} books available`;
+
+                // Show some sample books
+                const samples = books.slice(0, 10);
+                log(`📖 Sample books: ${samples.map(b => b.title).join(', ')}`);
+
+                // Show the download card now
+                document.getElementById('downloadCard').style.display = 'block';
+
+                log('💡 Now you can download the book files to read them!');
+
+            } catch (error) {
+                log(`❌ Error loading catalog: ${error.message}`);
+                document.getElementById('catalogStatusText').innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+                document.getElementById('loadCatalogBtn').disabled = false;
+                console.error('Catalog load error:', error);
+            }
+        }
 
         function updateLoadMethod() {
             const method = document.querySelector('input[name="loadMethod"]:checked').value;

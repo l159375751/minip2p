@@ -35,6 +35,7 @@ seed-from-file: build-docker
 	@test -f gutenberg-txt-files.tar.zip || $(MAKE) fetch-gutenberg
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
+		-e DEBUG='webtorrent*,bittorrent-tracker*' \
 		webtorrent seed /data/gutenberg-txt-files.tar.zip --verbose --torrent-port 6881
 
 seed-stop:

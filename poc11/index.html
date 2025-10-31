@@ -306,7 +306,7 @@
 
     <div class="book-list" id="bookList" style="max-height: 500px;"></div>
     <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
-        <span id="totalBooks">0</span> books in catalog
+        Catalog loading…
     </div>
     <div id="readabilityWarning" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-left: 4px solid #ffc107; font-size: 0.85rem;">
         ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
@@ -1161,7 +1161,7 @@
 
         function showLibrary() {
             const totalBooks = catalogBooks.length;
-            document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
+            const bookListHint = document.getElementById('bookListHint');
 
             // Show warning if catalog loaded but no way to read books yet
             const canReadBooks = isArchiveReady();
@@ -1169,9 +1169,20 @@
             if (totalBooks > 0) {
                 if (canReadBooks) {
                     updateStatus(`✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`);
+                    if (bookListHint) {
+                        bookListHint.textContent = `${totalBooks.toLocaleString()} books ready to open`;
+                        bookListHint.style.color = '#666';
+                    }
                 } else {
                     updateStatus(`📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`);
+                    if (bookListHint) {
+                        bookListHint.textContent = 'Download the archive to browse books';
+                        bookListHint.style.color = '#999';
+                    }
                 }
+            } else if (bookListHint) {
+                bookListHint.textContent = 'Catalog loading…';
+                bookListHint.style.color = '#999';
             }
 
             if (totalBooks > 0 && !canReadBooks) {
@@ -1195,6 +1206,11 @@
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         const query = e.target.value.trim().toLowerCase();
+
+                        if (!isArchiveReady()) {
+                            displayBooks([]);
+                            return;
+                        }
 
                         if (query.length === 0) {
                             displayBooks(catalogBooks.slice(0, 50));
@@ -1223,6 +1239,26 @@
             bookList.innerHTML = '';
             const archiveReady = isArchiveReady();
 
+            if (!archiveReady) {
+                const message = document.createElement('div');
+                message.className = 'book-item';
+                message.style.color = '#888';
+                message.style.fontStyle = 'italic';
+                message.textContent = 'Download the Gutenberg archive to browse books here.';
+                bookList.appendChild(message);
+                return;
+            }
+
+            if (!books || books.length === 0) {
+                const message = document.createElement('div');
+                message.className = 'book-item';
+                message.style.color = '#888';
+                message.style.fontStyle = 'italic';
+                message.textContent = 'No titles match this search.';
+                bookList.appendChild(message);
+                return;
+            }
+
             books.forEach(book => {
                 const row = document.createElement('div');
                 row.className = 'book-item';
@@ -1245,11 +1281,6 @@
                     }
                     openBookFromTorrent(book);
                 };
-
-                if (!archiveReady) {
-                    link.classList.add('disabled');
-                    link.title = 'Archive not ready yet';
-                }
 
                 row.appendChild(author);
                 row.appendChild(title);

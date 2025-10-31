@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
     <script src="library-builder.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.0/build/dist/untar.js"></script>
     <style>
         body {
             font-family: system-ui, sans-serif;
@@ -637,7 +638,11 @@
                         openBtn.className = 'book-btn';
                         openBtn.textContent = '📖 Open';
                         openBtn.onclick = () => {
-                            window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+                            if (currentTorrent && currentTorrent.progress === 1) {
+                                openBookFromTorrent(book);
+                            } else {
+                                window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+                            }
                         };
 
                         bookItem.appendChild(titleSpan);
@@ -656,6 +661,131 @@
                     log(`📚 ${totalBooks.toLocaleString()} books available`);
                 }
             }, 100);
+        }
+
+        async function openBookFromTorrent(book) {
+            log(`📖 Opening "${book.title}" from downloaded archive...`);
+
+            try {
+                if (!currentTorrent || !currentTorrent.files || currentTorrent.files.length === 0) {
+                    throw new Error('Torrent files not available');
+                }
+
+                // Get the .tar.gz file from WebTorrent
+                const file = currentTorrent.files[0];
+                log(`📦 Reading archive: ${file.name}`);
+
+                // Get file as blob
+                const blob = await new Promise((resolve, reject) => {
+                    file.getBlob((err, blob) => {
+                        if (err) reject(err);
+                        else resolve(blob);
+                    });
+                });
+
+                log(`🔓 Decompressing with gzip...`);
+                const arrayBuffer = await blob.arrayBuffer();
+                const decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+
+                log(`📂 Extracting tar archive...`);
+
+                // Look for the book file - try common patterns
+                const bookFileName = `pg${book.etextNo}.txt`;
+                const possiblePaths = [
+                    `cache/epub/${book.etextNo}/${bookFileName}`,
+                    `${book.etextNo}/${bookFileName}`,
+                    bookFileName
+                ];
+
+                log(`🔍 Looking for: ${possiblePaths[0]}`);
+
+                // Use js-untar to extract
+                const files = await untar(decompressed.buffer);
+
+                // Find the book file
+                let bookFile = null;
+                for (const path of possiblePaths) {
+                    bookFile = files.find(f => f.name === path || f.name.endsWith(path));
+                    if (bookFile) break;
+                }
+
+                if (!bookFile) {
+                    // Try fuzzy match
+                    bookFile = files.find(f => f.name.includes(`${book.etextNo}`) && f.name.endsWith('.txt'));
+                }
+
+                if (!bookFile) {
+                    throw new Error(`Book file not found in archive (etext ${book.etextNo})`);
+                }
+
+                log(`✅ Found: ${bookFile.name}`);
+
+                // Read the text content
+                const textContent = new TextDecoder('utf-8').decode(bookFile.buffer);
+
+                // Display the book
+                displayBook(book, textContent);
+
+            } catch (error) {
+                log(`❌ Error opening book: ${error.message}`);
+                console.error('Book opening error:', error);
+                alert(`Could not open book from archive. Opening on Gutenberg.org instead...`);
+                window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+            }
+        }
+
+        function displayBook(book, content) {
+            // Create a simple book reader overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: white;
+                z-index: 1000;
+                overflow-y: auto;
+                padding: 2rem;
+            `;
+
+            const container = document.createElement('div');
+            container.style.cssText = `
+                max-width: 800px;
+                margin: 0 auto;
+                font-family: Georgia, serif;
+                line-height: 1.6;
+            `;
+
+            const header = document.createElement('div');
+            header.style.cssText = `
+                margin-bottom: 2rem;
+                border-bottom: 2px solid #333;
+                padding-bottom: 1rem;
+            `;
+            header.innerHTML = `
+                <h1 style="margin: 0 0 0.5rem 0;">${book.title}</h1>
+                <p style="margin: 0; color: #666;">by ${book.author}</p>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()"
+                    style="margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer;">
+                    ✕ Close
+                </button>
+            `;
+
+            const textDiv = document.createElement('pre');
+            textDiv.style.cssText = `
+                white-space: pre-wrap;
+                font-family: Georgia, serif;
+                font-size: 1rem;
+            `;
+            textDiv.textContent = content;
+
+            container.appendChild(header);
+            container.appendChild(textDiv);
+            overlay.appendChild(container);
+            document.body.appendChild(overlay);
+
+            log(`✅ Displaying "${book.title}"`);
         }
 
         log('✅ Ready to download Gutenberg collection');

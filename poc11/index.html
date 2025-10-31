@@ -984,6 +984,7 @@
             let blocksComplete = 0;
             let blocksPartial = 0;
             let piecesHave = 0;
+            const blockPercents = [];
 
             for (let i = 0; i < children.length; i++) {
                 const startPiece = i * piecesPerBlock;
@@ -997,6 +998,7 @@
                 piecesHave += complete;
                 const blockSize = Math.max(1, endPiece - startPiece);
                 const percentComplete = complete / blockSize;
+                blockPercents.push(percentComplete);
 
                 if (percentComplete === 1) {
                     children[i].style.background = '#4caf50';
@@ -1014,7 +1016,11 @@
             if (summaryEl) {
                 const piecesPercent = (piecesHave / totalPieces) * 100;
                 const pendingBlocks = numBlocks - blocksComplete - blocksPartial;
-                summaryEl.textContent = `${blocksComplete}/${numBlocks} blocks verified • ${blocksPartial} partial • ${pendingBlocks} queued • ${piecesPercent.toFixed(1)}% of pieces`;
+                const sampleSize = Math.min(5, blockPercents.length);
+                const samplePercents = blockPercents.slice(0, sampleSize).map(p => `${(p * 100).toFixed(0)}%`);
+                summaryEl.textContent =
+                    `${blocksComplete}/${numBlocks} blocks verified • ${blocksPartial} partial • ${pendingBlocks} queued • ${piecesPercent.toFixed(1)}% of pieces` +
+                    (samplePercents.length ? ` • sample: ${samplePercents.join(', ')}` : '');
             }
         }
 

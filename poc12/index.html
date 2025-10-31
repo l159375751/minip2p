@@ -156,6 +156,9 @@
             font-size: 0.9rem;
             color: #555;
             margin-bottom: 0.75rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .download-metrics {
             display: grid;
@@ -279,12 +282,12 @@
         </div>
     </div>
 
-    <div class="card" id="downloadCard">
+    <div class="card" id="downloadCard" style="min-height: 220px; display: flex; flex-direction: column;">
         <div class="download-card-header">
             <span>⬇️ Downloads</span>
         </div>
-        <div id="downloadStatusLine" class="download-status">No active downloads yet.</div>
-        <div class="download-metrics">
+        <div id="downloadStatusLine" class="download-status" style="min-height: 1.2rem;">No active downloads yet.</div>
+        <div class="download-metrics" style="flex: 0 0 auto;">
             <div class="metric">
                 <div class="metric-label">Archive</div>
                 <div class="metric-value" id="downloadArchive">—</div>
@@ -302,7 +305,7 @@
                 <div class="metric-value" id="downloadUpload">—</div>
             </div>
         </div>
-        <div class="download-meta">
+        <div class="download-meta" style="flex: 0 0 auto;">
             <div class="meta-row">
                 <span class="meta-label">InfoHash</span>
                 <code id="downloadInfoHash">—</code>
@@ -312,7 +315,7 @@
                 <code id="downloadMagnet">—</code>
             </div>
         </div>
-        <div id="pieceMapContainer" class="piece-map-container" style="display:none;">
+        <div id="pieceMapContainer" class="piece-map-container" style="display:none; flex: 1 1 auto;">
             <div class="piece-map-label">Pieces</div>
             <div id="pieceSummary" class="piece-summary">Waiting for data…</div>
             <div id="pieceMap" class="piece-map"></div>

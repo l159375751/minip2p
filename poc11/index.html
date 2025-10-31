@@ -176,7 +176,7 @@
         <div id="downloadMethod" style="display: block;">
             <div style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Magnet Link or .torrent file:</label>
-                <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:... or leave blank for default"
+                <input type="text" id="magnetInput" value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
                     style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem;">
                 <div style="margin-top: 0.5rem;">
                     <button onclick="document.getElementById('torrentFileInput').click()"
@@ -308,7 +308,7 @@
         let catalogBooks = []; // Store parsed catalog books
 
         // Default magnet link for tar.gz
-        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:ed94f7e361061afb11122cf2d5ebcaf0cefad73f&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev';
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 

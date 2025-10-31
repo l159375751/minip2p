@@ -294,8 +294,23 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 loadedTorrentFile = new Uint8Array(e.target.result);
-                document.getElementById('magnetInput').placeholder = `Using .torrent file: ${file.name}`;
-                log(`✅ Torrent file loaded: ${file.name} (magnet link will be ignored)`);
+
+                // Parse torrent to get magnet link
+                client.add(loadedTorrentFile, { path: '/temp' }, (torrent) => {
+                    const magnetLink = torrent.magnetURI;
+                    const infoHash = torrent.infoHash;
+
+                    log(`✅ Torrent file loaded: ${file.name}`);
+                    log(`🔗 InfoHash: ${infoHash}`);
+                    log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
+
+                    // Show magnet link in input (read-only)
+                    document.getElementById('magnetInput').value = magnetLink;
+                    document.getElementById('magnetInput').style.fontSize = '0.75rem';
+
+                    // Destroy temp torrent (we'll re-add with actual download)
+                    torrent.destroy();
+                });
             };
             reader.readAsArrayBuffer(file);
         }

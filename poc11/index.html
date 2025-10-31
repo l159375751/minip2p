@@ -224,7 +224,7 @@
     <script>
         const client = new WebTorrent();
         let currentTorrent = null;
-        let loadedTorrentFile = null;
+        let loadedMagnetLink = null; // Store magnet link from .torrent file
         let localArchiveFile = null;
         let catalogBooks = []; // Store parsed catalog books
 
@@ -360,10 +360,10 @@
 
             const reader = new FileReader();
             reader.onload = (e) => {
-                loadedTorrentFile = new Uint8Array(e.target.result);
+                const torrentBuffer = new Uint8Array(e.target.result);
 
                 // Parse torrent to get magnet link
-                const tempTorrent = client.add(loadedTorrentFile, (torrent) => {
+                client.add(torrentBuffer, (torrent) => {
                     const magnetLink = torrent.magnetURI;
                     const infoHash = torrent.infoHash;
 
@@ -371,7 +371,10 @@
                     log(`🔗 InfoHash: ${infoHash}`);
                     log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
 
-                    // Show magnet link in input (read-only)
+                    // Store the magnet link for later use
+                    loadedMagnetLink = magnetLink;
+
+                    // Show magnet link in input
                     document.getElementById('magnetInput').value = magnetLink;
                     document.getElementById('magnetInput').style.fontSize = '0.75rem';
 
@@ -563,16 +566,16 @@
         }
 
         function startDownload() {
-            // Get magnet link from input or use default
+            // Get magnet link from input or use loaded magnet or default
             const magnetInput = document.getElementById('magnetInput').value.trim();
-            const magnetLink = loadedTorrentFile ? loadedTorrentFile : (magnetInput || DEFAULT_MAGNET);
+            const magnetLink = loadedMagnetLink || magnetInput || DEFAULT_MAGNET;
 
-            if (loadedTorrentFile) {
-                log('📥 Starting WebTorrent download with .torrent file...');
+            if (loadedMagnetLink) {
+                log('📥 Starting WebTorrent download with loaded .torrent file...');
             } else {
                 log('📥 Starting WebTorrent download...');
-                log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
             }
+            log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
 
             currentTorrent = client.add(magnetLink, {
                 path: '/downloads'

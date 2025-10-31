@@ -319,6 +319,7 @@
         <div id="catalogMetadata" style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
             <div style="color: #999;">Loading...</div>
         </div>
+        <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog… • InfoHash: —</div>
         <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;">
             <div style="color: #999;">Click to load...</div>
         </div>
@@ -352,6 +353,10 @@
         let localArchiveFile = null;
         let catalogBooks = []; // Store parsed catalog books
         let currentInfoHash = null;
+        let catalogSummary = {
+            status: '📚 Loading catalog…',
+            infoHash: '—'
+        };
         let activeDownload = { magnet: null };
         const seenTorrentWarnings = new Set();
         const FALLBACK_TRACKERS = [
@@ -409,10 +414,13 @@
 
             if (infoHash) {
                 infoHashEl.textContent = `InfoHash: ${infoHash}`;
+                catalogSummary.infoHash = infoHash;
             } else {
                 infoHashEl.textContent = 'InfoHash: —';
+                catalogSummary.infoHash = '—';
             }
             refreshDownloadCard();
+            refreshCatalogCard();
         }
 
         function isArchiveReady() {
@@ -1174,6 +1182,13 @@
             updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
         }
 
+        function refreshCatalogCard() {
+            const summaryEl = document.getElementById('catalogSummary');
+            if (summaryEl) {
+                summaryEl.textContent = `${catalogSummary.status} • InfoHash: ${catalogSummary.infoHash}`;
+            }
+        }
+
         function showLibrary() {
             const totalBooks = catalogBooks.length;
             const bookListHint = document.getElementById('bookListHint');
@@ -1183,13 +1198,17 @@
 
             if (totalBooks > 0) {
                 if (canReadBooks) {
-                    updateStatus(`✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`);
+                    const statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
+                    updateStatus(statusText);
+                    catalogSummary.status = statusText;
                     if (bookListHint) {
                         bookListHint.textContent = `${totalBooks.toLocaleString()} books ready to open`;
                         bookListHint.style.color = '#666';
                     }
                 } else {
-                    updateStatus(`📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`);
+                    const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
+                    updateStatus(statusText);
+                    catalogSummary.status = statusText;
                     if (bookListHint) {
                         bookListHint.textContent = 'Catalog loaded';
                         bookListHint.style.color = '#999';
@@ -1198,7 +1217,10 @@
             } else if (bookListHint) {
                 bookListHint.textContent = 'Catalog loading…';
                 bookListHint.style.color = '#999';
+                catalogSummary.status = '📚 Loading catalog…';
             }
+
+            refreshCatalogCard();
 
             if (totalBooks > 0 && !canReadBooks) {
                 document.getElementById('readabilityWarning').style.display = 'block';
@@ -1438,10 +1460,6 @@
         window.handleTorrentFile = handleTorrentFile;
         window.loadLocalFile = loadLocalFile;
         window.refreshBrowserFilesystem = refreshBrowserFilesystem;
-
-        if (!client) {
-            updateDownloadStatus('WebTorrent not supported in this browser. Try the latest Firefox or Chromium.');
-        }
 
         log('✅ Ready to download Gutenberg collection');
         log('💡 Click "Start Download" to begin');

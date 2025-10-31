@@ -329,6 +329,7 @@
         </div>
         <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog… • InfoHash: —</div>
         <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
+        <div id="downloadedFiles" style="margin-top: 0.75rem; padding: 0.75rem; background: #f0f7ff; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 200px; overflow-y: auto; display:none;"></div>
     </div>
 
     <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
@@ -1086,6 +1087,8 @@
             if (!isArchiveReady()) {
                 showLibrary();
             }
+
+            updateDownloadedFilesView(torrent);
         }
 
         function startDownload() {
@@ -1240,9 +1243,34 @@
 
         function refreshCatalogCard() {
             const summaryEl = document.getElementById('catalogSummary');
+            updateDownloadedFilesView(currentTorrent);
             if (summaryEl) {
                 summaryEl.textContent = `${catalogSummary.status} • InfoHash: ${catalogSummary.infoHash}`;
             }
+        }
+
+        function updateDownloadedFilesView(torrent) {
+            const container = document.getElementById('downloadedFiles');
+            if (!container) return;
+
+            if (!torrent || !torrent.files || torrent.files.length === 0) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            const files = torrent.files.map((file, index) => ({ file, index }))
+                .sort((a, b) => a.file.path.localeCompare(b.file.path));
+
+            const lines = files.map(({ file, index }) => {
+                const percent = (file.progress * 100).toFixed(1);
+                const downloaded = formatBytes(file.downloaded || 0);
+                const total = formatBytes(file.length || 0);
+                return `<div>${index + 1}. ${file.path || file.name || '(unnamed)'} — ${percent}% (${downloaded} / ${total})</div>`;
+            });
+
+            container.innerHTML = lines.join('');
+            container.style.display = lines.length ? '' : 'none';
         }
 
         function showLibrary() {
@@ -1337,11 +1365,11 @@
             bookList.innerHTML = '';
             const archiveReady = isArchiveReady();
 
-            if (!archiveReady) {
-                const message = document.createElement('div');
-                message.className = 'book-item';
-                message.style.color = '#888';
-                message.style.fontStyle = 'italic';
+                if (!archiveReady) {
+                    const message = document.createElement('div');
+                    message.className = 'book-item';
+                    message.style.color = '#888';
+                    message.style.fontStyle = 'italic';
                 if (pieceProgress.firstVerifiedBlock) {
                     message.textContent = `First verified block ${pieceProgress.firstVerifiedBlock}. Waiting for next block to finish before books unlock.`;
                 } else if (pieceProgress.nextPartialBlock) {
@@ -1350,6 +1378,7 @@
                     message.textContent = 'Download the Gutenberg archive to browse books here.';
                 }
                 bookList.appendChild(message);
+                updateDownloadedFilesView(currentTorrent);
                 return;
             }
 

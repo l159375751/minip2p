@@ -236,6 +236,31 @@
             display: grid;
             gap: 0.25rem;
         }
+        .block-strip {
+            margin-top: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+        }
+        .block-strip-item {
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            background: #e0e0e0;
+            color: #333;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .block-strip-item span {
+            position: absolute;
+            bottom: -1.2rem;
+            font-size: 0.65rem;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -294,6 +319,7 @@
             <div id="pieceSummary" class="piece-summary">Waiting for data…</div>
             <div id="pieceMap" class="piece-map"></div>
             <div id="pieceDetails" class="piece-details"></div>
+            <div id="blockStrip" class="block-strip"></div>
         </div>
     </div>
 
@@ -982,6 +1008,7 @@
             const pieceContainer = document.getElementById('pieceMapContainer');
             const summaryEl = document.getElementById('pieceSummary');
             const detailsEl = document.getElementById('pieceDetails');
+            const blockStripEl = document.getElementById('blockStrip');
             if (!pieceMap || !pieceContainer) return;
 
             if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
@@ -989,6 +1016,10 @@
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';
                 if (detailsEl) detailsEl.innerHTML = '';
+                if (blockStripEl) {
+                    blockStripEl.innerHTML = '';
+                    blockStripEl.style.display = 'none';
+                }
                 pieceProgress.firstVerifiedBlock = null;
                 pieceProgress.nextPartialBlock = null;
                 pieceProgress.nextPartialPercent = 0;
@@ -1090,6 +1121,36 @@
             }
 
             updateDownloadedFilesView(torrent);
+
+            if (blockStripEl) {
+                const focusIndex = firstPartialIndex !== -1 ? firstPartialIndex : (firstCompleteIndex !== -1 ? firstCompleteIndex : 0);
+                const windowRadius = 12;
+                const start = Math.max(0, focusIndex - windowRadius);
+                const end = Math.min(blockStates.length, start + windowRadius * 2);
+                blockStripEl.innerHTML = '';
+                for (let i = start; i < end; i++) {
+                    const state = blockStates[i];
+                    const item = document.createElement('div');
+                    item.className = 'block-strip-item';
+                    if (state.label === '✅') {
+                        item.style.background = '#4caf50';
+                        item.style.color = '#fff';
+                    } else if (state.label === '⏳') {
+                        item.style.background = '#ffa726';
+                    } else {
+                        item.style.background = '#e0e0e0';
+                    }
+                    if (i === focusIndex) {
+                        item.style.border = '2px solid #283593';
+                    }
+                    item.textContent = state.index;
+                    const pct = document.createElement('span');
+                    pct.textContent = `${state.percent.toFixed(0)}%`;
+                    item.appendChild(pct);
+                    blockStripEl.appendChild(item);
+                }
+                blockStripEl.style.display = blockStates.length ? '' : 'none';
+            }
         }
 
         function startDownload() {

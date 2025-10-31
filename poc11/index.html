@@ -354,7 +354,7 @@
                 loadedTorrentFile = new Uint8Array(e.target.result);
 
                 // Parse torrent to get magnet link
-                client.add(loadedTorrentFile, { path: '/temp' }, (torrent) => {
+                const tempTorrent = client.add(loadedTorrentFile, (torrent) => {
                     const magnetLink = torrent.magnetURI;
                     const infoHash = torrent.infoHash;
 

@@ -608,16 +608,19 @@
 
                 const uploaded = formatBytes(currentTorrent.uploaded);
                 const ratio = currentTorrent.downloaded > 0 ? (currentTorrent.uploaded / currentTorrent.downloaded).toFixed(2) : '0.00';
+                const maxConns = 200; // Max connections set on client
 
                 let statusMsg = '';
                 if (verifiedProgress === 0 && peers === 0) {
                     statusMsg = '🔍 Searching for peers... (check if torrent has seeders!)';
                 } else if (verifiedProgress < 100) {
-                    // Show both downloaded pieces and verified percentage
-                    if (downloadedProgress > verifiedProgress) {
-                        statusMsg = `⬇️ ${verifiedProgress}% verified (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers}/${currentTorrent.maxConns} peers`;
+                    // If all pieces downloaded but not verified, show piece progress
+                    if (pieces === totalPieces && verifiedProgress === 0) {
+                        statusMsg = `⏳ Verifying... (${pieces}/${totalPieces} pieces downloaded) • ${speed}/s • ${peers}/${maxConns} peers`;
+                    } else if (downloadedProgress > verifiedProgress) {
+                        statusMsg = `⬇️ ${downloadedProgress}% (${pieces}/${totalPieces} pieces, ${verifiedProgress}% verified) • ${speed}/s • ${peers}/${maxConns} peers`;
                     } else {
-                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers}/${currentTorrent.maxConns} peers • ratio: ${ratio}`;
+                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers}/${maxConns} peers • ratio: ${ratio}`;
                     }
                 } else {
                     statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;

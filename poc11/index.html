@@ -117,26 +117,8 @@
     <h1>📚 POC11 - Progressive Library Builder</h1>
 
     <div class="card">
-        <h2>📥 Step 1: Load Gutenberg Catalog (Optional)</h2>
-        <p>Optionally load the book catalog (GUTINDEX - 8.8MB) to browse ~70k titles before downloading:</p>
-        <button id="loadCatalogBtn" onclick="loadCatalog()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-            📚 Load Catalog (8.8MB)
-        </button>
-        <div style="margin-top: 0.75rem;">
-            <a href="#" onclick="skipCatalog(); return false;" style="font-size: 0.85rem; color: #666; text-decoration: none; border-bottom: 1px dotted #999;">
-                skip to download →
-            </a>
-        </div>
-        <div id="catalogStatus" style="display: none; margin-top: 1rem;">
-            <div class="status">
-                <span id="catalogStatusText">Loading...</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="card" id="downloadCard" style="display: none;">
-        <h2 id="downloadCardTitle">📥 Step 2: Download Book Files</h2>
-        <p>Choose how to load the Project Gutenberg text collection (.tar.gz - 11GB):</p>
+        <h2>📥 Download Gutenberg Collection</h2>
+        <p>Load the Project Gutenberg text collection (.tar.gz - 11GB):</p>
 
         <div style="margin-bottom: 1.5rem;">
             <label style="display: block; margin-bottom: 0.5rem;">
@@ -172,6 +154,23 @@
                     style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem;">
             </div>
             <button id="loadLocalBtn" onclick="loadLocalFile()">Load Local File</button>
+        </div>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #e0e0e0;">
+            <details style="font-size: 0.9rem;">
+                <summary style="cursor: pointer; color: #666; user-select: none;">Optional: Load catalog first to browse ~70k book titles</summary>
+                <div style="margin-top: 1rem; padding-left: 1rem;">
+                    <p style="color: #666; font-size: 0.85rem; margin-bottom: 0.75rem;">Download the book index (GUTINDEX - 8.8MB) to see all available titles before downloading the full collection.</p>
+                    <button id="loadCatalogBtn" onclick="loadCatalog()" style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; background: #888;">
+                        Load Catalog
+                    </button>
+                    <div id="catalogStatus" style="display: none; margin-top: 0.75rem;">
+                        <div style="padding: 0.5rem; background: #f0f4ff; border-radius: 0.25rem; font-size: 0.85rem;">
+                            <span id="catalogStatusText">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </details>
         </div>
 
         <div id="downloadProgress" style="display: none;">
@@ -242,12 +241,6 @@
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
-        function skipCatalog() {
-            log('⏭️ Skipping catalog, going straight to download...');
-            document.getElementById('downloadCard').style.display = 'block';
-            document.getElementById('downloadCardTitle').textContent = '📥 Download Book Files';
-        }
-
         async function loadCatalog() {
             log('📚 Loading book catalog (GUTINDEX.ALL.new - 8.8MB)...');
             document.getElementById('loadCatalogBtn').disabled = true;
@@ -268,16 +261,11 @@
                 const books = GutIndexParser.parseIndex(text);
 
                 log(`✅ Parsed ${books.length.toLocaleString()} books from catalog!`);
-                document.getElementById('catalogStatusText').innerHTML = `<strong>✅ Catalog loaded:</strong> ${books.length.toLocaleString()} books available`;
+                document.getElementById('catalogStatusText').innerHTML = `✅ Loaded ${books.length.toLocaleString()} books`;
 
                 // Show some sample books
                 const samples = books.slice(0, 10);
                 log(`📖 Sample books: ${samples.map(b => b.title).join(', ')}`);
-
-                // Show the download card now
-                document.getElementById('downloadCard').style.display = 'block';
-
-                log('💡 Now you can download the book files to read them!');
 
             } catch (error) {
                 log(`❌ Error loading catalog: ${error.message}`);

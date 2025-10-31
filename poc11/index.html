@@ -641,10 +641,10 @@
                         openBtn.className = 'book-btn';
                         openBtn.textContent = '📖 Open';
                         openBtn.onclick = () => {
-                            if (currentTorrent && currentTorrent.progress === 1) {
+                            if (currentTorrent) {
                                 openBookFromTorrent(book);
                             } else {
-                                window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+                                alert('Please start downloading the library first!');
                             }
                         };
 
@@ -732,8 +732,7 @@
             } catch (error) {
                 log(`❌ Error opening book: ${error.message}`);
                 console.error('Book opening error:', error);
-                alert(`Could not open book from archive. Opening on Gutenberg.org instead...`);
-                window.open(`https://www.gutenberg.org/ebooks/${book.etextNo}`, '_blank');
+                alert(`Could not open book from archive: ${error.message}\n\nThe archive may still be downloading or the book file may not be in the expected location.`);
             }
         }
 

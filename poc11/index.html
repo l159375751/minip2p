@@ -970,6 +970,11 @@
         }
 
         let pieceMapInitialized = false;
+        const pieceProgress = {
+            firstVerifiedBlock: null,
+            nextPartialBlock: null,
+            nextPartialPercent: 0
+        };
         function updatePieceMap(torrent) {
             const pieceMap = document.getElementById('pieceMap');
             const pieceContainer = document.getElementById('pieceMapContainer');
@@ -982,6 +987,9 @@
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';
                 if (detailsEl) detailsEl.innerHTML = '';
+                pieceProgress.firstVerifiedBlock = null;
+                pieceProgress.nextPartialBlock = null;
+                pieceProgress.nextPartialPercent = 0;
                 pieceMapInitialized = false;
                 return;
             }
@@ -1069,6 +1077,14 @@
                 lines.push(`Blocks 1-${windowSize}: ${blockWindow}`);
 
                 detailsEl.innerHTML = lines.map(text => `<div>${text}</div>`).join('');
+            }
+
+            pieceProgress.firstVerifiedBlock = firstCompleteIndex !== -1 ? firstCompleteIndex + 1 : null;
+            pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
+            pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
+
+            if (!isArchiveReady()) {
+                showLibrary();
             }
         }
 
@@ -1246,14 +1262,20 @@
                         bookListHint.style.color = '#666';
                     }
                 } else {
-                    const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
-                    updateStatus(statusText);
-                    catalogSummary.status = statusText;
-                    if (bookListHint) {
+                const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
+                updateStatus(statusText);
+                catalogSummary.status = statusText;
+                if (bookListHint) {
+                    if (pieceProgress.firstVerifiedBlock) {
+                        bookListHint.textContent = `Blocks 1-${pieceProgress.firstVerifiedBlock} verified. Waiting for next block to unlock books.`;
+                    } else if (pieceProgress.nextPartialBlock) {
+                        bookListHint.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish for first books.`;
+                    } else {
                         bookListHint.textContent = 'Catalog loaded';
-                        bookListHint.style.color = '#999';
                     }
+                    bookListHint.style.color = '#999';
                 }
+            }
             } else if (bookListHint) {
                 bookListHint.textContent = 'Catalog loading…';
                 bookListHint.style.color = '#999';
@@ -1320,7 +1342,13 @@
                 message.className = 'book-item';
                 message.style.color = '#888';
                 message.style.fontStyle = 'italic';
-                message.textContent = 'Download the Gutenberg archive to browse books here.';
+                if (pieceProgress.firstVerifiedBlock) {
+                    message.textContent = `First verified block ${pieceProgress.firstVerifiedBlock}. Waiting for next block to finish before books unlock.`;
+                } else if (pieceProgress.nextPartialBlock) {
+                    message.textContent = `Waiting for block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%) to finish for first books.`;
+                } else {
+                    message.textContent = 'Download the Gutenberg archive to browse books here.';
+                }
                 bookList.appendChild(message);
                 return;
             }

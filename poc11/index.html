@@ -534,13 +534,15 @@
                 updatePieceMap(currentTorrent);
                 const statusEl = document.getElementById('downloadStatusLine');
                 if (statusEl) {
+                    const totalBlocks = pieceProgress.totalBlocks || currentTorrent.pieces.length;
+                    const verifiedBlocks = pieceProgress.blocksComplete || 0;
                     if (pieceProgress.firstVerifiedBlock || pieceProgress.nextPartialBlock) {
                         const hint = pieceProgress.nextPartialBlock
                             ? `block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`
                             : `block ${pieceProgress.firstVerifiedBlock}`;
-                        statusEl.textContent = `⬇️ Blocks: ${pieceProgress.firstVerifiedBlock || 0}/${currentTorrent.pieces.length} ready • focusing ${hint}`;
+                        statusEl.textContent = `⬇️ Blocks: ${verifiedBlocks}/${totalBlocks} ready • focusing ${hint}`;
                     } else {
-                        statusEl.textContent = message;
+                        statusEl.textContent = `⬇️ Blocks: ${verifiedBlocks}/${totalBlocks} ready`;
                     }
                 }
             } else if (localArchiveFile) {
@@ -1094,6 +1096,8 @@
             pieceProgress.firstVerifiedBlock = firstCompleteIndex !== -1 ? firstCompleteIndex + 1 : null;
             pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
             pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
+            pieceProgress.blocksComplete = blocksComplete;
+            pieceProgress.totalBlocks = blockStates.length;
 
             if (!isArchiveReady()) {
                 showLibrary();

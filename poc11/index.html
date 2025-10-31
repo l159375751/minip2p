@@ -282,22 +282,18 @@
         </div>
     </div>
 
-    <details style="margin-bottom: 1rem;">
-        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.9rem;">
-            ⚙️ Download Options
-        </summary>
-        <div style="margin-top: 0.5rem; padding: 1rem; background: rgba(255,255,255,0.95); border-radius: 0.5rem;">
-            <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
-                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 0.25rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.5rem;">
-            <div style="display: flex; gap: 0.5rem;">
-                <button onclick="startDownload()" style="flex: 1;">Start Download</button>
-                <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">or .torrent</button>
-                <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
-                <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
-                <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
-            </div>
+    <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
+        <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download Options</h2>
+        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+            style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; gap: 0.5rem;">
+            <button onclick="startDownload()" style="flex: 1;">Start Download</button>
+            <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">or .torrent</button>
+            <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
+            <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
+            <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
         </div>
-    </details>
+    </div>
 
     <div style="margin-bottom: 1rem;">
         <input type="text" id="searchBox" placeholder="Search books by title or author..."

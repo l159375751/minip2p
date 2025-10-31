@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POC8 - Create WebTorrent from ZIP</title>
+    <title>POC8 - Create & Seed WebTorrents</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
     <style>
@@ -196,25 +196,45 @@
 </head>
 <body>
     <div class="container">
-        <h1>📦 POC8 - Create WebTorrent from ZIP</h1>
+        <h1>📦 POC8 - Create & Seed WebTorrents</h1>
 
         <div class="card">
-            <h2>1. Select ZIP File</h2>
-            <div class="file-drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-                <div class="file-icon">📦</div>
-                <div><strong>Click to select</strong> or drag & drop your ZIP file here</div>
-                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports large files (10GB+)</div>
+            <h2>1. Select File or Torrent</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <button onclick="document.getElementById('fileInput').click()" style="margin: 0;">
+                    📦 Select Data File (ZIP, TAR, etc.)
+                </button>
+                <button onclick="document.getElementById('torrentInput').click()" style="margin: 0;">
+                    🔥 Load .torrent File
+                </button>
             </div>
-            <input type="file" id="fileInput" accept=".zip">
+            <div class="file-drop-zone" id="dropZone">
+                <div class="file-icon">📦</div>
+                <div><strong>Drag & drop</strong> data file or .torrent file here</div>
+                <div style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">Supports large files (10GB+) and .torrent files</div>
+            </div>
+            <input type="file" id="fileInput" accept=".zip,.tar,.tar.gz,.tgz">
+            <input type="file" id="torrentInput" accept=".torrent">
             <div id="fileInfo" style="display: none; margin-top: 1rem;">
                 <div class="status">
                     <strong>Selected:</strong> <span id="fileName"></span> (<span id="fileSize"></span>)
                 </div>
             </div>
+            <div id="torrentInfo" style="display: none; margin-top: 1rem;">
+                <div class="status">
+                    <strong>Torrent Loaded:</strong> <span id="torrentName"></span>
+                </div>
+                <div class="status" style="margin-top: 0.5rem;">
+                    <strong>InfoHash:</strong> <span id="torrentInfoHash" style="font-family: monospace; font-size: 0.9rem;"></span>
+                </div>
+                <div class="status" style="margin-top: 0.5rem; background: #fff3cd; border-left-color: #ffc107;">
+                    <strong>⚠️ Note:</strong> You'll need the original data file to seed this torrent
+                </div>
+            </div>
         </div>
 
         <div class="card" id="torrentCard" style="display: none;">
-            <h2>2. Create & Seed Torrent</h2>
+            <h2 id="torrentCardTitle">2. Create & Seed Torrent</h2>
             <div class="status" id="torrentStatus">Ready to create torrent</div>
             <div id="hashingStatus" class="hashing-status" style="display: none;">
                 <div class="spinner spinner-large"></div>
@@ -225,7 +245,7 @@
                     This may take 10-30 minutes for large files
                 </div>
             </div>
-            <button id="createBtn" onclick="createTorrent()">Create Torrent & Start Seeding</button>
+            <button id="createBtn" onclick="startSeeding()">Create Torrent & Start Seeding</button>
 
             <div id="torrentResult" style="display: none; margin-top: 1.5rem;">
                 <div class="seeding-badge">🌱 Actively Seeding</div>
@@ -311,7 +331,9 @@
     <script>
         const client = new WebTorrent();
         let selectedFile = null;
+        let loadedTorrentFile = null;
         let currentTorrent = null;
+        let seedMode = 'create'; // 'create' or 'seed'
 
         console.log('%c📦 POC8 - WebTorrent Creator', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
@@ -454,6 +476,11 @@
             if (file) handleFile(file);
         });
 
+        document.getElementById('torrentInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleTorrentFile(file);
+        });
+
         const dropZone = document.getElementById('dropZone');
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -466,117 +493,211 @@
             e.preventDefault();
             dropZone.classList.remove('active');
             const file = e.dataTransfer.files[0];
-            if (file) handleFile(file);
+            if (file) {
+                if (file.name.endsWith('.torrent')) {
+                    handleTorrentFile(file);
+                } else {
+                    handleFile(file);
+                }
+            }
         });
 
         function handleFile(file) {
             selectedFile = file;
+            seedMode = loadedTorrentFile ? 'seed' : 'create';
             document.getElementById('fileName').textContent = file.name;
             document.getElementById('fileSize').textContent = formatBytes(file.size);
             document.getElementById('fileInfo').style.display = 'block';
+            document.getElementById('torrentInfo').style.display = 'none';
             document.getElementById('torrentCard').style.display = 'block';
-            log(`📁 Selected: ${file.name} (${formatBytes(file.size)})`);
+
+            if (seedMode === 'seed') {
+                document.getElementById('torrentCardTitle').textContent = '2. Seed with Loaded Torrent';
+                document.getElementById('createBtn').textContent = '🚀 Start Seeding (No Hashing Needed!)';
+                document.getElementById('torrentStatus').textContent = 'Ready to seed with loaded .torrent file';
+                log(`📁 Selected data file: ${file.name} (${formatBytes(file.size)})`);
+                log(`🔥 Will seed using loaded .torrent - no hashing required!`);
+            } else {
+                document.getElementById('torrentCardTitle').textContent = '2. Create & Seed Torrent';
+                document.getElementById('createBtn').textContent = 'Create Torrent & Start Seeding';
+                document.getElementById('torrentStatus').textContent = 'Ready to create torrent';
+                log(`📁 Selected: ${file.name} (${formatBytes(file.size)})`);
+            }
         }
 
-        function createTorrent() {
+        function handleTorrentFile(file) {
+            log(`🔥 Loading .torrent file: ${file.name}`);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const arrayBuffer = e.target.result;
+                    loadedTorrentFile = new Uint8Array(arrayBuffer);
+
+                    // Parse torrent file to extract metadata using WebTorrent
+                    client.add(loadedTorrentFile, { path: '/temp' }, (torrent) => {
+                        log(`✅ Torrent file parsed successfully`);
+                        log(`📝 Name: ${torrent.name}`);
+                        log(`🔗 InfoHash: ${torrent.infoHash}`);
+                        log(`📊 Size: ${formatBytes(torrent.length)}`);
+
+                        document.getElementById('torrentName').textContent = torrent.name;
+                        document.getElementById('torrentInfoHash').textContent = torrent.infoHash;
+                        document.getElementById('torrentInfo').style.display = 'block';
+                        document.getElementById('fileInfo').style.display = 'none';
+
+                        // Remove the torrent after parsing (we'll re-add it with the actual file later)
+                        torrent.destroy();
+
+                        seedMode = 'seed';
+
+                        if (selectedFile) {
+                            // If data file already selected, update UI
+                            document.getElementById('torrentCard').style.display = 'block';
+                            document.getElementById('torrentCardTitle').textContent = '2. Seed with Loaded Torrent';
+                            document.getElementById('createBtn').textContent = '🚀 Start Seeding (No Hashing Needed!)';
+                            document.getElementById('torrentStatus').textContent = 'Ready to seed with loaded .torrent file';
+                            log(`🔥 Ready to seed ${selectedFile.name} using this .torrent file`);
+                        } else {
+                            log(`⚠️ Now select the data file that matches this torrent`);
+                        }
+                    });
+
+                } catch (error) {
+                    log(`❌ Error parsing .torrent file: ${error.message}`);
+                    console.error('Torrent parse error:', error);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function startSeeding() {
             if (!selectedFile) {
-                alert('Please select a file first');
+                alert('Please select a data file first');
                 return;
             }
 
-            log(`🔨 Creating torrent for ${selectedFile.name} (${formatBytes(selectedFile.size)})...`);
-            log(`⏳ This may take a while for large files - hashing in progress...`);
-            log(`💡 Check browser console (F12) for detailed WebTorrent logs`);
-            document.getElementById('torrentStatus').style.display = 'none';
-            document.getElementById('hashingStatus').style.display = 'block';
             document.getElementById('createBtn').disabled = true;
 
-            const startTime = Date.now();
+            if (seedMode === 'seed' && loadedTorrentFile) {
+                // Seed mode: Use existing .torrent file
+                log(`🚀 Starting seeding with loaded .torrent file...`);
+                log(`📁 Data file: ${selectedFile.name} (${formatBytes(selectedFile.size)})`);
+                log(`⚡ No hashing required - instant seeding!`);
 
-            // Enable WebTorrent debug logging
-            console.log('%c🔍 WebTorrent Debug Enabled', 'background: #667eea; color: white; padding: 2px 8px;');
+                const startTime = Date.now();
 
-            client.seed(selectedFile, {
-                name: selectedFile.name,
-                announceList: [
-                    ['wss://tracker.openwebtorrent.com'],
-                    ['wss://tracker.btorrent.xyz'],
-                    ['wss://tracker.webtorrent.dev']
-                ]
-            }, (torrent) => {
-                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-                currentTorrent = torrent;
-                log(`✅ Torrent created in ${elapsed}s!`);
-                log(`📡 Now seeding: ${torrent.name}`);
-                log(`🔗 InfoHash: ${torrent.infoHash}`);
-                log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
-                log(`🎯 Ready to accept peer connections...`);
+                client.seed(selectedFile, loadedTorrentFile, (torrent) => {
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    currentTorrent = torrent;
+                    log(`✅ Seeding started in ${elapsed}s (no hashing!)!`);
+                    log(`📡 Now seeding: ${torrent.name}`);
+                    log(`🔗 InfoHash: ${torrent.infoHash}`);
+                    log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
+                    log(`🎯 Ready to accept peer connections...`);
 
-                // Hide spinner, show success status
-                document.getElementById('hashingStatus').style.display = 'none';
-                document.getElementById('torrentStatus').style.display = 'block';
-                document.getElementById('torrentStatus').textContent = '✅ Seeding active - ready for peers';
-                document.getElementById('torrentResult').style.display = 'block';
-                document.getElementById('debugCard').style.display = 'block';
-                document.getElementById('magnetLink').textContent = torrent.magnetURI;
-                document.getElementById('infoHash').textContent = torrent.infoHash;
-
-                // Save to history
-                saveTorrentToHistory(torrent, selectedFile.name, selectedFile.size);
-                log('💾 Torrent saved to history');
-
-                // Set background color from InfoHash
-                setBackgroundFromHash(torrent.infoHash);
-
-                // Update stats every second
-                setInterval(() => {
-                    // Main stats
-                    document.getElementById('peerCount').textContent = torrent.numPeers;
-                    document.getElementById('uploadSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
-                    document.getElementById('uploaded').textContent = formatBytes(torrent.uploaded);
-
-                    // Debug stats
-                    document.getElementById('debugProgress').textContent = (torrent.progress * 100).toFixed(1) + '%';
-                    document.getElementById('debugRatio').textContent = torrent.uploaded / torrent.downloaded || 0;
-                    document.getElementById('debugDownSpeed').textContent = formatBytes(torrent.downloadSpeed) + '/s';
-                    document.getElementById('debugUpSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
-                    document.getElementById('debugDownloaded').textContent = formatBytes(torrent.downloaded);
-                    document.getElementById('debugUploaded').textContent = formatBytes(torrent.uploaded);
-                    document.getElementById('debugWires').textContent = torrent.wires.length;
-                    document.getElementById('debugQueued').textContent = torrent._numQueued || 0;
-
-                    // Update peer list
-                    updatePeerList(torrent);
-                }, 1000);
-
-                // Update tracker status
-                setInterval(() => {
-                    updateTrackerStatus(torrent);
-                }, 5000);
-
-                torrent.on('wire', (wire, addr) => {
-                    log(`🔗 Peer connected: ${addr}`);
+                    setupSeedingUI(torrent, elapsed);
                 });
 
-                // Upload events are too spammy - stats shown in UI instead
-                // torrent.on('upload', (bytes) => {
-                //     log(`📤 Uploaded ${formatBytes(bytes)} to peer`);
-                // });
+            } else {
+                // Create mode: Hash file and create new torrent
+                log(`🔨 Creating torrent for ${selectedFile.name} (${formatBytes(selectedFile.size)})...`);
+                log(`⏳ This may take a while for large files - hashing in progress...`);
+                log(`💡 Check browser console (F12) for detailed WebTorrent logs`);
+                document.getElementById('torrentStatus').style.display = 'none';
+                document.getElementById('hashingStatus').style.display = 'block';
 
-                torrent.on('warning', (err) => {
-                    log(`⚠️ Warning: ${err.message}`);
-                    console.warn('Torrent warning:', err);
+                const startTime = Date.now();
+
+                // Enable WebTorrent debug logging
+                console.log('%c🔍 WebTorrent Debug Enabled', 'background: #667eea; color: white; padding: 2px 8px;');
+
+                client.seed(selectedFile, {
+                    name: selectedFile.name,
+                    announceList: [
+                        ['wss://tracker.openwebtorrent.com'],
+                        ['wss://tracker.btorrent.xyz'],
+                        ['wss://tracker.webtorrent.dev']
+                    ]
+                }, (torrent) => {
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    currentTorrent = torrent;
+                    log(`✅ Torrent created in ${elapsed}s!`);
+                    log(`📡 Now seeding: ${torrent.name}`);
+                    log(`🔗 InfoHash: ${torrent.infoHash}`);
+                    log(`📊 Torrent size: ${formatBytes(torrent.length)}`);
+                    log(`🎯 Ready to accept peer connections...`);
+
+                    setupSeedingUI(torrent, elapsed);
                 });
 
-                torrent.on('error', (err) => {
-                    log(`❌ Error: ${err.message}`);
-                    console.error('Torrent error:', err);
-                });
+                // Log progress during creation
+                log(`📝 File selected, starting hash calculation...`);
+                log(`🔄 Please wait - large files take longer to hash...`);
+            }
+        }
+
+        function setupSeedingUI(torrent, elapsed) {
+            // Hide spinner, show success status
+            document.getElementById('hashingStatus').style.display = 'none';
+            document.getElementById('torrentStatus').style.display = 'block';
+            document.getElementById('torrentStatus').textContent = '✅ Seeding active - ready for peers';
+            document.getElementById('torrentResult').style.display = 'block';
+            document.getElementById('debugCard').style.display = 'block';
+            document.getElementById('magnetLink').textContent = torrent.magnetURI;
+            document.getElementById('infoHash').textContent = torrent.infoHash;
+
+            // Save to history
+            saveTorrentToHistory(torrent, selectedFile.name, selectedFile.size);
+            log('💾 Torrent saved to history');
+
+            // Set background color from InfoHash
+            setBackgroundFromHash(torrent.infoHash);
+
+            // Update stats every second
+            setInterval(() => {
+                // Main stats
+                document.getElementById('peerCount').textContent = torrent.numPeers;
+                document.getElementById('uploadSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
+                document.getElementById('uploaded').textContent = formatBytes(torrent.uploaded);
+
+                // Debug stats
+                document.getElementById('debugProgress').textContent = (torrent.progress * 100).toFixed(1) + '%';
+                document.getElementById('debugRatio').textContent = torrent.uploaded / torrent.downloaded || 0;
+                document.getElementById('debugDownSpeed').textContent = formatBytes(torrent.downloadSpeed) + '/s';
+                document.getElementById('debugUpSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
+                document.getElementById('debugDownloaded').textContent = formatBytes(torrent.downloaded);
+                document.getElementById('debugUploaded').textContent = formatBytes(torrent.uploaded);
+                document.getElementById('debugWires').textContent = torrent.wires.length;
+                document.getElementById('debugQueued').textContent = torrent._numQueued || 0;
+
+                // Update peer list
+                updatePeerList(torrent);
+            }, 1000);
+
+            // Update tracker status
+            setInterval(() => {
+                updateTrackerStatus(torrent);
+            }, 5000);
+
+            torrent.on('wire', (wire, addr) => {
+                log(`🔗 Peer connected: ${addr}`);
             });
 
-            // Log progress during creation
-            log(`📝 File selected, starting hash calculation...`);
-            log(`🔄 Please wait - large files take longer to hash...`);
+            // Upload events are too spammy - stats shown in UI instead
+            // torrent.on('upload', (bytes) => {
+            //     log(`📤 Uploaded ${formatBytes(bytes)} to peer`);
+            // });
+
+            torrent.on('warning', (err) => {
+                log(`⚠️ Warning: ${err.message}`);
+                console.warn('Torrent warning:', err);
+            });
+
+            torrent.on('error', (err) => {
+                log(`❌ Error: ${err.message}`);
+                console.error('Torrent error:', err);
+            });
         }
 
         function copyMagnet() {

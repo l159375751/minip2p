@@ -314,23 +314,15 @@
         ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
     </div>
 
-    <details style="margin-top: 1rem;">
-        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">
-            📊 Catalog Metadata
-        </summary>
-        <div id="catalogMetadata" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
+    <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">📊 Catalog & Browser Storage</h2>
+        <div id="catalogMetadata" style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
             <div style="color: #999;">Loading...</div>
         </div>
-    </details>
-
-    <details style="margin-top: 1rem;" open>
-        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;" onclick="refreshBrowserFilesystem()">
-            💾 Browser Filesystem
-        </summary>
-        <div id="browserFilesystem" style="margin-top: 0.5rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;">
+        <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;">
             <div style="color: #999;">Click to load...</div>
         </div>
-    </details>
+    </div>
 
     <details style="margin-top: 1rem;" open>
         <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.85rem; color: #999;">

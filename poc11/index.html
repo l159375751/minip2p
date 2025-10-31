@@ -349,19 +349,54 @@
                 const questionIndex = magnetLink.indexOf('?');
                 const prefix = magnetLink.slice(0, questionIndex);
                 const query = magnetLink.slice(questionIndex + 1);
-                const params = new URLSearchParams(query);
-                const cleaned = new URLSearchParams();
-                const seen = new Set();
+                const parts = query.split('&').filter(Boolean);
+                const cleanedPairs = [];
+                const seenTrackers = new Set();
 
-                for (const [key, value] of params.entries()) {
-                    if (key.toLowerCase() === 'tr') {
-                        if (seen.has(value) || seen.size >= 10) continue;
-                        seen.add(value);
+                for (const part of parts) {
+                    const equalIndex = part.indexOf('=');
+                    const rawKey = equalIndex >= 0 ? part.slice(0, equalIndex) : part;
+                    const rawValue = equalIndex >= 0 ? part.slice(equalIndex + 1) : '';
+                    const key = rawKey.trim();
+                    if (!key) continue;
+
+                    const lowerKey = key.toLowerCase();
+
+                    const decodeSafe = (value) => {
+                        try {
+                            return decodeURIComponent(value);
+                        } catch {
+                            return value;
+                        }
+                    };
+
+                    if (lowerKey === 'tr') {
+                        const decodedTracker = decodeSafe(rawValue);
+                        if (seenTrackers.has(decodedTracker) || seenTrackers.size >= 10) {
+                            continue;
+                        }
+                        seenTrackers.add(decodedTracker);
+                        cleanedPairs.push(`${key}=${encodeURIComponent(decodedTracker)}`);
+                    } else if (lowerKey === 'xt') {
+                        const decodedXt = decodeSafe(rawValue);
+                        if (!decodedXt) continue;
+                        if (decodedXt.startsWith('urn:')) {
+                            cleanedPairs.push(`${key}=${decodedXt}`);
+                        } else {
+                            cleanedPairs.push(`${key}=${encodeURIComponent(decodedXt)}`);
+                        }
+                    } else {
+                        if (rawValue === '') {
+                            cleanedPairs.push(key);
+                        } else {
+                            const decodedValue = decodeSafe(rawValue);
+                            cleanedPairs.push(`${key}=${encodeURIComponent(decodedValue)}`);
+                        }
                     }
-                    cleaned.append(key, value);
                 }
 
-                return `${prefix}?${cleaned.toString()}`;
+                const separator = prefix.endsWith('?') ? '' : '?';
+                return `${prefix}${separator}${cleanedPairs.join('&')}`;
             } catch (error) {
                 console.warn('Failed to sanitize magnet link, using original', error);
                 return magnetLink;

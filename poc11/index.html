@@ -161,161 +161,37 @@
     </style>
 </head>
 <body>
-    <h1>📚 POC11 - Progressive Library Builder</h1>
+    <h1>📚 Library</h1>
 
-    <div class="card">
-        <h2>📥 Download Gutenberg Collection</h2>
-        <p>Load the Project Gutenberg text collection (.tar.gz - 11GB):</p>
-
-        <div style="margin-bottom: 1.5rem;">
-            <label style="display: block; margin-bottom: 0.5rem;">
-                <input type="radio" name="loadMethod" value="download" checked onchange="updateLoadMethod()">
-                Download via WebTorrent P2P
-            </label>
-            <label style="display: block; margin-bottom: 0.5rem;">
-                <input type="radio" name="loadMethod" value="local" onchange="updateLoadMethod()">
-                Load from Local File (.tar.gz)
-            </label>
-        </div>
-
-        <div id="downloadMethod" style="display: block;">
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Magnet Link or .torrent file:</label>
-                <input type="text" id="magnetInput" value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
-                    style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem;">
-                <div style="margin-top: 0.5rem;">
-                    <button onclick="document.getElementById('torrentFileInput').click()"
-                        style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0;">
-                        📁 Or Select .torrent File
-                    </button>
-                    <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
-                </div>
-            </div>
-            <button id="downloadBtn" onclick="startDownload()">Start Download</button>
-        </div>
-
-        <div id="localMethod" style="display: none;">
-            <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Select Local Archive:</label>
-                <input type="file" id="localFileInput" accept=".tar.gz,.tar"
-                    style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem;">
-            </div>
-            <button id="loadLocalBtn" onclick="loadLocalFile()">Load Local File</button>
-        </div>
-
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
-            <div id="catalogStatus" style="margin-top: 0;">
-                <div style="padding: 0.5rem 0; font-size: 0.85rem; color: #666;">
-                    <span id="catalogStatusText">📚 Loading catalog...</span>
-                </div>
-            </div>
-        </div>
-
-        <div id="downloadProgress" style="display: none;">
-            <div class="progress-container">
-                <div class="progress-bar" id="downloadProgressBar">0%</div>
-            </div>
-            <div class="stats">
-                <div class="stat">
-                    <div class="stat-label">Downloaded</div>
-                    <div class="stat-value" id="downloaded">0 B</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">Speed</div>
-                    <div class="stat-value" id="downloadSpeed">0 B/s</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">Peers</div>
-                    <div class="stat-value" id="peerCount">0</div>
-                </div>
-                <div class="stat">
-                    <div class="stat-label">ETA</div>
-                    <div class="stat-value" id="eta">Calculating...</div>
-                </div>
-            </div>
-
-            <div style="margin-top: 1.5rem;">
-                <h3 style="margin-bottom: 0.75rem; font-size: 1.1rem;">📊 Torrent Details</h3>
-                <div class="stats" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
-                    <div class="stat">
-                        <div class="stat-label">Pieces</div>
-                        <div class="stat-value" id="piecesInfo">0 / 0</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Piece Length</div>
-                        <div class="stat-value" id="pieceLength">-</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Files</div>
-                        <div class="stat-value" id="filesCount">0</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Upload Speed</div>
-                        <div class="stat-value" id="uploadSpeed">0 B/s</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Uploaded</div>
-                        <div class="stat-value" id="uploaded">0 B</div>
-                    </div>
-                    <div class="stat">
-                        <div class="stat-label">Ratio</div>
-                        <div class="stat-value" id="ratio">0.00</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 1rem;">
-                    <div class="stat-label" style="margin-bottom: 0.5rem;">Status:</div>
-                    <div id="torrentStatus" style="font-size: 0.9rem; color: #666; padding: 0.75rem; background: #f8f9ff; border-radius: 0.5rem; border-left: 3px solid #667eea;">
-                        Connecting to peers...
-                    </div>
-                </div>
-
-                <div style="margin-top: 1rem;">
-                    <div class="stat-label" style="margin-bottom: 0.5rem;">Piece Map:</div>
-                    <div id="pieceMap" style="display: flex; flex-wrap: wrap; gap: 2px; padding: 0.5rem; background: #fafafa; border-radius: 0.25rem; min-height: 60px; align-content: flex-start;">
-                        <span style="color: #999; font-size: 0.85rem;">Waiting for torrent...</span>
-                    </div>
-                    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #999;">
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #4caf50; border-radius: 2px; margin-right: 4px;"></span> Complete
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #ffa726; border-radius: 2px; margin: 0 4px 0 12px;"></span> Partial
-                        <span style="display: inline-block; width: 12px; height: 12px; background: #e0e0e0; border-radius: 2px; margin: 0 4px 0 12px;"></span> Missing
-                    </div>
-                </div>
-            </div>
+    <div style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.9); border-radius: 0.5rem; border-left: 4px solid rgba(102, 126, 234, 0.5);">
+        <div id="statusLine" style="font-size: 0.9rem; color: #666;">
+            📚 Loading catalog...
         </div>
     </div>
 
-    <div class="card" id="extractCard" style="display: none;">
-        <h2>🔓 Step 2: Extract Archive</h2>
-        <p id="extractStatus">Waiting for download to complete...</p>
-        <div class="progress-container">
-            <div class="progress-bar" id="extractProgressBar">0%</div>
-        </div>
-    </div>
-
-    <div class="card" id="ingestCard" style="display: none;">
-        <h2>📚 Library</h2>
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-label">Total Books</div>
-                <div class="stat-value" id="totalBooks">0</div>
+    <details style="margin-bottom: 1rem;">
+        <summary style="cursor: pointer; padding: 0.5rem; background: rgba(255,255,255,0.8); border-radius: 0.25rem; font-size: 0.9rem;">
+            ⚙️ Download Options
+        </summary>
+        <div style="margin-top: 0.5rem; padding: 1rem; background: rgba(255,255,255,0.95); border-radius: 0.5rem;">
+            <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+                style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 0.25rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.5rem;">
+            <div style="display: flex; gap: 0.5rem;">
+                <button onclick="startDownload()" style="flex: 1;">Start Download</button>
+                <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
+                <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
             </div>
         </div>
+    </details>
 
-        <div style="margin: 1rem 0;">
-            <input type="text" id="searchBox" placeholder="Search by title or author..."
-                style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.25rem; font-size: 0.95rem;">
-        </div>
-
-        <div class="book-list" id="bookList" style="max-height: 400px;"></div>
-        <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
-            Type to search
-        </div>
+    <div style="margin-bottom: 1rem;">
+        <input type="text" id="searchBox" placeholder="Search books by title or author..."
+            style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; font-size: 0.95rem;">
     </div>
 
-    <div class="card">
-        <h2>📝 Console Log</h2>
-        <div class="log" id="log"></div>
+    <div class="book-list" id="bookList" style="max-height: 500px;"></div>
+    <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
+        <span id="totalBooks">0</span> books available
     </div>
 
     <script>
@@ -377,8 +253,7 @@
         }
 
         async function loadCatalog() {
-            log('📚 Loading book catalog (GUTINDEX.ALL.new - 8.8MB)...');
-            document.getElementById('catalogStatusText').textContent = '📚 Downloading catalog...';
+            updateStatus('📚 Loading catalog...');
 
             try {
                 const response = await fetch('GUTINDEX.ALL.new');
@@ -387,24 +262,20 @@
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                log('✅ Catalog downloaded! Parsing...');
-                document.getElementById('catalogStatusText').textContent = '📚 Parsing catalog...';
-
                 const text = await response.text();
                 catalogBooks = GutIndexParser.parseIndex(text);
 
-                log(`✅ Parsed ${catalogBooks.length.toLocaleString()} books from catalog!`);
-                document.getElementById('catalogStatusText').innerHTML = `✅ Catalog ready: ${catalogBooks.length.toLocaleString()} books available`;
-
-                // Show some sample books
-                const samples = catalogBooks.slice(0, 10);
-                log(`📖 Sample books: ${samples.map(b => b.title).join(', ')}`);
+                updateStatus(`✅ ${catalogBooks.length.toLocaleString()} books available`);
+                showLibrary();
 
             } catch (error) {
-                log(`❌ Error loading catalog: ${error.message}`);
-                document.getElementById('catalogStatusText').innerHTML = `❌ Error: ${error.message}`;
+                updateStatus(`❌ Error loading catalog: ${error.message}`);
                 console.error('Catalog load error:', error);
             }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusLine').textContent = message;
         }
 
         function updateLoadMethod() {
@@ -588,59 +459,24 @@
                 if (!currentTorrent) return;
 
                 const progress = Math.round(currentTorrent.progress * 100);
-                const downloaded = formatBytes(currentTorrent.downloaded);
                 const speed = formatBytes(currentTorrent.downloadSpeed);
                 const peers = currentTorrent.numPeers;
-                const timeRemaining = currentTorrent.timeRemaining;
 
-                document.getElementById('downloadProgressBar').style.width = progress + '%';
-                document.getElementById('downloadProgressBar').textContent = progress + '%';
-                document.getElementById('downloaded').textContent = downloaded;
-                document.getElementById('downloadSpeed').textContent = speed + '/s';
-                document.getElementById('peerCount').textContent = peers;
-                document.getElementById('eta').textContent = formatTime(timeRemaining / 1000);
-
-                // Update detailed stats
-                if (currentTorrent.pieces) {
-                    const piecesComplete = currentTorrent.pieces.filter(p => p).length;
-                    const piecesTotal = currentTorrent.pieces.length;
-                    document.getElementById('piecesInfo').textContent = `${piecesComplete} / ${piecesTotal}`;
-
-                    // Update piece map
-                    updatePieceMap(currentTorrent.pieces);
-                }
-
-                document.getElementById('uploadSpeed').textContent = formatBytes(currentTorrent.uploadSpeed) + '/s';
-                document.getElementById('uploaded').textContent = formatBytes(currentTorrent.uploaded);
-
-                const ratio = currentTorrent.uploaded / Math.max(currentTorrent.downloaded, 1);
-                document.getElementById('ratio').textContent = ratio.toFixed(2);
-
-                // Update status message
                 let statusMsg = '';
                 if (progress === 0 && peers === 0) {
                     statusMsg = '🔍 Searching for peers...';
-                } else if (progress === 0 && peers > 0) {
-                    statusMsg = `📡 Connected to ${peers} peer${peers !== 1 ? 's' : ''}, waiting for data...`;
                 } else if (progress < 100) {
-                    statusMsg = `⬇️ Downloading from ${peers} peer${peers !== 1 ? 's' : ''} at ${speed}/s`;
+                    const pieces = currentTorrent.pieces ? currentTorrent.pieces.filter(p => p).length : 0;
+                    const totalPieces = currentTorrent.pieces ? currentTorrent.pieces.length : 0;
+                    statusMsg = `⬇️ ${progress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                 } else {
-                    statusMsg = `✅ Download complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''}`;
+                    statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''}`;
                 }
-                document.getElementById('torrentStatus').textContent = statusMsg;
+                updateStatus(statusMsg);
             }, 1000);
 
             currentTorrent.on('done', () => {
-                log('✅ Download complete!');
-                log(`📦 Total downloaded: ${formatBytes(currentTorrent.length)}`);
-
-                // Skip extraction simulation and go straight to showing books
-                if (catalogBooks.length > 0) {
-                    log('📚 Catalog already loaded, showing books...');
-                    startIngestion();
-                } else {
-                    startExtraction();
-                }
+                updateStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books available`);
             });
 
             currentTorrent.on('error', (err) => {
@@ -650,79 +486,55 @@
         }
 
         function processLocalArchive(file) {
-            log('🔓 Processing local archive...');
-            log('✅ Archive ready for reading!');
-
-            // Skip extraction UI, go straight to library
-            startIngestion();
+            updateStatus(`✅ Local file loaded: ${file.name}`);
+            showLibrary();
         }
 
-        function startExtraction() {
-            log('🔓 Starting extraction...');
-            document.getElementById('extractCard').style.display = 'block';
-            document.getElementById('extractStatus').textContent = 'Extracting archive...';
-
-            // TODO: Implement tar.gz extraction
-            // For now, simulate it
-            setTimeout(() => {
-                log('✅ Extraction complete!');
-                startIngestion();
-            }, 3000);
-        }
-
-        function startIngestion() {
-            log('📚 Library ready!');
-            document.getElementById('ingestCard').style.display = 'block';
-
+        function showLibrary() {
             const totalBooks = catalogBooks.length;
             document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
-            log(`✅ ${totalBooks.toLocaleString()} books available`);
 
             const searchBox = document.getElementById('searchBox');
             const bookList = document.getElementById('bookList');
             const bookListHint = document.getElementById('bookListHint');
 
             // Show first 50 books by default
-            displayBooks(catalogBooks.slice(0, 50), bookList, bookListHint, 'Showing first 50 books');
+            displayBooks(catalogBooks.slice(0, 50));
 
-            // Setup search
-            let searchTimeout;
-            searchBox.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    const query = e.target.value.trim().toLowerCase();
+            // Setup search (only once)
+            if (!searchBox.dataset.initialized) {
+                searchBox.dataset.initialized = 'true';
+                let searchTimeout;
+                searchBox.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        const query = e.target.value.trim().toLowerCase();
 
-                    if (query.length === 0) {
-                        displayBooks(catalogBooks.slice(0, 50), bookList, bookListHint, 'Showing first 50 books');
-                        return;
-                    }
+                        if (query.length === 0) {
+                            displayBooks(catalogBooks.slice(0, 50));
+                            return;
+                        }
 
-                    if (query.length < 2) {
-                        bookList.innerHTML = '';
-                        bookListHint.textContent = 'Type at least 2 characters';
-                        return;
-                    }
+                        if (query.length < 2) {
+                            bookList.innerHTML = '';
+                            return;
+                        }
 
-                    // Search books
-                    const results = catalogBooks.filter(book =>
-                        book.title.toLowerCase().includes(query) ||
-                        book.author.toLowerCase().includes(query)
-                    ).slice(0, 100);
+                        // Search books
+                        const results = catalogBooks.filter(book =>
+                            book.title.toLowerCase().includes(query) ||
+                            book.author.toLowerCase().includes(query)
+                        ).slice(0, 100);
 
-                    if (results.length === 0) {
-                        bookList.innerHTML = '';
-                        bookListHint.textContent = 'No books found';
-                        return;
-                    }
-
-                    displayBooks(results, bookList, bookListHint, `Found ${results.length} ${results.length === 100 ? '(showing max 100)' : ''} books`);
-                }, 300);
-            });
+                        displayBooks(results);
+                    }, 300);
+                });
+            }
         }
 
-        function displayBooks(books, bookList, bookListHint, hintText) {
+        function displayBooks(books) {
+            const bookList = document.getElementById('bookList');
             bookList.innerHTML = '';
-            bookListHint.textContent = hintText;
 
             books.forEach(book => {
                 const bookItem = document.createElement('div');

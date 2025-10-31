@@ -560,7 +560,14 @@
             currentTorrent.on('done', () => {
                 log('✅ Download complete!');
                 log(`📦 Total downloaded: ${formatBytes(currentTorrent.length)}`);
-                startExtraction();
+
+                // Skip extraction simulation and go straight to showing books
+                if (catalogBooks.length > 0) {
+                    log('📚 Catalog already loaded, showing books...');
+                    startIngestion();
+                } else {
+                    startExtraction();
+                }
             });
 
             currentTorrent.on('error', (err) => {

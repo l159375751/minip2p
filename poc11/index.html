@@ -235,6 +235,7 @@
         let currentTorrent = null;
         let loadedTorrentFile = null;
         let localArchiveFile = null;
+        let catalogBooks = []; // Store parsed catalog books
 
         // Default magnet link for tar.gz
         const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:ed94f7e361061afb11122cf2d5ebcaf0cefad73f&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev';
@@ -258,13 +259,13 @@
                 document.getElementById('catalogStatusText').textContent = 'Parsing catalog...';
 
                 const text = await response.text();
-                const books = GutIndexParser.parseIndex(text);
+                catalogBooks = GutIndexParser.parseIndex(text);
 
-                log(`✅ Parsed ${books.length.toLocaleString()} books from catalog!`);
-                document.getElementById('catalogStatusText').innerHTML = `✅ Loaded ${books.length.toLocaleString()} books`;
+                log(`✅ Parsed ${catalogBooks.length.toLocaleString()} books from catalog!`);
+                document.getElementById('catalogStatusText').innerHTML = `✅ Loaded ${catalogBooks.length.toLocaleString()} books`;
 
                 // Show some sample books
-                const samples = books.slice(0, 10);
+                const samples = catalogBooks.slice(0, 10);
                 log(`📖 Sample books: ${samples.map(b => b.title).join(', ')}`);
 
             } catch (error) {
@@ -451,13 +452,14 @@
             log('📖 Starting library ingestion...');
             document.getElementById('ingestCard').style.display = 'block';
 
-            // TODO: Implement progressive book ingestion
-            // For now, simulate it
+            // Use real catalog if available, otherwise simulate
+            const totalBooks = catalogBooks.length > 0 ? catalogBooks.length : 70000;
             let booksAdded = 0;
-            const totalBooks = 70000;
+            let bookIndex = 0;
 
             const interval = setInterval(() => {
-                booksAdded += Math.floor(Math.random() * 100) + 50;
+                const increment = Math.floor(Math.random() * 100) + 50;
+                booksAdded += increment;
                 if (booksAdded > totalBooks) booksAdded = totalBooks;
 
                 const progress = Math.round((booksAdded / totalBooks) * 100);
@@ -465,11 +467,21 @@
                 document.getElementById('ingestProgressBar').textContent = progress + '%';
                 document.getElementById('booksAdded').textContent = booksAdded.toLocaleString();
 
-                // Add book to list
-                const bookItem = document.createElement('div');
-                bookItem.className = 'book-item';
-                bookItem.textContent = `Book ${booksAdded}: Example Title by Example Author`;
-                document.getElementById('bookList').insertBefore(bookItem, document.getElementById('bookList').firstChild);
+                // Add books to list (show a few at a time)
+                for (let i = 0; i < Math.min(increment, 5); i++) {
+                    const bookItem = document.createElement('div');
+                    bookItem.className = 'book-item';
+
+                    if (catalogBooks.length > 0 && bookIndex < catalogBooks.length) {
+                        const book = catalogBooks[bookIndex];
+                        bookItem.textContent = `${book.title} by ${book.author}`;
+                        bookIndex++;
+                    } else {
+                        bookItem.textContent = `Book ${booksAdded}: Example Title by Example Author`;
+                    }
+
+                    document.getElementById('bookList').insertBefore(bookItem, document.getElementById('bookList').firstChild);
+                }
 
                 if (booksAdded >= totalBooks) {
                     clearInterval(interval);

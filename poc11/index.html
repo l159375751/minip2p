@@ -201,14 +201,26 @@
     </details>
 
     <script>
-        const client = new WebTorrent();
+        // Optimized WebTorrent client for faster downloads
+        const client = new WebTorrent({
+            maxConns: 200,        // Increase max peer connections (default: 55)
+            dht: true,            // Enable DHT for peer discovery
+            webSeeds: true        // Enable web seeds if available
+        });
         let currentTorrent = null;
         let loadedMagnetLink = null; // Store magnet link from .torrent file
         let localArchiveFile = null;
         let catalogBooks = []; // Store parsed catalog books
 
-        // Default magnet link for tar.gz
-        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev';
+        // Default magnet link with MANY trackers for better peer discovery
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz' +
+            '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
+            '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
+            '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
+            '&tr=wss%3A%2F%2Ftracker.fastcast.nz' +
+            '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
+            '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
+            '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
@@ -557,7 +569,14 @@
             log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
 
             currentTorrent = client.add(magnetLink, {
-                path: '/downloads'
+                path: '/downloads',
+                maxWebConns: 10,      // Max web seed connections
+                announceList: [       // Backup trackers
+                    ['wss://tracker.openwebtorrent.com'],
+                    ['wss://tracker.webtorrent.dev'],
+                    ['wss://tracker.btorrent.xyz'],
+                    ['wss://tracker.fastcast.nz']
+                ]
             });
 
             currentTorrent.on('metadata', () => {
@@ -565,13 +584,14 @@
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
                 log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
+                log(`⚡ Max connections: 200 | Tracker count: ${currentTorrent.announce ? currentTorrent.announce.length : 0}`);
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
             });
 
             currentTorrent.on('wire', (wire, addr) => {
-                log(`🔗 Connected to peer: ${addr}`);
+                log(`🔗 Peer connected: ${addr} | Total: ${currentTorrent.numPeers}`);
             });
 
             setInterval(() => {
@@ -586,18 +606,21 @@
                 const totalPieces = currentTorrent.pieces ? currentTorrent.pieces.length : 0;
                 const downloadedProgress = totalPieces > 0 ? Math.round((pieces / totalPieces) * 100) : 0;
 
+                const uploaded = formatBytes(currentTorrent.uploaded);
+                const ratio = currentTorrent.downloaded > 0 ? (currentTorrent.uploaded / currentTorrent.downloaded).toFixed(2) : '0.00';
+
                 let statusMsg = '';
                 if (verifiedProgress === 0 && peers === 0) {
-                    statusMsg = '🔍 Searching for peers...';
+                    statusMsg = '🔍 Searching for peers... (check if torrent has seeders!)';
                 } else if (verifiedProgress < 100) {
                     // Show both downloaded pieces and verified percentage
                     if (downloadedProgress > verifiedProgress) {
-                        statusMsg = `⬇️ ${verifiedProgress}% verified (${pieces}/${totalPieces} pieces downloaded) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                        statusMsg = `⬇️ ${verifiedProgress}% verified (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers}/${currentTorrent.maxConns} peers`;
                     } else {
-                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers}/${currentTorrent.maxConns} peers • ratio: ${ratio}`;
                     }
                 } else {
-                    statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''}`;
+                    statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
                 }
                 updateStatus(statusMsg);
             }, 1000);

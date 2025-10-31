@@ -16,6 +16,7 @@
             padding: 2rem;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            transition: background 1s ease;
         }
         .container {
             max-width: 900px;
@@ -295,7 +296,10 @@
         <div class="card" id="historyCard" style="display: none;">
             <h2>📜 Previously Created Torrents</h2>
             <div id="torrentHistory"></div>
-            <button onclick="clearHistory()" style="margin-top: 1rem; background: #ef4444;">Clear History</button>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                <button onclick="clearHistory()" style="flex: 1; background: #ef4444;">Clear History</button>
+                <button onclick="resetBackgroundColor()" style="flex: 1; background: #667eea;">Reset Colors</button>
+            </div>
         </div>
 
         <div class="card">
@@ -314,7 +318,52 @@
         // Load torrent history on page load
         window.addEventListener('DOMContentLoaded', () => {
             loadTorrentHistory();
+            loadBackgroundColor();
         });
+
+        function hashToColor(hash) {
+            // Convert InfoHash to two colors for gradient
+            if (!hash || hash.length < 40) {
+                return null;
+            }
+
+            // Use first 6 chars for color1, chars 20-26 for color2
+            const color1 = '#' + hash.substring(0, 6);
+            const color2 = '#' + hash.substring(20, 26);
+
+            return { color1, color2 };
+        }
+
+        function setBackgroundFromHash(hash) {
+            const colors = hashToColor(hash);
+            if (!colors) return;
+
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            // Save to localStorage
+            localStorage.setItem('poc8_bg_color', JSON.stringify(colors));
+
+            log(`🎨 Background color set from InfoHash: ${colors.color1} → ${colors.color2}`);
+        }
+
+        function loadBackgroundColor() {
+            const saved = localStorage.getItem('poc8_bg_color');
+            if (!saved) return;
+
+            const colors = JSON.parse(saved);
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            console.log(`🎨 Loaded background color: ${colors.color1} → ${colors.color2}`);
+        }
+
+        function resetBackgroundColor() {
+            // Reset to default purple gradient
+            document.body.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            localStorage.removeItem('poc8_bg_color');
+            log('🎨 Background reset to default colors');
+        }
 
         function saveTorrentToHistory(torrent, filename, filesize) {
             const history = JSON.parse(localStorage.getItem('poc8_torrents') || '[]');
@@ -475,6 +524,9 @@
                 // Save to history
                 saveTorrentToHistory(torrent, selectedFile.name, selectedFile.size);
                 log('💾 Torrent saved to history');
+
+                // Set background color from InfoHash
+                setBackgroundFromHash(torrent.infoHash);
 
                 // Update stats every second
                 setInterval(() => {

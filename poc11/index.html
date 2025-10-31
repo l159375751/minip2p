@@ -232,8 +232,12 @@
 
         // Load saved background color and catalog on page load
         window.addEventListener('DOMContentLoaded', () => {
-            // Set background from hash of our own source code
-            const sourceHash = hashString(document.documentElement.outerHTML);
+            // Set background from hash of our own source code (static parts only)
+            // Hash the script content which doesn't change at runtime
+            const scripts = Array.from(document.getElementsByTagName('script'))
+                .map(s => s.textContent)
+                .join('');
+            const sourceHash = hashString(scripts);
             setBackgroundFromHash(sourceHash);
             console.log(`🎨 Color seed from source hash: ${sourceHash}`);
 

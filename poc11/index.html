@@ -5,7 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POC11 - Progressive Library Builder</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
-    <script src="https://cdn.jsdelivr.net/npm/webtorrent@latest/webtorrent.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/dist/webtorrent.min.js"></script>
+    <script>
+        if (typeof window.WebTorrent === 'undefined') {
+            document.write('<script src="https://unpkg.com/webtorrent@1.9.7/dist/webtorrent.min.js"><\/script>');
+        }
+    </script>
     <script src="library-builder.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.0/build/dist/untar.js"></script>
@@ -335,11 +340,16 @@
     <script>
         // Optimized WebTorrent client for faster downloads
         const MAX_TORRENT_CONNECTIONS = 80;
-        const client = new WebTorrent({
-            maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
-            dht: true,            // Enable DHT for peer discovery
-            webSeeds: true        // Enable web seeds if available
-        });
+        let client = null;
+        if (window.WebTorrent) {
+            client = new WebTorrent({
+                maxConns: MAX_TORRENT_CONNECTIONS, // Higher than default, but below leak warning threshold
+                dht: true,            // Enable DHT for peer discovery
+                webSeeds: true        // Enable web seeds if available
+            });
+        } else {
+            updateDownloadStatus('WebTorrent not supported in this browser. Try the latest Firefox or Chromium.');
+        }
         let currentTorrent = null;
         let torrentStatsInterval = null;
         let loadedMagnetLink = null; // Store magnet link from .torrent file
@@ -366,27 +376,35 @@
             '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
 
+        if (typeof window.WebTorrent === 'undefined') {
+            const message = 'WebTorrent library failed to load. Please use a modern Chromium- or Firefox-based browser.';
+            console.error(message);
+            alert(message);
+        }
+
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
-        client.on('warning', (warning) => {
-            const message = (warning && warning.message) ? warning.message : String(warning);
-            if (seenTorrentWarnings.has(message)) {
-                return;
-            }
-            seenTorrentWarnings.add(message);
+        if (client) {
+            client.on('warning', (warning) => {
+                const message = (warning && warning.message) ? warning.message : String(warning);
+                if (seenTorrentWarnings.has(message)) {
+                    return;
+                }
+                seenTorrentWarnings.add(message);
 
-            if (message.includes('tracker') || message.includes('WebSocket')) {
-                log(`⚠️ Tracker warning: ${message}`);
-            } else {
-                log(`⚠️ WebTorrent warning: ${message}`);
-            }
-            console.warn('WebTorrent warning:', warning);
-        });
+                if (message.includes('tracker') || message.includes('WebSocket')) {
+                    log(`⚠️ Tracker warning: ${message}`);
+                } else {
+                    log(`⚠️ WebTorrent warning: ${message}`);
+                }
+                console.warn('WebTorrent warning:', warning);
+            });
 
-        client.on('error', (error) => {
-            log(`❌ WebTorrent client error: ${error.message}`);
-            console.error('WebTorrent error:', error);
-        });
+            client.on('error', (error) => {
+                log(`❌ WebTorrent client error: ${error.message}`);
+                console.error('WebTorrent error:', error);
+            });
+        }
 
         function updateInfoHashDisplay(infoHash) {
             currentInfoHash = infoHash || null;
@@ -764,6 +782,10 @@
 
         function handleTorrentFile(file) {
             if (!file) return;
+            if (!client) {
+                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                return;
+            }
             log(`🔥 Loading .torrent file: ${file.name}`);
 
             const reader = new FileReader();
@@ -986,6 +1008,10 @@
         }
 
         function startDownload() {
+            if (!client) {
+                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                return;
+            }
             // Get magnet link from input or use loaded magnet or default
             const magnetInput = document.getElementById('magnetInput').value.trim();
             const normalizedMagnet = normalizeMagnet(magnetInput);

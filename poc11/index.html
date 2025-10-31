@@ -172,7 +172,10 @@
 
     <div class="book-list" id="bookList" style="max-height: 500px;"></div>
     <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
-        <span id="totalBooks">0</span> books available
+        <span id="totalBooks">0</span> books in catalog
+    </div>
+    <div id="readabilityWarning" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-left: 4px solid #ffc107; font-size: 0.85rem;">
+        ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
     </div>
 
     <details style="margin-top: 1rem;">
@@ -311,7 +314,7 @@
                 // Calculate a simple hash for verification
                 const catalogHash = hashString(text).substring(0, 8);
 
-                updateStatus(`✅ ${catalogBooks.length.toLocaleString()} books available`);
+                updateStatus(`✅ Catalog loaded: ${catalogBooks.length.toLocaleString()} books`);
                 showLibrary();
                 displayCatalogMetadata({
                     books: catalogBooks.length,
@@ -621,7 +624,8 @@
             }, 1000);
 
             currentTorrent.on('done', () => {
-                updateStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books available`);
+                updateStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
+                document.getElementById('readabilityWarning').style.display = 'none';
             });
 
             currentTorrent.on('error', (err) => {
@@ -631,13 +635,25 @@
         }
 
         function processLocalArchive(file) {
-            updateStatus(`✅ Local file loaded: ${file.name}`);
+            updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
+            document.getElementById('readabilityWarning').style.display = 'none';
             showLibrary();
         }
 
         function showLibrary() {
             const totalBooks = catalogBooks.length;
             document.getElementById('totalBooks').textContent = totalBooks.toLocaleString();
+
+            // Show warning if catalog loaded but no way to read books yet
+            const hasData = currentTorrent || localArchiveFile;
+            const downloadComplete = currentTorrent && currentTorrent.progress === 1;
+            const canReadBooks = localArchiveFile || downloadComplete;
+
+            if (totalBooks > 0 && !canReadBooks) {
+                document.getElementById('readabilityWarning').style.display = 'block';
+            } else {
+                document.getElementById('readabilityWarning').style.display = 'none';
+            }
 
             const searchBox = document.getElementById('searchBox');
             const bookList = document.getElementById('bookList');

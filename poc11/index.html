@@ -613,9 +613,9 @@
                 if (verifiedProgress === 0 && peers === 0) {
                     statusMsg = '🔍 Searching for peers... (check if torrent has seeders!)';
                 } else if (verifiedProgress < 100) {
-                    // If all pieces downloaded but not verified, show piece progress
+                    // If all pieces downloaded but not verified, just say verifying
                     if (pieces === totalPieces && verifiedProgress === 0) {
-                        statusMsg = `⏳ Verifying... (${pieces}/${totalPieces} pieces downloaded) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                        statusMsg = `⏳ Verifying all pieces... • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                     } else if (downloadedProgress > verifiedProgress) {
                         statusMsg = `⬇️ ${downloadedProgress}% (${pieces}/${totalPieces} pieces, ${verifiedProgress}% verified) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                     } else {

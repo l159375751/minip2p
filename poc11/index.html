@@ -215,11 +215,27 @@
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
+        // Simple string hash function (cyrb53)
+        function hashString(str) {
+            let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+            for (let i = 0, ch; i < str.length; i++) {
+                ch = str.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+            }
+            h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+            h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+            const hash = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+            // Convert to 40-char hex string (like InfoHash)
+            return hash.toString(16).padStart(16, '0').repeat(3).substring(0, 40);
+        }
+
         // Load saved background color and catalog on page load
         window.addEventListener('DOMContentLoaded', () => {
-            // Set background from default magnet InfoHash
-            const defaultInfoHash = 'a7bb7a777b775c6f7205e90b57c44b014a4e5f0c';
-            setBackgroundFromHash(defaultInfoHash);
+            // Set background from hash of our own source code
+            const sourceHash = hashString(document.documentElement.outerHTML);
+            setBackgroundFromHash(sourceHash);
+            console.log(`🎨 Color seed from source hash: ${sourceHash}`);
 
             loadCatalog(); // Auto-load catalog
         });
@@ -247,7 +263,7 @@
             // Save to localStorage
             localStorage.setItem('poc11_bg_color', JSON.stringify(colors));
 
-            log(`🎨 Background color set from InfoHash: ${colors.color1} → ${colors.color2}`);
+            log(`🎨 Background: ${colors.color1} → ${colors.color2}`);
         }
 
         function loadBackgroundColor() {

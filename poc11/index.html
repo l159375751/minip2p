@@ -575,15 +575,17 @@
 
             try {
                 let arrayBuffer;
+                let progress = 0;
 
                 // Check if we're using local file or torrent
                 if (localArchiveFile) {
                     log(`📁 Reading from local file: ${localArchiveFile.name}`);
                     arrayBuffer = await localArchiveFile.arrayBuffer();
+                    progress = 100;
                 } else if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
                     // Get the .tar.gz file from WebTorrent
                     const file = currentTorrent.files[0];
-                    const progress = (file.progress * 100).toFixed(1);
+                    progress = (file.progress * 100).toFixed(1);
                     log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
 
                     // Select this file with high priority to download needed pieces
@@ -674,7 +676,9 @@
             } catch (error) {
                 log(`❌ Error: ${error.message}`);
                 console.error('Book opening error:', error);
-                const downloadPct = currentTorrent.files[0] ? (currentTorrent.files[0].progress * 100).toFixed(1) : '0';
+                const downloadPct = (currentTorrent && currentTorrent.files && currentTorrent.files[0])
+                    ? (currentTorrent.files[0].progress * 100).toFixed(1)
+                    : '0';
                 alert(`Could not extract book from available blocks (${downloadPct}% downloaded)\n\n${error.message}\n\nTry again as more data downloads, or wait until download is complete.`);
             }
         }

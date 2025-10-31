@@ -144,6 +144,86 @@
         .book-item a.disabled:hover {
             opacity: 1;
         }
+        .download-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #4a4a4a;
+            margin-bottom: 0.5rem;
+        }
+        .download-status {
+            font-size: 0.9rem;
+            color: #555;
+            margin-bottom: 0.75rem;
+        }
+        .download-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .download-metrics .metric {
+            background: #f3f4ff;
+            border-radius: 0.4rem;
+            padding: 0.5rem 0.65rem;
+        }
+        .metric-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #6b6b6b;
+        }
+        .metric-value {
+            font-weight: 600;
+            color: #323c88;
+            margin-top: 0.2rem;
+            font-size: 0.95rem;
+        }
+        .download-meta {
+            display: grid;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .download-meta code {
+            display: block;
+            padding: 0.35rem 0.5rem;
+            background: #f8f8ff;
+            border-radius: 0.35rem;
+            word-break: break-all;
+        }
+        .meta-row {
+            display: grid;
+            gap: 0.25rem;
+        }
+        .meta-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: #8a8a8a;
+        }
+        .piece-map-container {
+            margin-top: 0.75rem;
+        }
+        .piece-map-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            color: #8a8a8a;
+            margin-bottom: 0.35rem;
+        }
+        .piece-map {
+            display: grid;
+            grid-template-columns: repeat(25, 14px);
+            gap: 4px;
+        }
+        .piece-map div {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            background: #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -155,6 +235,45 @@
         </div>
         <div id="infoHashLine" style="font-size: 0.8rem; color: #888; margin-top: 0.25rem; word-break: break-all;">
             InfoHash: —
+        </div>
+    </div>
+
+    <div class="card" id="downloadCard">
+        <div class="download-card-header">
+            <span>⬇️ Downloads</span>
+        </div>
+        <div id="downloadStatusLine" class="download-status">No active downloads yet.</div>
+        <div class="download-metrics">
+            <div class="metric">
+                <div class="metric-label">Archive</div>
+                <div class="metric-value" id="downloadArchive">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Speed</div>
+                <div class="metric-value" id="downloadSpeed">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Peers</div>
+                <div class="metric-value" id="downloadPeers">—</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Uploaded</div>
+                <div class="metric-value" id="downloadUpload">—</div>
+            </div>
+        </div>
+        <div class="download-meta">
+            <div class="meta-row">
+                <span class="meta-label">InfoHash</span>
+                <code id="downloadInfoHash">—</code>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">Magnet</span>
+                <code id="downloadMagnet">—</code>
+            </div>
+        </div>
+        <div id="pieceMapContainer" class="piece-map-container" style="display:none;">
+            <div class="piece-map-label">Pieces</div>
+            <div id="pieceMap" class="piece-map"></div>
         </div>
     </div>
 
@@ -227,6 +346,7 @@
         let localArchiveFile = null;
         let catalogBooks = []; // Store parsed catalog books
         let currentInfoHash = null;
+        let activeDownload = { magnet: null };
         const seenTorrentWarnings = new Set();
         const FALLBACK_TRACKERS = [
             'wss://tracker.openwebtorrent.com',
@@ -278,6 +398,7 @@
             } else {
                 infoHashEl.textContent = 'InfoHash: —';
             }
+            refreshDownloadCard();
         }
 
         function isArchiveReady() {
@@ -337,6 +458,69 @@
                 return decodeURIComponent(magnetLink);
             } catch (error) {
                 return magnetLink;
+            }
+        }
+
+        function truncateMiddle(value, maxLength = 70) {
+            if (!value) return '';
+            if (value.length <= maxLength) return value;
+            const half = Math.floor((maxLength - 3) / 2);
+            return `${value.slice(0, half)}...${value.slice(-half)}`;
+        }
+
+        function updateDownloadStatus(message) {
+            const statusEl = document.getElementById('downloadStatusLine');
+            if (statusEl) {
+                statusEl.textContent = message;
+            }
+        }
+
+        function refreshDownloadCard() {
+            const archiveEl = document.getElementById('downloadArchive');
+            const speedEl = document.getElementById('downloadSpeed');
+            const peersEl = document.getElementById('downloadPeers');
+            const uploadEl = document.getElementById('downloadUpload');
+            const magnetEl = document.getElementById('downloadMagnet');
+            const infoHashEl = document.getElementById('downloadInfoHash');
+            const pieceMapEl = document.getElementById('pieceMap');
+
+            if (!archiveEl || !speedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl) {
+                return;
+            }
+
+            if (currentTorrent) {
+                const totalBytes = currentTorrent.length || 0;
+                const downloadedBytes = currentTorrent.downloaded || 0;
+                const uploadedBytes = currentTorrent.uploaded || 0;
+                const speedBytes = currentTorrent.downloadSpeed || 0;
+                const progressPercent = totalBytes ? ((downloadedBytes / totalBytes) * 100) : 0;
+
+                archiveEl.textContent = totalBytes
+                    ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} (${progressPercent.toFixed(1)}%)`
+                    : `${formatBytes(downloadedBytes)}`;
+                speedEl.textContent = speedBytes ? `${formatBytes(speedBytes)}/s` : '0 B/s';
+                peersEl.textContent = `${currentTorrent.numPeers} peer${currentTorrent.numPeers === 1 ? '' : 's'}`;
+                uploadEl.textContent = formatBytes(uploadedBytes);
+                infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+
+                updatePieceMap(currentTorrent);
+            } else if (localArchiveFile) {
+                archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
+                speedEl.textContent = '—';
+                peersEl.textContent = '—';
+                uploadEl.textContent = '—';
+                infoHashEl.textContent = currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : 'Local file';
+                updatePieceMap(null);
+            } else {
+                archiveEl.textContent = '—';
+                speedEl.textContent = '—';
+                peersEl.textContent = '—';
+                uploadEl.textContent = '—';
+                infoHashEl.textContent = currentInfoHash || '—';
+                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+                updatePieceMap(null);
             }
         }
 
@@ -481,6 +665,8 @@
             setBackgroundFromHash(sourceHash);
             console.log(`🎨 Color seed from source hash: ${sourceHash}`);
 
+            refreshDownloadCard();
+            updateDownloadStatus('No active downloads yet.');
             loadCatalog(); // Auto-load catalog
         });
 
@@ -595,6 +781,9 @@
 
                     // Store the magnet link for later use
                     loadedMagnetLink = magnetLink;
+                    activeDownload.magnet = magnetLink;
+                    refreshDownloadCard();
+                    updateDownloadStatus('Torrent file loaded. Click "Start Download" to connect.');
 
                     // Show magnet link in input
                     document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
@@ -665,11 +854,15 @@
             html += `<strong>🌊 WebTorrent Files:</strong><br>`;
             if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
                 currentTorrent.files.forEach((file, idx) => {
-                    const progress = (file.progress * 100).toFixed(1);
+                    const displayName = file.path || file.name || '(unnamed file)';
+                    const progress = file.progress !== undefined ? (file.progress * 100).toFixed(1) : '0.0';
+                    const statusLabel = file.progress === 1 ? 'complete' : 'partial';
+                    const downloadedSize = typeof file.downloaded === 'number' ? formatBytes(file.downloaded) : '—';
+                    const totalSize = typeof file.length === 'number' ? formatBytes(file.length) : '—';
                     html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
-                    html += `${idx + 1}. ${file.name}<br>`;
-                    html += `   Size: ${formatBytes(file.length)} | Progress: ${progress}%<br>`;
-                    html += `   Downloaded: ${formatBytes(file.downloaded)}<br>`;
+                    html += `${idx + 1}. ${displayName}<br>`;
+                    html += `   Status: ${statusLabel} | Size: ${totalSize} | Progress: ${progress}%<br>`;
+                    html += `   Downloaded: ${downloadedSize}<br>`;
                     html += `</div>`;
                 });
             } else {
@@ -740,42 +933,46 @@
         }
 
         let pieceMapInitialized = false;
-        function updatePieceMap(pieces) {
+        function updatePieceMap(torrent) {
             const pieceMap = document.getElementById('pieceMap');
-            const totalPieces = pieces.length;
+            const pieceContainer = document.getElementById('pieceMapContainer');
+            if (!pieceMap || !pieceContainer) return;
 
-            // Group into chunks of ~26 pieces each (1301/50 = 26)
-            const numBlocks = 50;
+            if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
+                pieceContainer.style.display = 'none';
+                pieceMap.innerHTML = '';
+                pieceMapInitialized = false;
+                return;
+            }
+
+            const totalPieces = torrent.bitfield.length;
+            const numBlocks = Math.min(50, totalPieces);
             const piecesPerBlock = Math.ceil(totalPieces / numBlocks);
 
-            // Initialize on first call
-            if (!pieceMapInitialized) {
+            if (!pieceMapInitialized || pieceMap.children.length !== numBlocks) {
                 pieceMapInitialized = true;
                 pieceMap.innerHTML = '';
 
                 for (let i = 0; i < numBlocks; i++) {
-                    const block = document.createElement('div');
-                    block.style.cssText = 'width: 16px; height: 16px; background: #e0e0e0; border-radius: 2px;';
-                    block.dataset.index = i;
-                    pieceMap.appendChild(block);
+                    pieceMap.appendChild(document.createElement('div'));
                 }
             }
 
-            // Update colors based on completion of each group
+            pieceContainer.style.display = '';
+
             const children = pieceMap.children;
             for (let i = 0; i < children.length; i++) {
                 const startPiece = i * piecesPerBlock;
                 const endPiece = Math.min(startPiece + piecesPerBlock, totalPieces);
 
-                // Check how many pieces in this group are complete
                 let complete = 0;
                 for (let j = startPiece; j < endPiece; j++) {
-                    if (pieces[j]) complete++;
+                    if (torrent.bitfield.get(j)) complete++;
                 }
 
-                const percentComplete = complete / (endPiece - startPiece);
+                const blockSize = Math.max(1, endPiece - startPiece);
+                const percentComplete = complete / blockSize;
 
-                // Color based on completion: green if 100%, yellow if partial, gray if 0%
                 if (percentComplete === 1) {
                     children[i].style.background = '#4caf50';
                 } else if (percentComplete > 0) {
@@ -796,6 +993,8 @@
             const sanitizedMagnet = sanitizeMagnet(magnetLink);
             const trackersFromMagnet = extractTrackersFromMagnet(sanitizedMagnet);
             const effectiveMagnet = sanitizedMagnet;
+            activeDownload.magnet = effectiveMagnet;
+            refreshDownloadCard();
 
             if (!loadedMagnetLink && normalizedMagnet && normalizedMagnet !== effectiveMagnet) {
                 document.getElementById('magnetInput').value = magnetForDisplay(effectiveMagnet);
@@ -809,6 +1008,13 @@
                 log('🧹 Stopping previous torrent session');
                 currentTorrent.destroy();
                 currentTorrent = null;
+                pieceMapInitialized = false;
+                const pieceMapEl = document.getElementById('pieceMap');
+                if (pieceMapEl) pieceMapEl.innerHTML = '';
+                const pieceContainer = document.getElementById('pieceMapContainer');
+                if (pieceContainer) pieceContainer.style.display = 'none';
+                updateDownloadStatus('Stopping previous download…');
+                refreshDownloadCard();
             }
 
             if (torrentStatsInterval) {
@@ -816,6 +1022,7 @@
                 torrentStatsInterval = null;
             }
             updateInfoHashDisplay(null);
+            updateDownloadStatus('⚙️ Preparing download...');
 
             if (loadedMagnetLink) {
                 log('📥 Starting WebTorrent download with loaded .torrent file...');
@@ -834,6 +1041,12 @@
             }
 
             currentTorrent = client.add(effectiveMagnet, torrentOptions);
+            pieceMapInitialized = false;
+            const pieceMapEl = document.getElementById('pieceMap');
+            if (pieceMapEl) pieceMapEl.innerHTML = '';
+            const pieceContainer = document.getElementById('pieceMapContainer');
+            if (pieceContainer) pieceContainer.style.display = 'none';
+            updateDownloadStatus('🔍 Waiting for metadata...');
 
             currentTorrent.on('metadata', () => {
                 log(`✅ Got torrent metadata`);
@@ -846,6 +1059,8 @@
                     updateInfoHashDisplay(currentTorrent.infoHash);
                     log(`🧭 InfoHash: ${currentTorrent.infoHash}`);
                 }
+                updateDownloadStatus('📦 Metadata received. Downloading pieces...');
+                refreshDownloadCard();
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
@@ -854,6 +1069,7 @@
             currentTorrent.on('wire', (wire, addr) => {
                 const peerLabel = describePeerConnection(wire, addr);
                 log(`🔗 Peer connected: ${peerLabel} | Total: ${currentTorrent.numPeers}`);
+                refreshDownloadCard();
             });
 
             torrentStatsInterval = window.setInterval(() => {
@@ -879,7 +1095,8 @@
                 } else {
                     statusMsg = `✅ Complete! ${totalSize} • Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
                 }
-                updateStatus(statusMsg);
+                updateDownloadStatus(statusMsg);
+                refreshDownloadCard();
             }, 1000);
 
             currentTorrent.on('done', () => {
@@ -887,14 +1104,17 @@
                     clearInterval(torrentStatsInterval);
                     torrentStatsInterval = null;
                 }
-                updateStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
+                updateDownloadStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
                 document.getElementById('readabilityWarning').style.display = 'none';
                 showLibrary();
+                refreshDownloadCard();
             });
 
             currentTorrent.on('error', (err) => {
                 log(`❌ Error: ${err.message}`);
                 console.error('Torrent error:', err);
+                updateDownloadStatus(`❌ Error: ${err.message}`);
+                refreshDownloadCard();
                 if (torrentStatsInterval) {
                     clearInterval(torrentStatsInterval);
                     torrentStatsInterval = null;
@@ -906,6 +1126,9 @@
             updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
             document.getElementById('readabilityWarning').style.display = 'none';
             showLibrary();
+            activeDownload.magnet = null;
+            refreshDownloadCard();
+            updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
         }
 
         function showLibrary() {
@@ -914,6 +1137,14 @@
 
             // Show warning if catalog loaded but no way to read books yet
             const canReadBooks = isArchiveReady();
+
+            if (totalBooks > 0) {
+                if (canReadBooks) {
+                    updateStatus(`✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`);
+                } else {
+                    updateStatus(`📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`);
+                }
+            }
 
             if (totalBooks > 0 && !canReadBooks) {
                 document.getElementById('readabilityWarning').style.display = 'block';

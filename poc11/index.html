@@ -237,6 +237,48 @@
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
 
+        // Load saved background color on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadBackgroundColor();
+        });
+
+        function hashToColor(hash) {
+            // Convert InfoHash to two colors for gradient
+            if (!hash || hash.length < 40) {
+                return null;
+            }
+
+            // Use first 6 chars for color1, chars 20-26 for color2
+            const color1 = '#' + hash.substring(0, 6);
+            const color2 = '#' + hash.substring(20, 26);
+
+            return { color1, color2 };
+        }
+
+        function setBackgroundFromHash(hash) {
+            const colors = hashToColor(hash);
+            if (!colors) return;
+
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            // Save to localStorage
+            localStorage.setItem('poc11_bg_color', JSON.stringify(colors));
+
+            log(`🎨 Background color set from InfoHash: ${colors.color1} → ${colors.color2}`);
+        }
+
+        function loadBackgroundColor() {
+            const saved = localStorage.getItem('poc11_bg_color');
+            if (!saved) return;
+
+            const colors = JSON.parse(saved);
+            const gradient = `linear-gradient(135deg, ${colors.color1} 0%, ${colors.color2} 100%)`;
+            document.body.style.background = gradient;
+
+            console.log(`🎨 Loaded background color: ${colors.color1} → ${colors.color2}`);
+        }
+
         async function loadCatalog() {
             log('📚 Loading book catalog (GUTINDEX.ALL.new - 8.8MB)...');
             document.getElementById('loadCatalogBtn').disabled = true;
@@ -302,6 +344,9 @@
                     // Show magnet link in input (read-only)
                     document.getElementById('magnetInput').value = magnetLink;
                     document.getElementById('magnetInput').style.fontSize = '0.75rem';
+
+                    // Set background color from InfoHash
+                    setBackgroundFromHash(infoHash);
 
                     // Destroy temp torrent (we'll re-add with actual download)
                     torrent.destroy();
@@ -382,6 +427,9 @@
                 log(`✅ Got torrent metadata`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
+
+                // Set background color from InfoHash
+                setBackgroundFromHash(currentTorrent.infoHash);
             });
 
             currentTorrent.on('wire', (wire, addr) => {

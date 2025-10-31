@@ -291,6 +291,17 @@
 
             let trimmed = magnetLink.trim();
 
+            if (/%[0-9a-fA-F]{2}/.test(trimmed)) {
+                try {
+                    const decoded = decodeURIComponent(trimmed);
+                    if (decoded) {
+                        trimmed = decoded;
+                    }
+                } catch (error) {
+                    console.warn('Failed to decode magnet components, keeping original string', error);
+                }
+            }
+
             if (trimmed.startsWith('magnet:?')) {
                 return trimmed;
             }
@@ -318,6 +329,15 @@
             }
 
             return trimmed;
+        }
+
+        function magnetForDisplay(magnetLink) {
+            if (!magnetLink) return '';
+            try {
+                return decodeURIComponent(magnetLink);
+            } catch (error) {
+                return magnetLink;
+            }
         }
 
         function sanitizeMagnet(magnetLink) {
@@ -542,7 +562,7 @@
                     loadedMagnetLink = magnetLink;
 
                     // Show magnet link in input
-                    document.getElementById('magnetInput').value = magnetLink;
+                    document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
                     document.getElementById('magnetInput').style.fontSize = '0.75rem';
 
                     // Set background color from InfoHash
@@ -743,7 +763,7 @@
             const effectiveMagnet = sanitizedMagnet;
 
             if (!loadedMagnetLink && normalizedMagnet && normalizedMagnet !== effectiveMagnet) {
-                document.getElementById('magnetInput').value = effectiveMagnet;
+                document.getElementById('magnetInput').value = magnetForDisplay(effectiveMagnet);
             }
 
             if (sanitizedMagnet !== magnetLink) {

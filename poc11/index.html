@@ -241,9 +241,8 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 loadedTorrentFile = new Uint8Array(e.target.result);
-                document.getElementById('magnetInput').value = `[.torrent file: ${file.name}]`;
-                document.getElementById('magnetInput').disabled = true;
-                log(`✅ Torrent file loaded: ${file.name}`);
+                document.getElementById('magnetInput').placeholder = `Using .torrent file: ${file.name}`;
+                log(`✅ Torrent file loaded: ${file.name} (magnet link will be ignored)`);
             };
             reader.readAsArrayBuffer(file);
         }

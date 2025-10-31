@@ -600,29 +600,20 @@
                 const speed = formatBytes(currentTorrent.downloadSpeed);
                 const peers = currentTorrent.numPeers;
 
-                // Use both verified progress and piece count for accurate status
-                const verifiedProgress = Math.round(currentTorrent.progress * 100);
-                const pieces = currentTorrent.pieces ? currentTorrent.pieces.filter(p => p).length : 0;
-                const totalPieces = currentTorrent.pieces ? currentTorrent.pieces.length : 0;
-                const downloadedProgress = totalPieces > 0 ? Math.round((pieces / totalPieces) * 100) : 0;
+                // Calculate REAL progress from actual bytes
+                const downloadedBytes = currentTorrent.downloaded;
+                const totalBytes = currentTorrent.length;
+                const realProgress = totalBytes > 0 ? Math.round((downloadedBytes / totalBytes) * 100) : 0;
 
-                const downloaded = formatBytes(currentTorrent.downloaded);
-                const totalSize = formatBytes(currentTorrent.length);
+                const downloaded = formatBytes(downloadedBytes);
+                const totalSize = formatBytes(totalBytes);
                 const uploaded = formatBytes(currentTorrent.uploaded);
-                const ratio = currentTorrent.downloaded > 0 ? (currentTorrent.uploaded / currentTorrent.downloaded).toFixed(2) : '0.00';
 
                 let statusMsg = '';
-                if (verifiedProgress === 0 && peers === 0) {
+                if (realProgress === 0 && peers === 0) {
                     statusMsg = '🔍 Searching for peers... (check if torrent has seeders!)';
-                } else if (verifiedProgress < 100) {
-                    // If all pieces downloaded but not verified, just say verifying
-                    if (pieces === totalPieces && verifiedProgress === 0) {
-                        statusMsg = `⏳ Verifying all pieces... • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
-                    } else if (downloadedProgress > verifiedProgress) {
-                        statusMsg = `⬇️ ${downloadedProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
-                    } else {
-                        statusMsg = `⬇️ ${verifiedProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
-                    }
+                } else if (realProgress < 100) {
+                    statusMsg = `⬇️ ${realProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                 } else {
                     statusMsg = `✅ Complete! ${totalSize} • Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
                 }

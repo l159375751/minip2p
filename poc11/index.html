@@ -286,6 +286,40 @@
             return false;
         }
 
+        function normalizeMagnet(magnetLink) {
+            if (!magnetLink) return magnetLink;
+
+            let trimmed = magnetLink.trim();
+
+            if (trimmed.startsWith('magnet:?')) {
+                return trimmed;
+            }
+
+            if (trimmed.startsWith('magnet:')) {
+                const rest = trimmed.slice('magnet:'.length);
+                if (rest.startsWith('?')) {
+                    return `magnet:${rest}`;
+                }
+                return `magnet:?${rest.replace(/^\?+/, '')}`;
+            }
+
+            if (trimmed.startsWith('?')) {
+                return `magnet:${trimmed}`;
+            }
+
+            if (trimmed.startsWith('xt=')) {
+                return `magnet:?${trimmed}`;
+            }
+
+            // If it's just a bare info hash, build a minimal magnet
+            const infoHashMatch = trimmed.match(/^[0-9a-fA-F]{40}$/);
+            if (infoHashMatch) {
+                return `magnet:?xt=urn:btih:${trimmed}`;
+            }
+
+            return trimmed;
+        }
+
         function sanitizeMagnet(magnetLink) {
             if (!magnetLink || !magnetLink.includes('?')) {
                 return magnetLink;
@@ -702,10 +736,15 @@
         function startDownload() {
             // Get magnet link from input or use loaded magnet or default
             const magnetInput = document.getElementById('magnetInput').value.trim();
-            const magnetLink = loadedMagnetLink || magnetInput || DEFAULT_MAGNET;
+            const normalizedMagnet = normalizeMagnet(magnetInput);
+            const magnetLink = loadedMagnetLink || normalizedMagnet || DEFAULT_MAGNET;
             const sanitizedMagnet = sanitizeMagnet(magnetLink);
             const trackersFromMagnet = extractTrackersFromMagnet(sanitizedMagnet);
             const effectiveMagnet = sanitizedMagnet;
+
+            if (!loadedMagnetLink && normalizedMagnet && normalizedMagnet !== effectiveMagnet) {
+                document.getElementById('magnetInput').value = effectiveMagnet;
+            }
 
             if (sanitizedMagnet !== magnetLink) {
                 log('🧹 Deduplicated tracker list to stay under browser limits');

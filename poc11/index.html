@@ -1266,9 +1266,15 @@
             const container = document.getElementById('downloadedFiles');
             if (!container) return;
 
-            if (!torrent || !torrent.files || torrent.files.length === 0) {
+            if (!torrent || !torrent.files) {
                 container.style.display = 'none';
                 container.innerHTML = '';
+                return;
+            }
+
+            if (torrent.files.length === 0) {
+                container.style.display = '';
+                container.innerHTML = '<div style="color:#999;">Torrent active, awaiting file list…</div>';
                 return;
             }
 

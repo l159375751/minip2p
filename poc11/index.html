@@ -534,16 +534,16 @@
                 updatePieceMap(currentTorrent);
                 const statusEl = document.getElementById('downloadStatusLine');
                 if (statusEl) {
-                    const totalBlocks = pieceProgress.totalBlocks || currentTorrent.pieces.length;
+                    const totalBlocks = pieceProgress.totalBlocks || Math.min(50, currentTorrent.pieces.length);
                     const verifiedBlocks = pieceProgress.blocksComplete || 0;
-                    if (pieceProgress.firstVerifiedBlock || pieceProgress.nextPartialBlock) {
-                        const hint = pieceProgress.nextPartialBlock
-                            ? `block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`
-                            : `block ${pieceProgress.firstVerifiedBlock}`;
-                        statusEl.textContent = `⬇️ Blocks: ${verifiedBlocks}/${totalBlocks} ready • focusing ${hint}`;
-                    } else {
-                        statusEl.textContent = `⬇️ Blocks: ${verifiedBlocks}/${totalBlocks} ready`;
+                    const partialBlocks = pieceProgress.blocksPartial || 0;
+                    let focusText = 'initializing pieces…';
+                    if (pieceProgress.nextPartialBlock) {
+                        focusText = `focusing block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`;
+                    } else if (pieceProgress.firstVerifiedBlock) {
+                        focusText = `verified up to block ${pieceProgress.firstVerifiedBlock}`;
                     }
+                    statusEl.textContent = `⬇️ ${progressPercent.toFixed(1)}% • blocks ${verifiedBlocks}/${totalBlocks} ready (${partialBlocks} partial) • ${focusText}`;
                 }
             } else if (localArchiveFile) {
                 archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
@@ -989,7 +989,10 @@
         const pieceProgress = {
             firstVerifiedBlock: null,
             nextPartialBlock: null,
-            nextPartialPercent: 0
+            nextPartialPercent: 0,
+            blocksComplete: 0,
+            blocksPartial: 0,
+            totalBlocks: 0
         };
         function updatePieceMap(torrent) {
             const pieceMap = document.getElementById('pieceMap');
@@ -1006,6 +1009,9 @@
                 pieceProgress.firstVerifiedBlock = null;
                 pieceProgress.nextPartialBlock = null;
                 pieceProgress.nextPartialPercent = 0;
+                pieceProgress.blocksComplete = 0;
+                pieceProgress.blocksPartial = 0;
+                pieceProgress.totalBlocks = 0;
                 pieceMapInitialized = false;
                 return;
             }
@@ -1099,6 +1105,7 @@
             pieceProgress.nextPartialBlock = firstPartialIndex !== -1 ? firstPartialIndex + 1 : null;
             pieceProgress.nextPartialPercent = firstPartialIndex !== -1 ? (blockPercents[firstPartialIndex] * 100) : 0;
             pieceProgress.blocksComplete = blocksComplete;
+            pieceProgress.blocksPartial = blocksPartial;
             pieceProgress.totalBlocks = blockStates.length;
 
             if (!isArchiveReady()) {

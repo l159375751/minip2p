@@ -560,6 +560,19 @@
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
 
                 updatePieceMap(currentTorrent);
+                const statusEl = document.getElementById('downloadStatusLine');
+                if (statusEl) {
+                    const totalBlocks = pieceProgress.totalBlocks || Math.min(50, currentTorrent.pieces.length);
+                    const verifiedBlocks = pieceProgress.blocksComplete || 0;
+                    const partialBlocks = pieceProgress.blocksPartial || 0;
+                    let focusText = 'initializing pieces…';
+                    if (pieceProgress.nextPartialBlock) {
+                        focusText = `focusing block ${pieceProgress.nextPartialBlock} (${pieceProgress.nextPartialPercent.toFixed(0)}%)`;
+                    } else if (pieceProgress.firstVerifiedBlock) {
+                        focusText = `verified up to block ${pieceProgress.firstVerifiedBlock}`;
+                    }
+                    statusEl.textContent = `⬇️ ${progressPercent.toFixed(1)}% • blocks ${verifiedBlocks}/${totalBlocks} ready (${partialBlocks} partial) • ${focusText}`;
+                }
             } else if (localArchiveFile) {
                 archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
                 speedEl.textContent = '—';
@@ -568,6 +581,7 @@
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : 'Local file';
                 updatePieceMap(null);
+                updateDownloadStatus('📁 Local archive loaded.');
             } else {
                 archiveEl.textContent = '—';
                 speedEl.textContent = '—';
@@ -576,6 +590,7 @@
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
                 updatePieceMap(null);
+                updateDownloadStatus('No active downloads.');
             }
         }
 
@@ -1027,6 +1042,11 @@
                 pieceProgress.firstVerifiedBlock = null;
                 pieceProgress.nextPartialBlock = null;
                 pieceProgress.nextPartialPercent = 0;
+                pieceProgress.blocksComplete = 0;
+                pieceProgress.blocksPartial = 0;
+                pieceProgress.totalBlocks = 0;
+                pieceProgress.totalPieces = 0;
+                pieceProgress.piecesPerBlock = 0;
                 pieceMapInitialized = false;
                 return;
             }

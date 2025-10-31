@@ -230,7 +230,35 @@
                 <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">
                     Save this .torrent file to seed instantly without rehashing!
                 </p>
+
+                <h3 style="margin: 1.5rem 0 0.5rem 0;">🔗 Connected Peers (<span id="peerListCount">0</span>):</h3>
+                <div id="peerList" style="background: #f8f9ff; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #667eea; max-height: 300px; overflow-y: auto;">
+                    <div style="color: #666; font-size: 0.9rem;">No peers connected yet...</div>
+                </div>
             </div>
+        </div>
+
+        <div class="card" id="debugCard" style="display: none;">
+            <h2>🔍 Debug Info</h2>
+            <details style="margin-bottom: 1rem;">
+                <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: #f0f0f0; border-radius: 0.25rem;">Torrent Stats</summary>
+                <div style="margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem; background: #f9f9f9; padding: 1rem; border-radius: 0.25rem;">
+                    <div><strong>Progress:</strong> <span id="debugProgress">0%</span></div>
+                    <div><strong>Ratio:</strong> <span id="debugRatio">0.00</span></div>
+                    <div><strong>Download Speed:</strong> <span id="debugDownSpeed">0 B/s</span></div>
+                    <div><strong>Upload Speed:</strong> <span id="debugUpSpeed">0 B/s</span></div>
+                    <div><strong>Downloaded:</strong> <span id="debugDownloaded">0 B</span></div>
+                    <div><strong>Uploaded:</strong> <span id="debugUploaded">0 B</span></div>
+                    <div><strong>Wire Count:</strong> <span id="debugWires">0</span></div>
+                    <div><strong>Queued Peers:</strong> <span id="debugQueued">0</span></div>
+                </div>
+            </details>
+            <details>
+                <summary style="cursor: pointer; font-weight: bold; padding: 0.5rem; background: #f0f0f0; border-radius: 0.25rem;">Tracker Status</summary>
+                <div id="trackerStatus" style="margin-top: 0.5rem; font-family: monospace; font-size: 0.85rem; background: #f9f9f9; padding: 1rem; border-radius: 0.25rem;">
+                    No tracker info yet...
+                </div>
+            </details>
         </div>
 
         <div class="card">
@@ -321,14 +349,35 @@
 
                 document.getElementById('torrentStatus').textContent = '✅ Seeding active - ready for peers';
                 document.getElementById('torrentResult').style.display = 'block';
+                document.getElementById('debugCard').style.display = 'block';
                 document.getElementById('magnetLink').textContent = torrent.magnetURI;
                 document.getElementById('infoHash').textContent = torrent.infoHash;
 
+                // Update stats every second
                 setInterval(() => {
+                    // Main stats
                     document.getElementById('peerCount').textContent = torrent.numPeers;
                     document.getElementById('uploadSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
                     document.getElementById('uploaded').textContent = formatBytes(torrent.uploaded);
+
+                    // Debug stats
+                    document.getElementById('debugProgress').textContent = (torrent.progress * 100).toFixed(1) + '%';
+                    document.getElementById('debugRatio').textContent = torrent.uploaded / torrent.downloaded || 0;
+                    document.getElementById('debugDownSpeed').textContent = formatBytes(torrent.downloadSpeed) + '/s';
+                    document.getElementById('debugUpSpeed').textContent = formatBytes(torrent.uploadSpeed) + '/s';
+                    document.getElementById('debugDownloaded').textContent = formatBytes(torrent.downloaded);
+                    document.getElementById('debugUploaded').textContent = formatBytes(torrent.uploaded);
+                    document.getElementById('debugWires').textContent = torrent.wires.length;
+                    document.getElementById('debugQueued').textContent = torrent._numQueued || 0;
+
+                    // Update peer list
+                    updatePeerList(torrent);
                 }, 1000);
+
+                // Update tracker status
+                setInterval(() => {
+                    updateTrackerStatus(torrent);
+                }, 5000);
 
                 torrent.on('wire', (wire, addr) => {
                     log(`🔗 Peer connected: ${addr}`);
@@ -393,6 +442,59 @@
 
             log(`💾 Downloaded ${a.download}`);
             alert(`Torrent file downloaded: ${a.download}`);
+        }
+
+        function updatePeerList(torrent) {
+            const peerListEl = document.getElementById('peerList');
+            const peers = torrent.wires;
+
+            document.getElementById('peerListCount').textContent = peers.length;
+
+            if (peers.length === 0) {
+                peerListEl.innerHTML = '<div style="color: #666; font-size: 0.9rem;">No peers connected yet...</div>';
+                return;
+            }
+
+            let html = '<div style="font-family: monospace; font-size: 0.85rem;">';
+            peers.forEach((wire, idx) => {
+                const addr = wire.remoteAddress || 'unknown';
+                const type = wire.type || 'unknown';
+                const downSpeed = formatBytes(wire.downloadSpeed || 0) + '/s';
+                const upSpeed = formatBytes(wire.uploadSpeed || 0) + '/s';
+                const downloaded = formatBytes(wire.downloaded || 0);
+                const uploaded = formatBytes(wire.uploaded || 0);
+
+                html += `
+                    <div style="padding: 0.5rem; margin: 0.25rem 0; background: white; border-radius: 0.25rem; border-left: 3px solid ${type === 'webrtc' ? '#10b981' : '#3b82f6'};">
+                        <div style="font-weight: bold;">#${idx + 1}: ${addr}</div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 0.25rem;">
+                            Type: ${type.toUpperCase()} | ↓ ${downSpeed} (${downloaded}) | ↑ ${upSpeed} (${uploaded})
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            peerListEl.innerHTML = html;
+        }
+
+        function updateTrackerStatus(torrent) {
+            const trackerEl = document.getElementById('trackerStatus');
+            let html = '';
+
+            if (torrent._trackers && torrent._trackers.length > 0) {
+                torrent._trackers.forEach((tracker, idx) => {
+                    const announceUrl = tracker.announceUrl || tracker.announce || 'unknown';
+                    const peers = tracker.peers || 0;
+                    html += `<div style="margin: 0.25rem 0;">
+                        <strong>${idx + 1}.</strong> ${announceUrl}<br>
+                        <span style="color: #666; font-size: 0.8rem;">Peers: ${peers}</span>
+                    </div>`;
+                });
+            } else {
+                html = '<div style="color: #666;">No active trackers</div>';
+            }
+
+            trackerEl.innerHTML = html;
         }
 
         function formatBytes(bytes) {

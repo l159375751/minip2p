@@ -116,9 +116,44 @@
     <h1>📚 POC11 - Progressive Library Builder</h1>
 
     <div class="card">
-        <h2>📥 Step 1: Download Gutenberg Collection</h2>
-        <p>Download the complete Project Gutenberg text collection (11GB) via WebTorrent P2P.</p>
-        <button id="downloadBtn" onclick="startDownload()">Start Download</button>
+        <h2>📥 Step 1: Load Gutenberg Collection</h2>
+        <p>Choose how to load the Project Gutenberg text collection (11GB):</p>
+
+        <div style="margin-bottom: 1.5rem;">
+            <label style="display: block; margin-bottom: 0.5rem;">
+                <input type="radio" name="loadMethod" value="download" checked onchange="updateLoadMethod()">
+                Download via WebTorrent P2P
+            </label>
+            <label style="display: block; margin-bottom: 0.5rem;">
+                <input type="radio" name="loadMethod" value="local" onchange="updateLoadMethod()">
+                Load from Local File (.tar.gz)
+            </label>
+        </div>
+
+        <div id="downloadMethod" style="display: block;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Magnet Link or .torrent file:</label>
+                <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:... or leave blank for default"
+                    style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem; font-family: monospace; font-size: 0.85rem;">
+                <div style="margin-top: 0.5rem;">
+                    <button onclick="document.getElementById('torrentFileInput').click()"
+                        style="width: auto; padding: 0.5rem 1rem; font-size: 0.9rem; margin: 0;">
+                        📁 Or Select .torrent File
+                    </button>
+                    <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
+                </div>
+            </div>
+            <button id="downloadBtn" onclick="startDownload()">Start Download</button>
+        </div>
+
+        <div id="localMethod" style="display: none;">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Select Local Archive:</label>
+                <input type="file" id="localFileInput" accept=".tar.gz,.tar"
+                    style="width: 100%; padding: 0.75rem; border: 2px solid #667eea; border-radius: 0.5rem;">
+            </div>
+            <button id="loadLocalBtn" onclick="loadLocalFile()">Load Local File</button>
+        </div>
 
         <div id="downloadProgress" style="display: none;">
             <div class="progress-container">
@@ -180,11 +215,58 @@
     <script>
         const client = new WebTorrent();
         let currentTorrent = null;
+        let loadedTorrentFile = null;
+        let localArchiveFile = null;
 
-        // Use tar.gz magnet link (will be created after conversion)
-        const MAGNET_LINK = 'magnet:?xt=urn:btih:969e7f838a2f03f414dbc1d5555c669aedaa4db9&dn=gutenberg-txt-files.tar.zip';
+        // Default magnet link for tar.gz
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:969e7f838a2f03f414dbc1d5555c669aedaa4db9&dn=gutenberg-txt-files.tar.zip';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        function updateLoadMethod() {
+            const method = document.querySelector('input[name="loadMethod"]:checked').value;
+            if (method === 'download') {
+                document.getElementById('downloadMethod').style.display = 'block';
+                document.getElementById('localMethod').style.display = 'none';
+            } else {
+                document.getElementById('downloadMethod').style.display = 'none';
+                document.getElementById('localMethod').style.display = 'block';
+            }
+        }
+
+        function handleTorrentFile(file) {
+            if (!file) return;
+            log(`🔥 Loading .torrent file: ${file.name}`);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                loadedTorrentFile = new Uint8Array(e.target.result);
+                document.getElementById('magnetInput').value = `[.torrent file: ${file.name}]`;
+                document.getElementById('magnetInput').disabled = true;
+                log(`✅ Torrent file loaded: ${file.name}`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function loadLocalFile() {
+            const fileInput = document.getElementById('localFileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file first');
+                return;
+            }
+
+            localArchiveFile = file;
+            log(`📁 Loading local file: ${file.name} (${formatBytes(file.size)})`);
+            log(`🔓 Starting extraction...`);
+
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('loadLocalBtn').disabled = true;
+
+            // Skip download, go straight to extraction
+            processLocalArchive(file);
+        }
 
         function log(message) {
             const logEl = document.getElementById('log');
@@ -216,13 +298,21 @@
         }
 
         function startDownload() {
-            log('📥 Starting WebTorrent download...');
-            log(`🔗 Magnet: ${MAGNET_LINK.substring(0, 80)}...`);
+            // Get magnet link from input or use default
+            const magnetInput = document.getElementById('magnetInput').value.trim();
+            const magnetLink = loadedTorrentFile ? loadedTorrentFile : (magnetInput || DEFAULT_MAGNET);
+
+            if (loadedTorrentFile) {
+                log('📥 Starting WebTorrent download with .torrent file...');
+            } else {
+                log('📥 Starting WebTorrent download...');
+                log(`🔗 Magnet: ${magnetLink.substring(0, 80)}...`);
+            }
 
             document.getElementById('downloadBtn').disabled = true;
             document.getElementById('downloadProgress').style.display = 'block';
 
-            currentTorrent = client.add(MAGNET_LINK, {
+            currentTorrent = client.add(magnetLink, {
                 path: '/downloads'
             });
 
@@ -263,6 +353,19 @@
                 log(`❌ Error: ${err.message}`);
                 console.error('Torrent error:', err);
             });
+        }
+
+        function processLocalArchive(file) {
+            log('🔓 Processing local archive...');
+            document.getElementById('extractCard').style.display = 'block';
+            document.getElementById('extractStatus').textContent = 'Reading local archive...';
+
+            // For now, skip extraction and go to ingestion simulation
+            // TODO: Implement actual tar.gz reading with streaming
+            setTimeout(() => {
+                log('✅ Archive loaded!');
+                startIngestion();
+            }, 2000);
         }
 
         function startExtraction() {

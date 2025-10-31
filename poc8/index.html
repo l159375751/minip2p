@@ -532,42 +532,59 @@
             reader.onload = (e) => {
                 try {
                     const arrayBuffer = e.target.result;
-                    loadedTorrentFile = new Uint8Array(arrayBuffer);
+                    const buffer = new Uint8Array(arrayBuffer);
+
+                    log(`📝 File size: ${buffer.length} bytes`);
+
+                    // Store for later use
+                    loadedTorrentFile = buffer;
 
                     // Parse torrent file to extract metadata using WebTorrent
-                    client.add(loadedTorrentFile, (torrent) => {
-                        log(`✅ Torrent file parsed successfully`);
-                        log(`📝 Name: ${torrent.name}`);
-                        log(`🔗 InfoHash: ${torrent.infoHash}`);
-                        log(`📊 Size: ${formatBytes(torrent.length)}`);
+                    // Pass buffer directly without options
+                    try {
+                        client.add(buffer, (torrent) => {
+                            log(`✅ Torrent file parsed successfully`);
+                            log(`📝 Name: ${torrent.name}`);
+                            log(`🔗 InfoHash: ${torrent.infoHash}`);
+                            log(`📊 Size: ${formatBytes(torrent.length)}`);
 
-                        document.getElementById('torrentName').textContent = torrent.name;
-                        document.getElementById('torrentInfoHash').textContent = torrent.infoHash;
-                        document.getElementById('torrentInfo').style.display = 'block';
-                        document.getElementById('fileInfo').style.display = 'none';
+                            document.getElementById('torrentName').textContent = torrent.name;
+                            document.getElementById('torrentInfoHash').textContent = torrent.infoHash;
+                            document.getElementById('torrentInfo').style.display = 'block';
+                            document.getElementById('fileInfo').style.display = 'none';
 
-                        // Remove the torrent after parsing (we'll re-add it with the actual file later)
-                        torrent.destroy();
+                            // Remove the torrent after parsing (we'll re-add it with the actual file later)
+                            torrent.destroy();
 
-                        seedMode = 'seed';
+                            seedMode = 'seed';
 
-                        if (selectedFile) {
-                            // If data file already selected, update UI
-                            document.getElementById('torrentCard').style.display = 'block';
-                            document.getElementById('torrentCardTitle').textContent = '2. Seed with Loaded Torrent';
-                            document.getElementById('createBtn').textContent = '🚀 Start Seeding (No Hashing Needed!)';
-                            document.getElementById('torrentStatus').textContent = 'Ready to seed with loaded .torrent file';
-                            log(`🔥 Ready to seed ${selectedFile.name} using this .torrent file`);
-                        } else {
-                            log(`⚠️ Now select the data file that matches this torrent`);
-                        }
-                    });
+                            if (selectedFile) {
+                                // If data file already selected, update UI
+                                document.getElementById('torrentCard').style.display = 'block';
+                                document.getElementById('torrentCardTitle').textContent = '2. Seed with Loaded Torrent';
+                                document.getElementById('createBtn').textContent = '🚀 Start Seeding (No Hashing Needed!)';
+                                document.getElementById('torrentStatus').textContent = 'Ready to seed with loaded .torrent file';
+                                log(`🔥 Ready to seed ${selectedFile.name} using this .torrent file`);
+                            } else {
+                                log(`⚠️ Now select the data file that matches this torrent`);
+                            }
+                        });
+                    } catch (addError) {
+                        log(`❌ WebTorrent error: ${addError.message}`);
+                        console.error('WebTorrent add error:', addError);
+                        log(`💡 Your torrent file might be corrupted or invalid`);
+                    }
 
                 } catch (error) {
-                    log(`❌ Error parsing .torrent file: ${error.message}`);
-                    console.error('Torrent parse error:', error);
+                    log(`❌ Error reading .torrent file: ${error.message}`);
+                    console.error('Torrent read error:', error);
                 }
             };
+
+            reader.onerror = () => {
+                log(`❌ Failed to read file: ${reader.error}`);
+            };
+
             reader.readAsArrayBuffer(file);
         }
 

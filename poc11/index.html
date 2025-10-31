@@ -606,6 +606,8 @@
                 const totalPieces = currentTorrent.pieces ? currentTorrent.pieces.length : 0;
                 const downloadedProgress = totalPieces > 0 ? Math.round((pieces / totalPieces) * 100) : 0;
 
+                const downloaded = formatBytes(currentTorrent.downloaded);
+                const totalSize = formatBytes(currentTorrent.length);
                 const uploaded = formatBytes(currentTorrent.uploaded);
                 const ratio = currentTorrent.downloaded > 0 ? (currentTorrent.uploaded / currentTorrent.downloaded).toFixed(2) : '0.00';
 
@@ -615,14 +617,14 @@
                 } else if (verifiedProgress < 100) {
                     // If all pieces downloaded but not verified, just say verifying
                     if (pieces === totalPieces && verifiedProgress === 0) {
-                        statusMsg = `⏳ Verifying all pieces... • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                        statusMsg = `⏳ Verifying all pieces... • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                     } else if (downloadedProgress > verifiedProgress) {
-                        statusMsg = `⬇️ ${downloadedProgress}% (${pieces}/${totalPieces} pieces, ${verifiedProgress}% verified) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
+                        statusMsg = `⬇️ ${downloadedProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                     } else {
-                        statusMsg = `⬇️ ${verifiedProgress}% (${pieces}/${totalPieces} pieces) • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''} • ratio: ${ratio}`;
+                        statusMsg = `⬇️ ${verifiedProgress}% • ${downloaded} / ${totalSize} • ${speed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`;
                     }
                 } else {
-                    statusMsg = `✅ Complete! Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
+                    statusMsg = `✅ Complete! ${totalSize} • Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
                 }
                 updateStatus(statusMsg);
             }, 1000);

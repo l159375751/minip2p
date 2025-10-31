@@ -117,10 +117,13 @@
     <h1>📚 POC11 - Progressive Library Builder</h1>
 
     <div class="card">
-        <h2>📥 Step 1: Load Gutenberg Catalog</h2>
-        <p>First, load the book catalog (GUTINDEX - 8.8MB) to browse titles:</p>
-        <button id="loadCatalogBtn" onclick="loadCatalog()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-            📚 Load Book Catalog (8.8MB)
+        <h2>📥 Step 1: Load Gutenberg Catalog (Optional)</h2>
+        <p>Optionally load the book catalog (GUTINDEX - 8.8MB) to browse ~70k titles before downloading:</p>
+        <button id="loadCatalogBtn" onclick="loadCatalog()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); width: auto; padding: 0.75rem 1.5rem; margin-right: 1rem;">
+            📚 Load Catalog (8.8MB)
+        </button>
+        <button onclick="skipCatalog()" style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); width: auto; padding: 0.75rem 1.5rem;">
+            ⏭️ Skip to Download
         </button>
         <div id="catalogStatus" style="display: none; margin-top: 1rem;">
             <div class="status">
@@ -130,8 +133,8 @@
     </div>
 
     <div class="card" id="downloadCard" style="display: none;">
-        <h2>📥 Step 2: Download Book Files</h2>
-        <p>Choose how to load the Project Gutenberg text collection (11GB):</p>
+        <h2 id="downloadCardTitle">📥 Step 2: Download Book Files</h2>
+        <p>Choose how to load the Project Gutenberg text collection (.tar.gz - 11GB):</p>
 
         <div style="margin-bottom: 1.5rem;">
             <label style="display: block; margin-bottom: 0.5rem;">
@@ -233,9 +236,15 @@
         let localArchiveFile = null;
 
         // Default magnet link for tar.gz
-        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:969e7f838a2f03f414dbc1d5555c669aedaa4db9&dn=gutenberg-txt-files.tar.zip';
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:ed94f7e361061afb11122cf2d5ebcaf0cefad73f&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev';
 
         console.log('%c📚 POC11 - Progressive Library Builder', 'background: #667eea; color: white; font-size: 14px; font-weight: bold; padding: 4px 8px; border-radius: 4px;');
+
+        function skipCatalog() {
+            log('⏭️ Skipping catalog, going straight to download...');
+            document.getElementById('downloadCard').style.display = 'block';
+            document.getElementById('downloadCardTitle').textContent = '📥 Download Book Files';
+        }
 
         async function loadCatalog() {
             log('📚 Loading book catalog (GUTINDEX.ALL.new - 8.8MB)...');

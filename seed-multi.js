@@ -28,7 +28,8 @@ const torrentsFile = process.argv[2] || 'torrents.txt'
 
 if (!fs.existsSync(torrentsFile)) {
   console.error(`❌ File not found: ${torrentsFile}`)
-  console.log(`\nCreate ${torrentsFile} with one magnet link or infohash per line.`)
+  console.log(`\nCreate ${torrentsFile} with one magnet link or infohash per line.`) // Corrected: \n to 
+
   process.exit(1)
 }
 
@@ -39,7 +40,8 @@ const lines = content.split('\n')
 
 if (lines.length === 0) {
   console.error(`❌ No torrents found in ${torrentsFile}`)
-  console.log(`\nAdd magnet links or infohashes to ${torrentsFile}, one per line.`)
+  console.log(`\nAdd magnet links or infohashes to ${torrentsFile}, one per line.`) // Corrected: \n to 
+
   process.exit(1)
 }
 
@@ -88,8 +90,8 @@ lines.forEach((line, idx) => {
 
   console.log(`\n[${idx + 1}/${lines.length}] Adding torrent...`)
   console.log(`🔗 ${magnetLink.substring(0, 80)}...`)
-
   console.log(`Adding magnet: ${magnetLink}`);
+
   // Add magnet link with path to seed local files
   const torrent = client.add(magnetLink, { path: '/data' })
 
@@ -137,7 +139,7 @@ setInterval(() => {
   })
 
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`)
-}, 30000)
+}, 300000)
 
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B'

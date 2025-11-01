@@ -1267,8 +1267,8 @@
             if (pieceContainer) pieceContainer.style.display = 'none';
             updateDownloadStatus('🔍 Waiting for metadata...');
 
-            currentTorrent.on('metadata', () => {
-                log(`✅ Got torrent metadata`);
+            currentTorrent.on('ready', () => {
+                log(`✅ Torrent ready!`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
                 log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);

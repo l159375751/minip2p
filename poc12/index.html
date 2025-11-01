@@ -760,7 +760,8 @@
 
         function refreshDownloadCard() {
             const archiveEl = document.getElementById('downloadArchive');
-            const speedEl = document.getElementById('downloadSpeed');
+            const dlSpeedEl = document.getElementById('downloadSpeed');
+            const ulSpeedEl = document.getElementById('downloadUploadSpeed');
             const peersEl = document.getElementById('downloadPeers');
             const uploadEl = document.getElementById('downloadUpload');
             const magnetEl = document.getElementById('downloadMagnet');
@@ -769,7 +770,7 @@
 
             const totalSizeEl = document.getElementById('downloadTotalSize');
 
-            if (!archiveEl || !speedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl || !totalSizeEl) {
+            if (!archiveEl || !dlSpeedEl || !ulSpeedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl || !totalSizeEl) {
                 return;
             }
 
@@ -777,13 +778,15 @@
                 const totalBytes = currentTorrent.length || 0;
                 const downloadedBytes = currentTorrent.downloaded || 0;
                 const uploadedBytes = currentTorrent.uploaded || 0;
-                const speedBytes = currentTorrent.downloadSpeed || 0;
+                const downloadSpeedBytes = currentTorrent.downloadSpeed || 0;
+                const uploadSpeedBytes = currentTorrent.uploadSpeed || 0;
                 const progressPercent = totalBytes ? ((downloadedBytes / totalBytes) * 100) : 0;
 
                 archiveEl.textContent = totalBytes
                     ? `${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)} (${progressPercent.toFixed(1)}%)`
                     : `${formatBytes(downloadedBytes)}`;
-                speedEl.textContent = speedBytes ? `${formatBytes(speedBytes)}/s` : '0 B/s';
+                dlSpeedEl.textContent = downloadSpeedBytes ? `${formatBytes(downloadSpeedBytes)}/s` : '0 B/s';
+                ulSpeedEl.textContent = uploadSpeedBytes ? `${formatBytes(uploadSpeedBytes)}/s` : '0 B/s';
                 peersEl.textContent = `${currentTorrent.numPeers} peer${currentTorrent.numPeers === 1 ? '' : 's'}`;
                 uploadEl.textContent = formatBytes(uploadedBytes);
                 infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
@@ -794,7 +797,8 @@
 
             } else if (localArchiveFile) {
                 archiveEl.textContent = `${localArchiveFile.name} (${formatBytes(localArchiveFile.size)})`;
-                speedEl.textContent = '—';
+                dlSpeedEl.textContent = '—';
+                ulSpeedEl.textContent = '—';
                 peersEl.textContent = '—';
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
@@ -804,7 +808,8 @@
                 updateDownloadStatus('📁 Local archive loaded.');
             } else {
                 archiveEl.textContent = '—';
-                speedEl.textContent = '—';
+                dlSpeedEl.textContent = '—';
+                ulSpeedEl.textContent = '—';
                 peersEl.textContent = '—';
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
@@ -1852,14 +1857,15 @@
 
                 const peers = currentTorrent.numPeers;
                 const uploaded = formatBytes(currentTorrent.uploaded);
+                const downloadSpeed = currentTorrent.downloadSpeed ? formatBytes(currentTorrent.downloadSpeed) : '0 B';
                 const uploadSpeed = currentTorrent.uploadSpeed ? formatBytes(currentTorrent.uploadSpeed) : '0 B';
-                    const downloaded = formatBytes(currentTorrent.downloaded);
-                    const progress = currentTorrent.progress ? (currentTorrent.progress * 100).toFixed(1) : '0.0';
+                const downloaded = formatBytes(currentTorrent.downloaded);
+                const progress = currentTorrent.progress ? (currentTorrent.progress * 100).toFixed(1) : '0.0';
 
-                    if (currentTorrent.progress < 1) {
-                        updateDownloadStatus(`⬇️ Downloading: ${progress}% • ${downloaded} / ${formatBytes(currentTorrent.length)} • ${peers} peer${peers !== 1 ? 's' : ''}`);
-                    } else {
-                        updateDownloadStatus(`🌱 Seeding • ${uploaded} uploaded • ${uploadSpeed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`);
+                if (currentTorrent.progress < 1) {
+                    updateDownloadStatus(`⬇️ Downloading: ${progress}% • ${downloaded} / ${formatBytes(currentTorrent.length)} • ⬇️ ${downloadSpeed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`);
+                } else {
+                    updateDownloadStatus(`🌱 Seeding • ⬆️ ${uploaded} total • ⬆️ ${uploadSpeed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`);
                 }
                 refreshDownloadCard();
             }, 1000);

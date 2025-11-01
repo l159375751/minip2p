@@ -313,6 +313,38 @@
         </div>
     </div>
 
+    <div class="card" style="padding: 1.25rem; margin-bottom: 1rem; background: rgba(76, 175, 80, 0.08);">
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #2e7d32;">🌱 Seed Complete File</h2>
+        <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: #555;">
+            Already have the complete file? Load both the .torrent and .tar.gz files to become a full seeder and help the network!
+        </p>
+        <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: rgba(255,255,255,0.7); border-radius: 0.25rem; font-size: 0.8rem;">
+            <div style="margin-bottom: 0.35rem;">
+                <strong>1. Torrent file:</strong> <span id="seedTorrentStatus" style="color: #999;">Not loaded</span>
+            </div>
+            <div>
+                <strong>2. Content file:</strong> <span id="seedContentStatus" style="color: #999;">Not loaded</span>
+            </div>
+        </div>
+        <div id="seedDebugPanel" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-family: monospace; font-size: 0.75rem; max-height: 300px; overflow-y: auto;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; color: #2e7d32;">🔬 Torrent Metadata:</div>
+            <div id="seedDebugContent"></div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <button onclick="document.getElementById('seedTorrentInput').click()" style="flex: 1; background: #43a047;">
+                📄 Load .torrent
+            </button>
+            <button onclick="document.getElementById('seedContentInput').click()" style="flex: 1; background: #43a047;">
+                📦 Load .tar.gz
+            </button>
+            <input type="file" id="seedTorrentInput" accept=".torrent" style="display: none;" onchange="handleSeedTorrentFile(this.files[0])">
+            <input type="file" id="seedContentInput" accept=".tar.gz,.tar" style="display: none;" onchange="handleSeedContentFile(this.files[0])">
+        </div>
+        <button id="startSeedingBtn" onclick="startSeeding()" style="background: #2e7d32; width: 100%;" disabled>
+            🚀 Start Seeding
+        </button>
+    </div>
+
     <div style="margin-bottom: 1rem;">
         <input type="text" id="searchBox" placeholder="Search books by title or author..."
             style="width: 100%; padding: 0.75rem; border: 2px solid #e0e0e0; border-radius: 0.5rem; font-size: 0.95rem;">
@@ -360,6 +392,11 @@
         let torrentStatsInterval = null;
         let loadedMagnetLink = null; // Store magnet link from .torrent file
         let localArchiveFile = null;
+
+        // Seeding state
+        let seedTorrentFile = null;      // Loaded .torrent file for seeding
+        let seedContentFile = null;      // Loaded content file for seeding
+        let seedTorrentMetadata = null;  // Parsed torrent metadata
         let catalogBooks = []; // Store parsed catalog books
         let currentInfoHash = null;
         let catalogSummary = {
@@ -872,6 +909,273 @@
             processLocalArchive(file);
         }
 
+        // Seeding functions
+        function handleSeedTorrentFile(file) {
+            if (!file) return;
+            if (!client) {
+                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                return;
+            }
+            log(`🌱 Loading .torrent file for seeding: ${file.name}`);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const torrentBuffer = new Uint8Array(e.target.result);
+
+                // Parse torrent to get metadata
+                client.add(torrentBuffer, (torrent) => {
+                    seedTorrentMetadata = {
+                        infoHash: torrent.infoHash,
+                        magnetURI: torrent.magnetURI,
+                        name: torrent.name,
+                        files: torrent.files.map(f => ({ name: f.name, length: f.length, path: f.path })),
+                        announce: torrent.announce,
+                        pieceLength: torrent.pieceLength,
+                        lastPieceLength: torrent.lastPieceLength,
+                        pieces: torrent.pieces ? torrent.pieces.length : 0,
+                        length: torrent.length,
+                        created: torrent.created,
+                        createdBy: torrent.createdBy,
+                        comment: torrent.comment
+                    };
+                    seedTorrentFile = file;
+
+                    log(`✅ Torrent metadata loaded: ${torrent.name}`);
+                    log(`🔗 InfoHash: ${torrent.infoHash}`);
+
+                    const statusEl = document.getElementById('seedTorrentStatus');
+                    if (statusEl) {
+                        statusEl.textContent = `✅ ${file.name}`;
+                        statusEl.style.color = '#2e7d32';
+                    }
+
+                    // Show debug panel with technical details
+                    displaySeedDebugInfo(seedTorrentMetadata);
+
+                    // Destroy temp torrent
+                    torrent.destroy();
+
+                    // Check if we can enable seeding button
+                    checkSeedingReady();
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function displaySeedDebugInfo(meta) {
+            const panel = document.getElementById('seedDebugPanel');
+            const content = document.getElementById('seedDebugContent');
+
+            if (!panel || !content) return;
+
+            let html = '<div style="line-height: 1.6;">';
+
+            // InfoHash
+            html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">InfoHash:</strong><br>`;
+            html += `<span style="color: #1976d2;">${meta.infoHash}</span></div>`;
+
+            // Name
+            html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">Name:</strong><br>`;
+            html += `${meta.name}</div>`;
+
+            // Total Size
+            html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">Total Size:</strong> `;
+            html += `${formatBytes(meta.length)}</div>`;
+
+            // Piece Info
+            html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">Pieces:</strong> `;
+            html += `${meta.pieces} pieces × ${formatBytes(meta.pieceLength)}`;
+            if (meta.lastPieceLength && meta.lastPieceLength !== meta.pieceLength) {
+                html += ` (last: ${formatBytes(meta.lastPieceLength)})`;
+            }
+            html += `</div>`;
+
+            // Files
+            html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">Files:</strong> ${meta.files.length} file${meta.files.length !== 1 ? 's' : ''}</div>`;
+            if (meta.files.length <= 10) {
+                meta.files.forEach((f, idx) => {
+                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #666;">`;
+                    html += `${idx + 1}. ${f.path || f.name} (${formatBytes(f.length)})</div>`;
+                });
+            } else {
+                html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #666;">`;
+                html += `(${meta.files.length} files - showing first 3)</div>`;
+                meta.files.slice(0, 3).forEach((f, idx) => {
+                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #666;">`;
+                    html += `${idx + 1}. ${f.path || f.name} (${formatBytes(f.length)})</div>`;
+                });
+            }
+
+            // Trackers
+            if (meta.announce && meta.announce.length > 0) {
+                html += `<div style="margin-bottom: 0.5rem; margin-top: 0.5rem;"><strong style="color: #d32f2f;">Trackers:</strong> ${meta.announce.length}</div>`;
+                meta.announce.slice(0, 5).forEach((tracker, idx) => {
+                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #666;">${idx + 1}. ${tracker}</div>`;
+                });
+                if (meta.announce.length > 5) {
+                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #999;">... and ${meta.announce.length - 5} more</div>`;
+                }
+            }
+
+            // Creation Info
+            if (meta.created) {
+                html += `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ddd;">`;
+                html += `<strong style="color: #d32f2f;">Created:</strong> ${new Date(meta.created).toLocaleString()}</div>`;
+            }
+            if (meta.createdBy) {
+                html += `<div style="margin-top: 0.25rem;"><strong style="color: #d32f2f;">Created By:</strong> ${meta.createdBy}</div>`;
+            }
+            if (meta.comment) {
+                html += `<div style="margin-top: 0.25rem;"><strong style="color: #d32f2f;">Comment:</strong> ${meta.comment}</div>`;
+            }
+
+            // Magnet URI (truncated)
+            html += `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ddd;">`;
+            html += `<strong style="color: #d32f2f;">Magnet URI:</strong><br>`;
+            html += `<span style="font-size: 0.65rem; word-break: break-all; color: #1976d2;">${meta.magnetURI.substring(0, 150)}...</span></div>`;
+
+            html += '</div>';
+
+            content.innerHTML = html;
+            panel.style.display = 'block';
+
+            log(`📊 Debug panel updated with ${meta.pieces} pieces, ${meta.files.length} files, ${meta.announce.length} trackers`);
+        }
+
+        function handleSeedContentFile(file) {
+            if (!file) return;
+            seedContentFile = file;
+            log(`🌱 Loading content file for seeding: ${file.name} (${formatBytes(file.size)})`);
+
+            const statusEl = document.getElementById('seedContentStatus');
+            if (statusEl) {
+                statusEl.textContent = `✅ ${file.name} (${formatBytes(file.size)})`;
+                statusEl.style.color = '#2e7d32';
+            }
+
+            // Check if we can enable seeding button
+            checkSeedingReady();
+        }
+
+        function checkSeedingReady() {
+            const btn = document.getElementById('startSeedingBtn');
+            if (seedTorrentFile && seedContentFile && seedTorrentMetadata && btn) {
+                btn.disabled = false;
+                log(`✅ Ready to seed! Both files loaded.`);
+            }
+        }
+
+        function startSeeding() {
+            if (!client) {
+                alert('WebTorrent is not available in this browser.');
+                return;
+            }
+
+            if (!seedTorrentFile || !seedContentFile || !seedTorrentMetadata) {
+                alert('Please load both the .torrent file and the content file first.');
+                return;
+            }
+
+            log(`🚀 Starting to seed: ${seedTorrentMetadata.name}`);
+            log(`📦 File size: ${formatBytes(seedContentFile.size)}`);
+            log(`🔗 InfoHash: ${seedTorrentMetadata.infoHash}`);
+
+            // Stop any existing torrent
+            if (currentTorrent) {
+                log('🧹 Stopping previous torrent session');
+                currentTorrent.destroy();
+                currentTorrent = null;
+            }
+
+            if (torrentStatsInterval) {
+                clearInterval(torrentStatsInterval);
+                torrentStatsInterval = null;
+            }
+
+            // Use the content file as the archive - this makes books readable
+            localArchiveFile = seedContentFile;
+            processLocalArchive(seedContentFile);
+
+            // Read the torrent file and add it to WebTorrent
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const torrentBuffer = new Uint8Array(e.target.result);
+
+                log(`📡 Adding torrent to announce seeding...`);
+
+                // Add the torrent (this will start downloading, but we already have the file)
+                // WebTorrent will verify pieces and announce to trackers that we're seeding
+                currentTorrent = client.add(torrentBuffer, {
+                    path: '/downloads',
+                    maxWebConns: 10
+                });
+
+                log(`✅ Torrent added, waiting for metadata...`);
+
+                // Wait for metadata
+                currentTorrent.on('metadata', () => {
+                    log(`✅ Metadata received, InfoHash: ${currentTorrent.infoHash}`);
+                    log(`📦 Size: ${formatBytes(currentTorrent.length)}, Pieces: ${currentTorrent.pieces.length}`);
+
+                    // Update UI
+                    updateInfoHashDisplay(currentTorrent.infoHash);
+                    setBackgroundFromHash(currentTorrent.infoHash);
+                    activeDownload.magnet = currentTorrent.magnetURI;
+                    document.getElementById('magnetInput').value = magnetForDisplay(currentTorrent.magnetURI);
+                    updateDownloadStatus(`🌱 Verifying local file... This may take a while.`);
+                    refreshDownloadCard();
+
+                    log(`⚠️ Note: WebTorrent will download the file again (it can't use your local file directly)`);
+                    log(`💡 Once complete, it will automatically seed to other peers`);
+                });
+
+                // Setup event handlers
+                currentTorrent.on('wire', (wire, addr) => {
+                    const peerLabel = describePeerConnection(wire, addr);
+                    log(`🔗 Peer connected: ${peerLabel} | Total: ${currentTorrent.numPeers}`);
+                    refreshDownloadCard();
+                });
+
+                currentTorrent.on('download', (bytes) => {
+                    // Downloads are happening
+                });
+
+                currentTorrent.on('upload', (bytes) => {
+                    log(`⬆️ Uploaded ${formatBytes(bytes)} to peers`);
+                });
+
+                currentTorrent.on('done', () => {
+                    log(`✅ Download/verification complete! Now seeding to ${currentTorrent.numPeers} peers`);
+                    updateDownloadStatus(`🌱 Seeding complete file to peers`);
+                });
+
+                currentTorrent.on('error', (err) => {
+                    log(`❌ Seeding error: ${err.message}`);
+                    console.error('Seeding error:', err);
+                    updateDownloadStatus(`❌ Error: ${err.message}`);
+                });
+
+                // Update stats periodically
+                torrentStatsInterval = setInterval(() => {
+                    if (!currentTorrent) return;
+
+                    const peers = currentTorrent.numPeers;
+                    const uploaded = formatBytes(currentTorrent.uploaded);
+                    const uploadSpeed = currentTorrent.uploadSpeed ? formatBytes(currentTorrent.uploadSpeed) : '0 B';
+                    const downloaded = formatBytes(currentTorrent.downloaded);
+                    const progress = currentTorrent.progress ? (currentTorrent.progress * 100).toFixed(1) : '0.0';
+
+                    if (currentTorrent.progress < 1) {
+                        updateDownloadStatus(`⬇️ Downloading: ${progress}% • ${downloaded} / ${formatBytes(currentTorrent.length)} • ${peers} peer${peers !== 1 ? 's' : ''}`);
+                    } else {
+                        updateDownloadStatus(`🌱 Seeding • ${uploaded} uploaded • ${uploadSpeed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`);
+                    }
+                    refreshDownloadCard();
+                }, 1000);
+            };
+            reader.readAsArrayBuffer(seedTorrentFile);
+        }
+
         function log(message) {
             const logEl = document.getElementById('log');
             const entry = document.createElement('div');
@@ -904,7 +1208,30 @@
                 }
             }
 
-            // 2. WebTorrent Files
+            // 2. Local Loaded Files
+            html += `<div style="margin-bottom: 1rem;">`;
+            html += `<strong>📁 Local Files:</strong><br>`;
+            if (localArchiveFile) {
+                const cachedBooksCount = catalogBooks.filter(b => b.cached).length;
+                html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                html += `1. ${localArchiveFile.name}<br>`;
+                html += `   Status: loaded | Size: ${formatBytes(localArchiveFile.size)}<br>`;
+                html += `   Type: ${localArchiveFile.type || 'application/gzip'}<br>`;
+                if (cachedBooksCount > 0) {
+                    html += `   Cached Books: ${cachedBooksCount} books extracted<br>`;
+                }
+                html += `</div>`;
+            } else if (seedContentFile) {
+                html += `<div style="margin-left: 1rem; margin-top: 0.25rem;">`;
+                html += `1. ${seedContentFile.name} (seeding)<br>`;
+                html += `   Status: seeding | Size: ${formatBytes(seedContentFile.size)}<br>`;
+                html += `</div>`;
+            } else {
+                html += `<div style="margin-left: 1rem; color: #999;">No local files loaded</div>`;
+            }
+            html += `</div>`;
+
+            // 3. WebTorrent Files
             html += `<div style="margin-bottom: 1rem;">`;
             html += `<strong>🌊 WebTorrent Files:</strong><br>`;
             if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
@@ -927,7 +1254,7 @@
             }
             html += `</div>`;
 
-            // 3. LocalStorage
+            // 4. LocalStorage
             html += `<div style="margin-bottom: 1rem;">`;
             html += `<strong>🗄️ LocalStorage (${localStorage.length} items):</strong><br>`;
             if (localStorage.length > 0) {
@@ -944,7 +1271,7 @@
             }
             html += `</div>`;
 
-            // 4. IndexedDB Databases
+            // 5. IndexedDB Databases
             html += `<div style="margin-bottom: 1rem;">`;
             html += `<strong>🗃️ IndexedDB:</strong><br>`;
             if (indexedDB.databases) {
@@ -1119,6 +1446,124 @@
             updateDownloadedFilesView(torrent);
         }
 
+        // Progressive extraction function
+        async function attemptProgressiveExtraction(file, downloadedBytes) {
+            try {
+                log(`🔬 Reading ${formatBytes(downloadedBytes)} of downloaded data...`);
+
+                // Read the downloaded portion of the file
+                const stream = file.createReadStream({ start: 0, end: downloadedBytes });
+                const chunks = [];
+                let totalRead = 0;
+
+                for await (const chunk of stream) {
+                    chunks.push(chunk);
+                    totalRead += chunk.length;
+                    if (totalRead >= downloadedBytes) break;
+                }
+
+                if (chunks.length === 0) {
+                    log(`⚠️ No data available yet`);
+                    return;
+                }
+
+                // Combine chunks
+                const combinedBuffer = new Uint8Array(totalRead);
+                let offset = 0;
+                for (const chunk of chunks) {
+                    combinedBuffer.set(chunk, offset);
+                    offset += chunk.length;
+                }
+
+                log(`🗜️ Attempting gzip decompression on ${formatBytes(totalRead)}...`);
+
+                // Try to decompress
+                let decompressed;
+                try {
+                    decompressed = pako.ungzip(combinedBuffer);
+                } catch (e) {
+                    // Partial gzip - use inflate with option to handle incomplete data
+                    log(`⚠️ Partial gzip data, using chunked decompression...`);
+                    try {
+                        const inflator = new pako.Inflate({ raw: false, to: 'uint8array' });
+                        inflator.push(combinedBuffer, false); // Don't signal end
+                        if (inflator.err) {
+                            log(`⚠️ Decompression incomplete: ${inflator.msg}`);
+                            return;
+                        }
+                        decompressed = inflator.result;
+                    } catch (e2) {
+                        log(`❌ Decompression failed: ${e2.message}`);
+                        return;
+                    }
+                }
+
+                if (!decompressed || decompressed.length === 0) {
+                    log(`⚠️ No decompressed data available yet`);
+                    return;
+                }
+
+                log(`✅ Decompressed ${formatBytes(decompressed.length)} of tar data`);
+                log(`📖 Extracting books from partial tar archive...`);
+
+                // Extract complete books from the decompressed tar data
+                const extractedCount = await extractBooksFromPartialTar(decompressed);
+
+                if (extractedCount > 0) {
+                    const cachedCount = catalogBooks.filter(b => b.cached).length;
+                    log(`✅ Extracted ${extractedCount} new books! Total cached: ${cachedCount} books`);
+                    updateStatus(`✅ ${cachedCount} books cached and ready to read • Download continuing...`);
+                    showLibrary(); // Update the UI
+                } else {
+                    log(`ℹ️ No new complete books found in this chunk`);
+                }
+
+            } catch (error) {
+                log(`❌ Progressive extraction error: ${error.message}`);
+                console.error('Progressive extraction error:', error);
+            }
+        }
+
+        // Extract complete books from partial tar data
+        async function extractBooksFromPartialTar(tarData) {
+            try {
+                // Parse tar headers and extract complete files
+                const files = await untar(tarData.buffer);
+                let newBooksCount = 0;
+
+                for (const file of files) {
+                    // Look for .txt files that match book pattern
+                    if (file.name.endsWith('.txt') && file.name.includes('pg')) {
+                        // Extract etext number
+                        const match = file.name.match(/pg(\d+)\.txt/);
+                        if (match) {
+                            const etextNo = match[1];
+
+                            // Find book in catalog
+                            const book = catalogBooks.find(b => b.etextNo === etextNo);
+                            if (book && !book.cached) {
+                                // Decode content
+                                const content = new TextDecoder('utf-8').decode(file.buffer);
+
+                                // Store in memory
+                                book.content = content;
+                                book.cached = true;
+                                newBooksCount++;
+
+                                // Optionally store in IndexedDB for persistence
+                                // (we'll implement this next)
+                            }
+                        }
+                    }
+                }
+
+                return newBooksCount;
+            } catch (error) {
+                console.error('Tar extraction error:', error);
+                return 0;
+            }
+        }
+
         function startDownload() {
             if (!client) {
                 alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
@@ -1202,12 +1647,36 @@
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);
+
+                // Enable sequential downloading for progressive extraction
+                if (currentTorrent.files.length > 0) {
+                    const mainFile = currentTorrent.files[0];
+                    mainFile.select(0); // Highest priority for sequential pieces
+                    log(`🎯 Sequential downloading enabled for progressive extraction`);
+                }
             });
 
             currentTorrent.on('wire', (wire, addr) => {
                 const peerLabel = describePeerConnection(wire, addr);
                 log(`🔗 Peer connected: ${peerLabel} | Total: ${currentTorrent.numPeers}`);
                 refreshDownloadCard();
+            });
+
+            // Progressive extraction: triggered as pieces download
+            let lastExtractionAttempt = 0;
+            currentTorrent.on('download', (bytes) => {
+                if (!currentTorrent || !currentTorrent.files || currentTorrent.files.length === 0) return;
+
+                const mainFile = currentTorrent.files[0];
+                const downloadedBytes = mainFile.downloaded || 0;
+                const downloadedMB = downloadedBytes / (1024 * 1024);
+
+                // Try progressive extraction every 10MB downloaded
+                if (downloadedMB - lastExtractionAttempt >= 10) {
+                    lastExtractionAttempt = downloadedMB;
+                    log(`📚 Attempting progressive extraction at ${downloadedMB.toFixed(1)} MB downloaded...`);
+                    attemptProgressiveExtraction(mainFile, downloadedBytes);
+                }
             });
 
             torrentStatsInterval = window.setInterval(() => {
@@ -1269,6 +1738,7 @@
             activeDownload.magnet = null;
             refreshDownloadCard();
             updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
+            refreshBrowserFilesystem(); // Show the loaded file in browser storage view
         }
 
         function refreshCatalogCard() {
@@ -1444,14 +1914,24 @@
                 author.style.color = '#666';
 
                 const title = document.createElement('div');
-                title.textContent = book.title;
+                // Show cached indicator if book is already extracted
+                if (book.cached) {
+                    title.textContent = `💾 ${book.title}`;
+                    title.style.color = '#2e7d32'; // Green for cached
+                } else {
+                    title.textContent = book.title;
+                }
 
                 const link = document.createElement('a');
                 link.href = '#';
-                link.textContent = '→';
+                link.textContent = book.cached ? '✓' : '→';
+                if (book.cached) {
+                    link.style.color = '#2e7d32';
+                    link.style.fontWeight = 'bold';
+                }
                 link.onclick = (e) => {
                     e.preventDefault();
-                    if (!isArchiveReady()) {
+                    if (!isArchiveReady() && !book.cached) {
                         alert('Archive not ready yet. Finish download or load a local Gutenberg archive first.');
                         return;
                     }
@@ -1469,6 +1949,13 @@
             log(`📖 Opening "${book.title}"...`);
 
             try {
+                // Check if book is already cached in memory from progressive extraction
+                if (book.cached && book.content) {
+                    log(`💾 Loading from cache (no extraction needed)`);
+                    displayBook(book, book.content);
+                    return;
+                }
+
                 if (!isArchiveReady()) {
                     throw new Error('Archive not ready yet. Download must finish or a local file must be loaded.');
                 }
@@ -1600,6 +2087,9 @@
         window.handleTorrentFile = handleTorrentFile;
         window.loadLocalFile = loadLocalFile;
         window.refreshBrowserFilesystem = refreshBrowserFilesystem;
+        window.handleSeedTorrentFile = handleSeedTorrentFile;
+        window.handleSeedContentFile = handleSeedContentFile;
+        window.startSeeding = startSeeding;
 
         log('✅ Ready to download Gutenberg collection');
         log('💡 Click "Start Download" to begin');

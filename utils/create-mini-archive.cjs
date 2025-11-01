@@ -1,83 +1,65 @@
 #!/usr/bin/env node
 
-/**
- * Build a mini Gutenberg archive (~10 MB) using real sample texts.
- * Copies data from poc1's sample files and repeats them to reach ~1 MB per entry.
- *
- * Output: mini-gutenberg-10mb.tar.gz in repo root (ignored via .gitignore)
- */
-
 const fs = require('fs');
 const path = require('path');
-const { gzipSync } = require('zlib');
-const tar = require('tar-stream');
+const os = require('os');
+const { spawnSync } = require('child_process');
 
 const SAMPLE_FILES = [
-  { id: 11, title: "Alice's Adventures in Wonderland", file: 'alice.txt' },
-  { id: 1342, title: 'Pride and Prejudice', file: 'pride.txt' },
-  { id: 84, title: 'Frankenstein', file: 'frankenstein.txt' },
-  { id: 345, title: 'Dracula', file: 'dracula.txt' },
-  { id: 1661, title: 'The Adventures of Sherlock Holmes', file: 'sherlock.txt' },
-  { id: 2701, title: 'Moby Dick', file: 'dracula.txt' }, // reuse when samples limited
-  { id: 98, title: 'Tale of Two Cities', file: 'pride.txt' },
-  { id: 1232, title: 'The Jungle Book', file: 'alice.txt' },
-  { id: 1184, title: 'The Odyssey', file: 'frankenstein.txt' },
-  { id: 2542, title: 'A Room with a View', file: 'sherlock.txt' }
+  { id: 1008, file: 'alice.txt' },
+  { id: 1002, file: 'pride.txt' },
+  { id: 1005, file: 'dracula.txt' },
+  { id: 1010, file: 'sherlock.txt' },
+  { id: 1003, file: 'frankenstein.txt' },
+  { id: 1009, file: 'alice.txt' },
+  { id: 1001, file: 'pride.txt' },
+  { id: 1004, file: 'dracula.txt' },
+  { id: 1006, file: 'sherlock.txt' },
+  { id: 1007, file: 'frankenstein.txt' }
 ];
 
-const TARGET_KB = 1024; // ~1 MiB per entry
-const OUTPUT = path.resolve(process.cwd(), 'mini-gutenberg-10mb.tar.gz');
-const POC1_DIR = path.resolve(__dirname, '..', 'poc1');
+const TARGET_BYTES = 512 * 1024; // ~0.5 MiB each -> ~5 MiB compressed
+const ROOT = path.resolve(__dirname, '..');
+const POC1_DIR = path.join(ROOT, 'poc1');
+const OUTPUT = path.join(ROOT, 'mini-gutenberg-10mb.tar.gz');
 
-function loadSample(fileName) {
-  const filePath = path.join(POC1_DIR, fileName);
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Sample file not found: ${filePath}`);
+function buildContent(samplePath) {
+  const base = fs.readFileSync(samplePath, 'utf-8').replace(/\r\n/g, '\n').trim() + '\n\n';
+  const pieces = [];
+  let total = 0;
+  const chunk = Buffer.from(base, 'utf-8');
+  while (total < TARGET_BYTES) {
+    pieces.push(chunk);
+    total += chunk.length;
   }
-  return fs.readFileSync(filePath, 'utf-8');
+  return Buffer.concat(pieces).slice(0, TARGET_BYTES);
 }
 
-function buildContent(baseText, targetBytes) {
-  const normalized = baseText.replace(/\r\n/g, '\n').trim() + '\n\n';
-  const buffer = [];
-  while (Buffer.byteLength(buffer.join('')) < targetBytes) {
-    buffer.push(normalized);
+function main() {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mini-gutenberg-'));
+  try {
+    SAMPLE_FILES.forEach(({ id, file }) => {
+      const samplePath = path.join(POC1_DIR, file);
+      if (!fs.existsSync(samplePath)) {
+        throw new Error(`Sample missing: ${samplePath}`);
+      }
+      const content = buildContent(samplePath);
+      const targetDir = path.join(tmpDir, 'cache', 'epub', String(id));
+      fs.mkdirSync(targetDir, { recursive: true });
+      fs.writeFileSync(path.join(targetDir, `pg${id}.txt`), content);
+    });
+
+    const tarResult = spawnSync('tar', ['-czf', OUTPUT, '-C', tmpDir, '.'], { stdio: 'inherit' });
+    if (tarResult.status !== 0) {
+      throw new Error('tar command failed');
+    }
+    const sizeMb = (fs.statSync(OUTPUT).size / (1024 * 1024)).toFixed(2);
+    console.log(`Created ${OUTPUT} (${sizeMb} MiB)`);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
-  return buffer.join('').slice(0, targetBytes);
 }
 
-async function main() {
-  const pack = tar.pack();
-
-  SAMPLE_FILES.forEach(({ id, title, file }) => {
-    const baseText = loadSample(file);
-    const targetBytes = TARGET_KB * 1024;
-    const augmented = [
-      `${title}`,
-      `by Sample Gutenberg Author`,
-      '',
-      buildContent(baseText, targetBytes)
-    ].join('\n');
-
-    const filePath = `cache/epub/${id}/pg${id}.txt`;
-    pack.entry({ name: filePath }, augmented);
-  });
-
-  pack.finalize();
-
-  const chunks = [];
-  for await (const chunk of pack) {
-    chunks.push(chunk);
-  }
-
-  const tarBuffer = Buffer.concat(chunks);
-  const gz = gzipSync(tarBuffer, { level: 9 });
-  fs.writeFileSync(OUTPUT, gz);
-
-  console.log(`Created ${OUTPUT} (${(gz.length / (1024 * 1024)).toFixed(2)} MB)`);
+if (require.main === module) {
+  main();
 }
-
-main().catch((err) => {
-  console.error('Failed to build mini archive:', err);
-  process.exit(1);
-});

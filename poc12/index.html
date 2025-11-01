@@ -296,6 +296,15 @@
                 <code id="downloadMagnet">—</code>
             </div>
         </div>
+
+        <!-- Merged Torrent Metadata section -->
+        <div id="torrentMetadataSection" style="flex: 0 0 auto; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #e0e0e0; display: none;">
+            <div style="font-weight: 600; margin-bottom: 0.35rem; font-size: 0.85rem; color: #4a4a4a;">🧩 Torrent Metadata</div>
+            <div id="torrentMetaSummary" style="margin-bottom: 0.35rem; color: #555; font-size: 0.8rem;">Awaiting metadata…</div>
+            <div id="torrentMetaPieces" style="margin-bottom: 0.5rem; color: #555; font-size: 0.75rem;"></div>
+            <div id="torrentMetaFiles" style="padding: 0.5rem; background: #f8f8ff; border-radius: 0.25rem; font-size: 0.75rem; max-height: 150px; overflow-y: auto;"></div>
+        </div>
+
         <div id="pieceMapContainer" class="piece-map-container" style="display:none; flex: 1 1 auto;">
             <div class="piece-map-label">Pieces</div>
             <div id="pieceSummary" class="piece-summary">Waiting for data…</div>
@@ -305,56 +314,51 @@
         </div>
     </div>
 
-    <div class="card" id="torrentInfoCard" style="padding: 1.25rem; margin-bottom: 1rem;">
-        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">🧩 Torrent Metadata</h2>
-        <div id="torrentMetaSummary" style="margin-bottom: 0.5rem; color: #555; font-size: 0.85rem;">Awaiting metadata…</div>
-        <div id="torrentMetaPieces" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;"></div>
-        <div id="torrentMetaFiles" style="padding: 0.75rem; background: #f8f8ff; border-radius: 0.25rem; font-size: 0.8rem; max-height: 200px; overflow-y: auto;"></div>
-    </div>
-
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
-        <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download Options</h2>
+        <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
         <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
             style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
         <div style="display: flex; gap: 0.5rem;">
-            <button onclick="startDownload()" style="flex: 1;">Start Download</button>
-            <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">or .torrent</button>
-            <button onclick="document.getElementById('localFileInput').click()" style="flex: 1;">Load Local .tar.gz</button>
+            <button onclick="startDownload()" style="flex: 1;">🚀 Start Download</button>
+            <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">📄 or .torrent</button>
             <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
-            <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
         </div>
     </div>
 
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem; background: rgba(76, 175, 80, 0.08);">
-        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #2e7d32;">🌱 Seed Complete File</h2>
+        <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #2e7d32;">📂 Local Files & Seeding</h2>
         <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: #555;">
-            Already have the complete file? Load both the .torrent and .tar.gz files to become a full seeder and help the network!
+            Load a local .tar.gz to view instantly, or load both files to seed to the network.
         </p>
-        <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: rgba(255,255,255,0.7); border-radius: 0.25rem; font-size: 0.8rem;">
-            <div style="margin-bottom: 0.35rem;">
-                <strong>1. Torrent file:</strong> <span id="seedTorrentStatus" style="color: #999;">Not loaded</span>
-            </div>
-            <div>
-                <strong>2. Content file:</strong> <span id="seedContentStatus" style="color: #999;">Not loaded</span>
-            </div>
-        </div>
-        <div id="seedDebugPanel" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-family: monospace; font-size: 0.75rem; max-height: 300px; overflow-y: auto;">
-            <div style="font-weight: 600; margin-bottom: 0.5rem; color: #2e7d32;">🔬 Torrent Metadata:</div>
-            <div id="seedDebugContent"></div>
-        </div>
         <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <button onclick="document.getElementById('seedTorrentInput').click()" style="flex: 1; background: #43a047;">
-                📄 Load .torrent
+            <button onclick="document.getElementById('localFileInput').click()" style="flex: 1; background: #43a047;">
+                📦 Load .tar.gz File
             </button>
-            <button onclick="document.getElementById('seedContentInput').click()" style="flex: 1; background: #43a047;">
-                📦 Load .tar.gz
+            <button onclick="document.getElementById('seedTorrentInput').click()" style="flex: 0.8; background: #43a047;">
+                📄 + .torrent
             </button>
+            <input type="file" id="localFileInput" accept=".tar.gz,.tar" style="display: none;" onchange="loadLocalFile()">
             <input type="file" id="seedTorrentInput" accept=".torrent" style="display: none;" onchange="handleSeedTorrentFile(this.files[0])">
-            <input type="file" id="seedContentInput" accept=".tar.gz,.tar" style="display: none;" onchange="handleSeedContentFile(this.files[0])">
         </div>
-        <button id="startSeedingBtn" onclick="startSeeding()" style="background: #2e7d32; width: 100%;" disabled>
-            🚀 Start Seeding
-        </button>
+
+        <!-- Seeding status (only shown when both files loaded) -->
+        <div id="seedingStatusPanel" style="display: none; margin-bottom: 0.75rem;">
+            <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: rgba(255,255,255,0.7); border-radius: 0.25rem; font-size: 0.8rem;">
+                <div style="margin-bottom: 0.35rem;">
+                    <strong>Content:</strong> <span id="seedContentStatus" style="color: #999;">Not loaded</span>
+                </div>
+                <div>
+                    <strong>Torrent:</strong> <span id="seedTorrentStatus" style="color: #999;">Not loaded</span>
+                </div>
+            </div>
+            <div id="seedDebugPanel" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-family: monospace; font-size: 0.75rem; max-height: 300px; overflow-y: auto;">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #2e7d32;">🔬 Torrent Metadata:</div>
+                <div id="seedDebugContent"></div>
+            </div>
+            <button id="startSeedingBtn" onclick="startSeeding()" style="background: #2e7d32; width: 100%;" disabled>
+                🚀 Start Seeding
+            </button>
+        </div>
     </div>
 
     <div style="margin-bottom: 1rem;">
@@ -363,12 +367,6 @@
     </div>
 
     <div class="book-list" id="bookList" style="max-height: 500px;"></div>
-    <div style="margin-top: 0.5rem; text-align: center; color: #999; font-size: 0.85rem;" id="bookListHint">
-        Catalog loading…
-    </div>
-    <div id="readabilityWarning" style="display: none; margin-top: 0.5rem; padding: 0.5rem; background: #fff3cd; border-left: 4px solid #ffc107; font-size: 0.85rem;">
-        ⚠️ <strong>Catalog loaded, but books not readable yet!</strong> Download or load local file first.
-    </div>
 
     <div class="card" style="padding: 1.25rem; margin-top: 1rem;">
         <h2 style="margin: 0 0 0.5rem 0; font-size: 1.05rem; color: #4a4a4a;">📊 Catalog & Browser Storage</h2>
@@ -1034,6 +1032,10 @@
                             statusEl.style.color = '#2e7d32';
                         }
 
+                        // Show seeding panel when any file is loaded
+                        const panel = document.getElementById('seedingStatusPanel');
+                        if (panel) panel.style.display = 'block';
+
                         // Show debug panel with technical details
                         displaySeedDebugInfo(seedTorrentMetadata);
 
@@ -1153,6 +1155,10 @@
                 statusEl.textContent = `✅ ${file.name} (${formatBytes(file.size)})`;
                 statusEl.style.color = '#2e7d32';
             }
+
+            // Show seeding panel when any file is loaded
+            const panel = document.getElementById('seedingStatusPanel');
+            if (panel) panel.style.display = 'block';
 
             // Check if we can enable seeding button
             checkSeedingReady();
@@ -1703,17 +1709,19 @@
         }
 
         function updateTorrentInfo(torrent) {
+            const metadataSection = document.getElementById('torrentMetadataSection');
             const summaryEl = document.getElementById('torrentMetaSummary');
             const piecesEl = document.getElementById('torrentMetaPieces');
             const filesEl = document.getElementById('torrentMetaFiles');
             if (!summaryEl || !piecesEl || !filesEl) return;
 
             if (!torrent) {
-                summaryEl.textContent = 'No torrent loaded.';
-                piecesEl.innerHTML = '';
-                filesEl.innerHTML = '';
+                if (metadataSection) metadataSection.style.display = 'none';
                 return;
             }
+
+            // Show metadata section as soon as we have a torrent
+            if (metadataSection) metadataSection.style.display = 'block';
 
             if (!torrent.length || !torrent.pieces || !torrent.pieces.length) {
                 summaryEl.textContent = 'Torrent active, waiting for metadata…';
@@ -1749,9 +1757,6 @@
 
         function showLibrary() {
             const totalBooks = catalogBooks.length;
-            const bookListHint = document.getElementById('bookListHint');
-
-            // Show warning if catalog loaded but no way to read books yet
             const canReadBooks = isArchiveReady();
 
             if (totalBooks > 0) {
@@ -1759,32 +1764,16 @@
                     const statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
                     updateStatus(statusText);
                     catalogSummary.status = statusText;
-                    if (bookListHint) {
-                        bookListHint.textContent = `${totalBooks.toLocaleString()} books ready to open`;
-                        bookListHint.style.color = '#666';
-                    }
                 } else {
-                const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books (download archive to read)`;
-                updateStatus(statusText);
-                catalogSummary.status = statusText;
-                if (bookListHint) {
-                    bookListHint.textContent = 'Download the archive to read the books.';
-                    bookListHint.style.color = '#999';
+                    const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books`;
+                    updateStatus(statusText);
+                    catalogSummary.status = statusText;
                 }
-            }
-            } else if (bookListHint) {
-                bookListHint.textContent = 'Catalog loading…';
-                bookListHint.style.color = '#999';
+            } else {
                 catalogSummary.status = '📚 Loading catalog…';
             }
 
             refreshCatalogCard();
-
-            if (totalBooks > 0 && !canReadBooks) {
-                document.getElementById('readabilityWarning').style.display = 'block';
-            } else {
-                document.getElementById('readabilityWarning').style.display = 'none';
-            }
 
             const searchBox = document.getElementById('searchBox');
             const bookList = document.getElementById('bookList');

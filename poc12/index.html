@@ -2476,11 +2476,11 @@
 
             try {
                 // Check if book is already cached in memory from progressive extraction
-                if (book.cached && book.content) {
-                    log(`💾 Loading from cache (no extraction needed)`);
-                    displayBook(book, book.content);
-                    return;
-                }
+        if (book.cached && book.content) {
+            log(`💾 Loading from cache (no extraction needed)`);
+            displayBook(book, book.content);
+            return;
+        }
 
                 if (!isArchiveReady()) {
                     throw new Error('Archive not ready yet. Download must finish or a local file must be loaded.');
@@ -2582,7 +2582,6 @@
                 // Read the text content
                 const textContent = new TextDecoder('utf-8').decode(bookFile.buffer);
 
-                // Display the book
                 book.cached = true;
                 book.content = textContent;
                 refreshCatalogCard();

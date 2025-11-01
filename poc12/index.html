@@ -1048,14 +1048,8 @@
             const blockStripEl = document.getElementById('blockStrip');
             if (!pieceMap || !pieceContainer) return;
 
-            if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
-                log(`📦 No torrent data. torrent keys: ${torrent ? Object.keys(torrent).join(', ') : 'N/A'}`);
-                log(`📦 Bitfield: ${torrent ? torrent.bitfield : 'N/A'}`);
-                if (torrent && torrent.bitfield) {
-                    log(`📦 Bitfield keys: ${Object.keys(torrent.bitfield).join(', ')}`);
-                    log(`📦 typeof bitfield.length: ${typeof torrent.bitfield.length}`);
-                    log(`📦 bitfield.length: ${torrent.bitfield.length}`);
-                }
+            if (!torrent || !torrent.pieces || torrent.pieces.length === 0 || !torrent.bitfield) {
+                log('📦 No torrent data available to display blocks.');
                 pieceContainer.style.display = 'none';
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';
@@ -1076,7 +1070,7 @@
                 return;
             }
 
-            const totalPieces = torrent.bitfield.length;
+            const totalPieces = torrent.pieces.length;
             const numBlocks = Math.min(50, totalPieces);
             const piecesPerBlock = Math.ceil(totalPieces / numBlocks);
 
@@ -1272,10 +1266,6 @@
             const pieceContainer = document.getElementById('pieceMapContainer');
             if (pieceContainer) pieceContainer.style.display = 'none';
             updateDownloadStatus('🔍 Waiting for metadata...');
-
-            currentTorrent.on('metadata', () => {
-                log('✅ Got torrent metadata (waiting for ready event)...');
-            });
 
             currentTorrent.on('ready', () => {
                 log(`✅ Torrent ready!`);

@@ -584,6 +584,7 @@
         let catalogBooks = []; // Store parsed catalog books
         let catalogIndexByEtext = new Map();
         let currentDisplayedBooks = [];
+        let currentSearchQuery = '';
         const tarTextDecoder = new TextDecoder('utf-8');
         let progressiveExtraction = null;
         let cachedBookCount = 0;
@@ -851,10 +852,49 @@
             showLibrary();
         }
 
+        function getCachedBooks() {
+            return catalogBooks.filter((book) => book.cached);
+        }
+
         function refreshCachedBookList() {
-            if (!currentDisplayedBooks || currentDisplayedBooks.length === 0) return;
-            const booksToShow = currentDisplayedBooks.slice();
-            displayBooks(booksToShow);
+            updateCatalogStatus();
+            updateBookDisplay();
+        }
+
+        function updateCatalogStatus() {
+            const totalBooks = catalogBooks.length;
+            const cachedBooks = getCachedBooks();
+            cachedBookCount = cachedBooks.length;
+
+            let statusText;
+            if (totalBooks === 0) {
+                statusText = '📚 Loading catalog…';
+            } else if (cachedBookCount > 0) {
+                statusText = `💾 ${cachedBookCount.toLocaleString()} books ready (${cachedBookCount.toLocaleString()} / ${totalBooks.toLocaleString()})`;
+            } else {
+                statusText = `📚 Catalog loaded: awaiting cached books (0 / ${totalBooks.toLocaleString()})`;
+            }
+
+            updateStatus(statusText);
+            catalogSummary.status = statusText;
+            refreshCatalogCard();
+        }
+
+        function updateBookDisplay() {
+            const cachedBooks = getCachedBooks();
+            const query = (currentSearchQuery || '').trim().toLowerCase();
+
+            if (!query || query.length < 2) {
+                displayBooks(cachedBooks.slice(0, 50));
+                return;
+            }
+
+            const results = cachedBooks.filter((book) =>
+                book.title.toLowerCase().includes(query) ||
+                book.author.toLowerCase().includes(query)
+            ).slice(0, 100);
+
+            displayBooks(results);
         }
 
         function initProgressiveExtraction() {
@@ -2305,36 +2345,12 @@
         }
 
         function showLibrary() {
-            const totalBooks = catalogBooks.length;
-            const canReadBooks = isArchiveReady();
-
-            if (totalBooks > 0) {
-                if (canReadBooks) {
-                    let statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
-                    if (cachedBookCount > 0) {
-                        statusText += ` • 💾 cached: ${cachedBookCount}`;
-                    }
-                    updateStatus(statusText);
-                    catalogSummary.status = statusText;
-                } else {
-                    let statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books`;
-                    if (cachedBookCount > 0) {
-                        statusText += ` • 💾 cached: ${cachedBookCount}`;
-                    }
-                    updateStatus(statusText);
-                    catalogSummary.status = statusText;
-                }
-            } else {
-                catalogSummary.status = '📚 Loading catalog…';
-            }
-
-            refreshCatalogCard();
+            updateCatalogStatus();
 
             const searchBox = document.getElementById('searchBox');
-            const bookList = document.getElementById('bookList');
 
-            // Show first 50 books by default
-            displayBooks((canReadBooks ? catalogBooks : catalogBooks.filter(book => book.cached)).slice(0, 50));
+            currentSearchQuery = (searchBox.value || '').trim().toLowerCase();
+            updateBookDisplay();
 
             // Setup search (only once)
             if (!searchBox.dataset.initialized) {
@@ -2342,28 +2358,10 @@
                 let searchTimeout;
                 searchBox.addEventListener('input', (e) => {
                     clearTimeout(searchTimeout);
+                    const value = e.target.value || '';
                     searchTimeout = setTimeout(() => {
-                        const query = e.target.value.trim().toLowerCase();
-                        const baseList = isArchiveReady()
-                            ? catalogBooks
-                            : catalogBooks.filter(book => book.cached);
-
-                        if (query.length === 0) {
-                            displayBooks(baseList.slice(0, 50));
-                            return;
-                        }
-
-                        if (query.length < 2) {
-                            displayBooks(baseList.slice(0, 50));
-                            return;
-                        }
-
-                        const results = baseList.filter(book =>
-                            book.title.toLowerCase().includes(query) ||
-                            book.author.toLowerCase().includes(query)
-                        ).slice(0, 100);
-
-                        displayBooks(results);
+                        currentSearchQuery = value.trim().toLowerCase();
+                        updateBookDisplay();
                     }, 300);
                 });
             }

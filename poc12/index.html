@@ -1267,8 +1267,8 @@
             if (pieceContainer) pieceContainer.style.display = 'none';
             updateDownloadStatus('🔍 Waiting for metadata...');
 
-            currentTorrent.on('ready', () => {
-                log(`✅ Torrent ready!`);
+            currentTorrent.on('metadata', () => {
+                log(`✅ Got torrent metadata`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
                 log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
@@ -1280,7 +1280,7 @@
                 }
                 updateDownloadStatus('📦 Metadata received. Downloading pieces...');
                 updateTorrentInfo(currentTorrent);
-                refreshDownloadCard();
+                setTimeout(refreshDownloadCard, 100); // Add a small delay
 
                 // Set background color from InfoHash
                 setBackgroundFromHash(currentTorrent.infoHash);

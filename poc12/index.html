@@ -2328,14 +2328,54 @@
             });
         }
 
-        function processLocalArchive(file) {
+        async function processLocalArchive(file) {
             updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
-            showLibrary();
             activeDownload.magnet = null;
             refreshDownloadCard();
             updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
             updateTorrentInfo(null);
             refreshBrowserFilesystem(); // Show the loaded file in browser storage view
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                let decompressed;
+                try {
+                    decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+                } catch (error) {
+                    decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
+                }
+
+                const entries = await untar(decompressed.buffer);
+                let updated = 0;
+
+                entries.forEach((entry) => {
+                    if (!entry || !entry.name || !entry.buffer) return;
+                    const match = entry.name.match(/pg(\d+)\.txt$/i);
+                    if (!match) return;
+                    const etextNo = parseInt(match[1], 10);
+                    if (!catalogIndexByEtext || !catalogIndexByEtext.has(etextNo)) return;
+
+                    const book = catalogIndexByEtext.get(etextNo);
+                    if (!book) return;
+
+                    book.cached = true;
+                    book.content = new TextDecoder('utf-8').decode(entry.buffer);
+                    updated += 1;
+                });
+
+                if (updated > 0) {
+                    log(`📚 Cached ${updated} books from local archive`);
+                } else {
+                    log('⚠️ No matching books found in local archive');
+                }
+
+                updateCatalogStatus();
+                updateBookDisplay();
+                refreshBrowserFilesystem();
+            } catch (error) {
+                console.error('Failed to process local archive', error);
+                alert(`Failed to read local archive: ${error.message}`);
+            }
         }
 
         function refreshCatalogCard() {

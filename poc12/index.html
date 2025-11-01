@@ -674,7 +674,7 @@
         let progressiveExtraction = null;
         let cachedBookCount = 0;
         const MAX_PROGRESSIVE_BYTES = 512 * 1024 * 1024; // Safety cap for streaming extraction
-        const MAX_CACHED_BOOKS = 25; // Limit in-memory prefetched books
+        const MAX_CACHED_BOOKS = Number.POSITIVE_INFINITY; // No artificial limit on cached books
         let currentInfoHash = null;
         let catalogSummary = {
             status: '📚 Loading catalog…',
@@ -946,12 +946,17 @@
             return catalogBooks.filter((book) => book.cached);
         }
 
-        async function extractArchiveBuffer(arrayBuffer) {
+        async function extractArchiveBuffer(arrayBuffer, options = {}) {
+            const skipOnError = Boolean(options.skipOnError);
             if (!arrayBuffer) return 0;
             let decompressed;
             try {
                 decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
             } catch (error) {
+                if (skipOnError) {
+                    log(`⚠️ Progressive extraction skipped (incomplete gzip): ${error.message}`);
+                    return 0;
+                }
                 decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
             }
 
@@ -1314,9 +1319,22 @@
                     });
                     stream.on('end', finish);
                     stream.on('close', finish);
-                    stream.on('error', fail);
+                    stream.on('error', (err) => {
+                        const progress = currentTorrent && currentTorrent.progress ? currentTorrent.progress : 0;
+                        if (progress < 1) {
+                            log(`⚠️ Progressive extraction deferred (stream error): ${err.message}`);
+                            finish();
+                        } else {
+                            fail(err);
+                        }
+                    });
                 });
             } catch (error) {
+                const progress = currentTorrent && currentTorrent.progress ? currentTorrent.progress : 0;
+                if (progress < 1) {
+                    log(`⚠️ Progressive extraction skipped (incomplete data): ${error.message}`);
+                    return;
+                }
                 log(`⚠️ Progressive extraction failed: ${error.message}`);
                 console.error('Progressive extraction error:', error);
                 disableProgressiveExtraction();
@@ -2669,7 +2687,11 @@
                         throw new Error('No archive available');
                     }
 
-                    await extractArchiveBuffer(arrayBuffer);
+                    const shouldSkip = currentTorrent && currentTorrent.progress && currentTorrent.progress < 1;
+                    const newlyCached = await extractArchiveBuffer(arrayBuffer, { skipOnError: shouldSkip });
+                    if (newlyCached === 0 && shouldSkip && (!book.cached || !book.content)) {
+                        throw new Error('Book content not yet cached. Please wait for download to finish.');
+                    }
                 }
 
                 if (!book.content) {

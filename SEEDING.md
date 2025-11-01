@@ -102,7 +102,11 @@ Keep the 10 MB sampler in sync:
 ```
 make mini-archive
 make mini-archive-sha
-# Example output: 8a80699b771c168ace3108bb69179687cc2ceb9e98c5bc64c4fceff65bcca4db  mini-gutenberg-10mb.tar.gz
+# Example output: feb2fedcf0cd62b5da35e3bc2d9354d3930deb483645c3acbc2ae6fe3a0b6039  mini-gutenberg-10mb.tar.gz
+# Larger samplers (optional)
+make mini-archive SAMPLE=100
+make mini-archive SAMPLE=1k
+make mini-archive SAMPLE=10k
 ```
 
 Recreate the torrent via POC8, then restart the seeder:

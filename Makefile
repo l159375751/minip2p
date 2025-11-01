@@ -5,7 +5,7 @@
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
 
 deploy:
-	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new
+	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new seed-multi.js webtorrent-hybrid-docker/Dockerfile
 	git diff --cached --quiet || git commit -m "Deploy updates"
 	git push
 	ssh 0x6du 'cd /var/www/minip2p && git pull'
@@ -32,7 +32,7 @@ setup-docker:
 	$(MAKE) build-docker
 
 build-docker:
-	docker build -t webtorrent webtorrent-hybrid-docker/
+	docker build -t webtorrent -f webtorrent-hybrid-docker/Dockerfile .
 
 seed-gutenberg: build-docker
 	@if [ -z "$(MAGNET)" ]; then \
@@ -108,7 +108,7 @@ seed-multi: build-docker
 	@echo "🌱 Starting multi-torrent seeder..."
 	docker run -d --name webtorrent-multi --restart unless-stopped \
 		-v $$(pwd):/data:ro \
-		-v $$(pwd)/seed-multi.js:/app/seed-multi.js:ro \
+
 		-p 6881:6881 -p 6881:6881/udp \
 		-w /app \
 		webtorrent node /app/seed-multi.js /data/torrents.txt

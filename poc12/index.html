@@ -1451,6 +1451,7 @@
             }
 
             localArchiveFile = file;
+            handleSeedContentFile(file);
             log(`📁 Loading local file: ${file.name} (${formatBytes(file.size)})`);
 
             // Check if there's an active torrent download that matches this file

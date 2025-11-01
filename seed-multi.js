@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+console.log('*********************************');
+console.log('*      SEED-MULTI.JS v2         *');
+console.log('*********************************');
 
 /**
  * Seed multiple torrents from a list of magnet links or infohashes

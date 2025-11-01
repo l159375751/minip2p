@@ -1,8 +1,5 @@
 #!/usr/bin/env node
 console.log('*********************************');
-console.log('*      SEED-MULTI.JS v3         *');
-console.log('*********************************');
-console.log('*********************************');
 console.log('*      SEED-MULTI.JS v2         *');
 console.log('*********************************');
 
@@ -115,7 +112,7 @@ lines.forEach((line, idx) => {
   })
 
   torrent.on('wire', (wire, addr) => {
-    console.log(`   🔗 Peer connected to ${torrent.name.substring(0, 30)}: ${addr}`)
+    console.log(`   🔗 Peer connected to ${torrent.name ? torrent.name.substring(0, 30) : torrent.infoHash}: ${addr}`)
   })
 
   torrent.on('error', err => {

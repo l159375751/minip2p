@@ -1049,7 +1049,7 @@
             if (!pieceMap || !pieceContainer) return;
 
             if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
-                log('📦 No torrent data available to display blocks.');
+                log(`📦 No torrent data. torrent keys: ${torrent ? Object.keys(torrent).join(', ') : 'N/A'}`);
                 pieceContainer.style.display = 'none';
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';

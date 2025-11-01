@@ -1355,12 +1355,12 @@
                 const catalogHash = hashString(text).substring(0, 8);
 
                 updateStatus(`✅ Catalog loaded: ${catalogBooks.length.toLocaleString()} books`);
-                showLibrary();
-                displayCatalogMetadata({
-                    books: catalogBooks.length,
-                    fileSize: fileSize,
-                    lastModified: lastModified,
-                    contentType: contentType,
+            showLibrary();
+            displayCatalogMetadata({
+                books: catalogBooks.length,
+                fileSize: fileSize,
+                lastModified: lastModified,
+                contentType: contentType,
                     hash: catalogHash,
                     source: 'GUTINDEX.ALL.new'
                 });
@@ -2334,7 +2334,7 @@
             const bookList = document.getElementById('bookList');
 
             // Show first 50 books by default
-            displayBooks(catalogBooks.slice(0, 50));
+            displayBooks((canReadBooks ? catalogBooks : catalogBooks.filter(book => book.cached)).slice(0, 50));
 
             // Setup search (only once)
             if (!searchBox.dataset.initialized) {
@@ -2344,19 +2344,21 @@
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         const query = e.target.value.trim().toLowerCase();
+                        const baseList = isArchiveReady()
+                            ? catalogBooks
+                            : catalogBooks.filter(book => book.cached);
 
                         if (query.length === 0) {
-                            displayBooks(catalogBooks.slice(0, 50));
+                            displayBooks(baseList.slice(0, 50));
                             return;
                         }
 
                         if (query.length < 2) {
-                            bookList.innerHTML = '';
+                            displayBooks(baseList.slice(0, 50));
                             return;
                         }
 
-                        // Search books
-                        const results = catalogBooks.filter(book =>
+                        const results = baseList.filter(book =>
                             book.title.toLowerCase().includes(query) ||
                             book.author.toLowerCase().includes(query)
                         ).slice(0, 100);
@@ -2379,9 +2381,14 @@
                 message.className = 'book-item';
                 message.style.color = '#888';
                 message.style.fontStyle = 'italic';
-                message.textContent = archiveReady
-                    ? 'No titles match this search.'
-                    : 'Archive still loading. Try again after more blocks download.';
+                if (archiveReady) {
+                    message.textContent = 'No titles match this search.';
+                } else {
+                    const cachedCount = catalogBooks.filter(book => book.cached).length;
+                    message.textContent = cachedCount
+                        ? 'No cached titles match this search yet.'
+                        : 'No books cached yet. Download in progress…';
+                }
                 bookList.appendChild(message);
                 return;
             }

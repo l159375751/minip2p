@@ -941,6 +941,43 @@
 
             localArchiveFile = file;
             log(`📁 Loading local file: ${file.name} (${formatBytes(file.size)})`);
+
+            // Check if there's an active torrent download that matches this file
+            if (currentTorrent && currentTorrent.length && currentTorrent.length === file.size) {
+                log(`✨ Local file size matches active torrent! (${formatBytes(file.size)})`);
+                log(`🔄 Switching from download to seeding mode...`);
+
+                // Store torrent metadata before destroying
+                const torrentInfoHash = currentTorrent.infoHash;
+                const torrentMagnet = currentTorrent.magnetURI;
+                const torrentName = currentTorrent.name;
+
+                // Stop current download
+                if (currentTorrent) {
+                    currentTorrent.destroy();
+                    currentTorrent = null;
+                }
+
+                // Clear intervals
+                if (torrentStatsInterval) {
+                    clearInterval(torrentStatsInterval);
+                    torrentStatsInterval = null;
+                }
+
+                log(`🌱 Starting to seed local file as torrent...`);
+                updateDownloadStatus('🌱 Seeding matched local file...');
+
+                // Use the loaded file to seed
+                seedContentFile = file;
+
+                // For now, just process the local file normally
+                // In future, we could auto-seed if we have the .torrent file too
+                processLocalArchive(file);
+
+                log(`💡 Tip: Load the .torrent file in the Seed section to start seeding!`);
+                return;
+            }
+
             log(`🔓 Starting extraction...`);
 
             // Skip download, go straight to extraction
@@ -1584,6 +1621,9 @@
                     statusMsg = `✅ Complete! ${totalSize} • Seeding to ${peers} peer${peers !== 1 ? 's' : ''} • ⬆️ ${uploaded}`;
                 }
                 updateDownloadStatus(statusMsg);
+
+                // Update torrent metadata continuously as download progresses
+                updateTorrentInfo(currentTorrent);
                 refreshDownloadCard();
             }, 1000);
 

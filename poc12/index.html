@@ -573,12 +573,20 @@
         let seedTorrentMetadata = null;  // Parsed torrent metadata
 
         let catalogBooks = []; // Store parsed catalog books
+        let catalogIndexByEtext = new Map();
+        let currentDisplayedBooks = [];
+        const tarTextDecoder = new TextDecoder('utf-8');
+        let progressiveExtraction = null;
+        let cachedBookCount = 0;
+        const MAX_PROGRESSIVE_BYTES = 512 * 1024 * 1024; // Safety cap for streaming extraction
+        const MAX_CACHED_BOOKS = 25; // Limit in-memory prefetched books
         let currentInfoHash = null;
         let catalogSummary = {
             status: '📚 Loading catalog…',
             infoHash: '—'
         };
         let activeDownload = { magnet: null };
+        let hasStartedDownload = false;
         const seenTorrentWarnings = new Set();
         const FALLBACK_TRACKERS = [
             'wss://tracker.openwebtorrent.com',
@@ -771,7 +779,302 @@
                 magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
                 updatePieceMap(null);
                 totalSizeEl.textContent = '—';
-                updateDownloadStatus('No active downloads.');
+                const statusMessage = hasStartedDownload
+                    ? 'No active downloads.'
+                    : 'Ready. Click "Start Download" or load a local file.';
+                updateDownloadStatus(statusMessage);
+            }
+        }
+
+        function clearCachedBooks() {
+            if (!catalogBooks || catalogBooks.length === 0) return;
+            cachedBookCount = 0;
+            catalogBooks.forEach((book) => {
+                book.cached = false;
+                book.content = null;
+            });
+            showLibrary();
+        }
+
+        function refreshCachedBookList() {
+            if (!currentDisplayedBooks || currentDisplayedBooks.length === 0) return;
+            const booksToShow = currentDisplayedBooks.slice();
+            displayBooks(booksToShow);
+        }
+
+        function initProgressiveExtraction() {
+            if (progressiveExtraction && progressiveExtraction.inflater) {
+                return;
+            }
+            progressiveExtraction = {
+                inflater: new pako.Inflate({ to: 'array' }),
+                tarBuffer: new Uint8Array(0),
+                lastByteOffset: 0,
+                extractedPaths: new Set(),
+                bytesInflated: 0,
+                filesParsed: 0,
+                enabled: true
+            };
+            progressiveExtraction.inflater.onData = (chunk) => {
+                handleDecompressedChunk(chunk);
+            };
+        }
+
+        function disableProgressiveExtraction(options = {}) {
+            if (!progressiveExtraction) {
+                return;
+            }
+            if (progressiveExtraction.inflater) {
+                progressiveExtraction.inflater.onData = null;
+            }
+            if (options.reset) {
+                progressiveExtraction = null;
+                return;
+            }
+            progressiveExtraction.enabled = false;
+            progressiveExtraction.tarBuffer = new Uint8Array(0);
+        }
+
+        function concatUint8Arrays(a, b) {
+            if (!a || a.length === 0) return b || new Uint8Array(0);
+            if (!b || b.length === 0) return a || new Uint8Array(0);
+            const combined = new Uint8Array(a.length + b.length);
+            combined.set(a, 0);
+            combined.set(b, a.length);
+            return combined;
+        }
+
+        function handleDecompressedChunk(chunk) {
+            if (!progressiveExtraction || !chunk || chunk.length === 0) {
+                return;
+            }
+            const data = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+            progressiveExtraction.bytesInflated += data.length;
+            progressiveExtraction.tarBuffer = concatUint8Arrays(progressiveExtraction.tarBuffer, data);
+            processTarBuffer();
+            if (progressiveExtraction.bytesInflated >= MAX_PROGRESSIVE_BYTES) {
+                log('🛑 Progressive extraction byte cap reached. Further files will unlock once the archive finishes.');
+                disableProgressiveExtraction();
+            }
+        }
+
+        function processTarBuffer() {
+            if (!progressiveExtraction || !progressiveExtraction.tarBuffer || progressiveExtraction.tarBuffer.length < 512) {
+                return;
+            }
+
+            let buffer = progressiveExtraction.tarBuffer;
+            let offset = 0;
+
+            while (buffer.length - offset >= 512) {
+                const headerBlock = buffer.subarray(offset, offset + 512);
+
+                if (isTarEndBlock(headerBlock)) {
+                    offset += 512;
+                    continue;
+                }
+
+                const header = parseTarHeader(headerBlock);
+                if (!header) {
+                    break;
+                }
+
+                const totalEntrySize = 512 + header.paddedSize;
+                if (buffer.length - offset < totalEntrySize) {
+                    break;
+                }
+
+                const isRegularFile = header.typeFlag === 0 || header.typeFlag === 48; // '\0' or '0'
+                if (isRegularFile && header.size > 0) {
+                    const fileData = buffer.subarray(offset + 512, offset + 512 + header.size);
+                    handleExtractedTarFile(header.name, fileData);
+                }
+
+                offset += totalEntrySize;
+                progressiveExtraction.filesParsed += 1;
+            }
+
+            if (offset > 0) {
+                progressiveExtraction.tarBuffer = buffer.slice(offset);
+            }
+        }
+
+        function parseTarHeader(block) {
+            if (!block || block.length < 512) {
+                return null;
+            }
+
+            const name = readTarString(block.subarray(0, 100));
+            const prefix = readTarString(block.subarray(345, 500));
+            const fullName = prefix ? `${prefix}/${name}` : name;
+
+            const sizeString = readTarString(block.subarray(124, 136)).trim();
+            let size = 0;
+            if (sizeString) {
+                const clean = sizeString.replace(/\0.*$/, '');
+                size = parseInt(clean || '0', 8);
+                if (Number.isNaN(size)) {
+                    size = 0;
+                }
+            }
+            const paddedSize = Math.ceil(size / 512) * 512;
+            const typeFlag = block[156];
+
+            return {
+                name: fullName,
+                size,
+                paddedSize,
+                typeFlag
+            };
+        }
+
+        function readTarString(bytes) {
+            if (!bytes) return '';
+            let end = 0;
+            while (end < bytes.length && bytes[end] !== 0) {
+                end += 1;
+            }
+            if (end === 0) return '';
+            return tarTextDecoder.decode(bytes.subarray(0, end));
+        }
+
+        function isTarEndBlock(block) {
+            if (!block) return false;
+            for (let i = 0; i < block.length; i += 1) {
+                if (block[i] !== 0) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function handleExtractedTarFile(name, fileData) {
+            if (!name || !fileData || fileData.length === 0) {
+                return;
+            }
+            if (!progressiveExtraction || progressiveExtraction.extractedPaths.has(name)) {
+                return;
+            }
+            if (progressiveExtraction.extractedPaths.size >= MAX_CACHED_BOOKS) {
+                return;
+            }
+            const match = name.match(/(?:^|\/)(?:pg)?(\d+)(?:-.*)?\.txt$/i);
+            if (!match) {
+                return;
+            }
+            const etextNo = parseInt(match[1], 10);
+            if (!Number.isFinite(etextNo) || !catalogIndexByEtext || !catalogIndexByEtext.has(etextNo)) {
+                return;
+            }
+            const book = catalogIndexByEtext.get(etextNo);
+            if (!book) {
+                return;
+            }
+
+            try {
+                const content = tarTextDecoder.decode(fileData);
+                progressiveExtraction.extractedPaths.add(name);
+                const wasCached = !!book.cached;
+                book.cached = true;
+                book.content = content;
+                if (!wasCached) {
+                    cachedBookCount += 1;
+                }
+                log(`📗 Cached "${book.title}" (pg${etextNo}) from progressive blocks`);
+                if (progressiveExtraction.extractedPaths.size >= MAX_CACHED_BOOKS) {
+                    log('🛑 Progressive cache limit reached. Holding remaining files until the archive finishes.');
+                    disableProgressiveExtraction();
+                }
+                refreshCatalogCard();
+                refreshCachedBookList();
+            } catch (err) {
+                console.warn(`Failed to decode ${name}:`, err);
+            }
+        }
+
+        async function attemptProgressiveExtraction(file, downloadedBytes) {
+            if (!file || !downloadedBytes || downloadedBytes <= 0) {
+                return;
+            }
+            if (!catalogIndexByEtext || catalogIndexByEtext.size === 0) {
+                return;
+            }
+            if (progressiveExtraction && progressiveExtraction.enabled === false) {
+                return;
+            }
+            if (progressiveExtraction && progressiveExtraction.extractedPaths && progressiveExtraction.extractedPaths.size >= MAX_CACHED_BOOKS) {
+                return;
+            }
+            if (progressiveExtraction && progressiveExtraction.bytesInflated >= MAX_PROGRESSIVE_BYTES) {
+                return;
+            }
+
+            if (!progressiveExtraction) {
+                initProgressiveExtraction();
+            }
+
+            if (!progressiveExtraction) {
+                return;
+            }
+
+            const bytesAvailable = downloadedBytes - progressiveExtraction.lastByteOffset;
+            if (bytesAvailable <= 0) {
+                return;
+            }
+            if (bytesAvailable <= 32 * 1024) {
+                return;
+            }
+
+            const start = progressiveExtraction.lastByteOffset;
+            const end = downloadedBytes - 1;
+
+            try {
+                await new Promise((resolve, reject) => {
+                    let settled = false;
+                    const finish = () => {
+                        if (!settled) {
+                            settled = true;
+                            resolve();
+                        }
+                    };
+                    const fail = (err) => {
+                        if (!settled) {
+                            settled = true;
+                            reject(err);
+                        }
+                    };
+                    const stream = file.createReadStream({ start, end });
+                    stream.on('data', (chunk) => {
+                        if (!progressiveExtraction || progressiveExtraction.enabled === false || !progressiveExtraction.inflater) {
+                            stream.destroy();
+                            finish();
+                            return;
+                        }
+                        const data = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk);
+                        progressiveExtraction.lastByteOffset += data.length;
+                        try {
+                            progressiveExtraction.inflater.push(data, false);
+                            if (progressiveExtraction.inflater.err) {
+                                fail(new Error(progressiveExtraction.inflater.msg || 'Unknown inflate error'));
+                                return;
+                            }
+                        } catch (err) {
+                            fail(err);
+                            return;
+                        }
+                        if (progressiveExtraction && progressiveExtraction.enabled === false) {
+                            stream.destroy();
+                            finish();
+                        }
+                    });
+                    stream.on('end', finish);
+                    stream.on('close', finish);
+                    stream.on('error', fail);
+                });
+            } catch (error) {
+                log(`⚠️ Progressive extraction failed: ${error.message}`);
+                console.error('Progressive extraction error:', error);
+                disableProgressiveExtraction();
             }
         }
 
@@ -917,7 +1220,7 @@
             console.log(`🎨 Color seed from source hash: ${sourceHash}`);
 
             refreshDownloadCard();
-            updateDownloadStatus('Bootstrapping default download…');
+            updateDownloadStatus('Ready. Click "Start Download" or load a local file.');
             refreshCatalogCard();
             refreshBrowserFilesystem().catch(() => {
                 const fsDiv = document.getElementById('browserFilesystem');
@@ -926,7 +1229,7 @@
                 }
             });
             loadCatalog(); // Auto-load catalog
-            startDownload();
+            // Removed auto-start: startDownload();
         });
 
         function hashToColor(hash) {
@@ -977,7 +1280,16 @@
                 }
 
                 const text = await response.text();
-                catalogBooks = GutIndexParser.parseIndex(text);
+                const parsedBooks = GutIndexParser.parseIndex(text);
+                catalogBooks = parsedBooks.map((book) => ({
+                    ...book,
+                    cached: false,
+                    content: null
+                }));
+                catalogIndexByEtext = new Map();
+                catalogBooks.forEach((book) => {
+                    catalogIndexByEtext.set(book.etextNo, book);
+                });
 
                 // Extract and display metadata
                 const fileSize = text.length;
@@ -1167,6 +1479,13 @@
                     const files = info.files || [{ length: info.length, path: [info.name] }];
                     const totalLength = info.files ? info.files.reduce((sum, f) => sum + f.length, 0) : info.length;
 
+                    // Calculate number of pieces from pieces buffer (each SHA-1 hash is 20 bytes)
+                    let pieceCount = 0;
+                    if (info.pieces) {
+                        const piecesBuffer = info.pieces instanceof Uint8Array ? info.pieces : new Uint8Array(info.pieces);
+                        pieceCount = Math.floor(piecesBuffer.length / 20);
+                    }
+
                     seedTorrentMetadata = {
                         infoHash: metadata.infoHash,
                         magnetURI: createMagnetLink(metadata),
@@ -1179,7 +1498,7 @@
                         announce: metadata.announce || torrent.announce,
                         pieceLength: info['piece length'] || 0,
                         lastPieceLength: totalLength % (info['piece length'] || 1) || (info['piece length'] || 0),
-                        pieces: info.pieces ? info.pieces.length / 20 : 0,
+                        pieces: pieceCount,
                         length: totalLength,
                         created: torrent['creation date'] || 0,
                         createdBy: metadata.createdBy || torrent['created by'] || '',
@@ -1224,6 +1543,9 @@
             if (!panel || !content) return;
 
             let html = '<div style="line-height: 1.6;">';
+            const trackers = meta.announce
+                ? (Array.isArray(meta.announce) ? meta.announce : [meta.announce]).filter(Boolean)
+                : [];
 
             // InfoHash
             html += `<div style="margin-bottom: 0.5rem;"><strong style="color: #d32f2f;">InfoHash:</strong><br>`;
@@ -1262,13 +1584,13 @@
             }
 
             // Trackers
-            if (meta.announce && meta.announce.length > 0) {
-                html += `<div style="margin-bottom: 0.5rem; margin-top: 0.5rem;"><strong style="color: #d32f2f;">Trackers:</strong> ${meta.announce.length}</div>`;
-                meta.announce.slice(0, 5).forEach((tracker, idx) => {
+            if (trackers.length > 0) {
+                html += `<div style="margin-bottom: 0.5rem; margin-top: 0.5rem;"><strong style="color: #d32f2f;">Trackers:</strong> ${trackers.length}</div>`;
+                trackers.slice(0, 5).forEach((tracker, idx) => {
                     html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #666;">${idx + 1}. ${tracker}</div>`;
                 });
-                if (meta.announce.length > 5) {
-                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #999;">... and ${meta.announce.length - 5} more</div>`;
+                if (trackers.length > 5) {
+                    html += `<div style="margin-left: 1rem; font-size: 0.7rem; color: #999;">... and ${trackers.length - 5} more</div>`;
                 }
             }
 
@@ -1294,7 +1616,7 @@
             content.innerHTML = html;
             panel.style.display = 'block';
 
-            log(`📊 Debug panel updated with ${meta.pieces} pieces, ${meta.files.length} files, ${meta.announce.length} trackers`);
+            log(`📊 Debug panel updated with ${meta.pieces} pieces, ${meta.files.length} files, ${trackers.length} trackers`);
         }
 
         function handleSeedContentFile(file) {
@@ -1650,6 +1972,11 @@
             const sanitizedMagnet = sanitizeMagnet(magnetLink);
             const trackersFromMagnet = extractTrackersFromMagnet(sanitizedMagnet);
             const effectiveMagnet = sanitizedMagnet;
+            hasStartedDownload = true;
+            clearCachedBooks();
+            disableProgressiveExtraction({ reset: true });
+            refreshCatalogCard();
+            refreshCachedBookList();
             activeDownload.magnet = effectiveMagnet;
             refreshDownloadCard();
 
@@ -1739,17 +2066,19 @@
             });
 
             // Progressive extraction: triggered as pieces download
-            let lastExtractionAttempt = 0;
+            let lastExtractionAttemptBytes = 0;
             currentTorrent.on('download', (bytes) => {
                 if (!currentTorrent || !currentTorrent.files || currentTorrent.files.length === 0) return;
 
                 const mainFile = currentTorrent.files[0];
                 const downloadedBytes = mainFile.downloaded || 0;
                 const downloadedMB = downloadedBytes / (1024 * 1024);
+                const extractionInterval = 5 * 1024 * 1024; // 5MB
+                const enoughDataForFirstAttempt = downloadedBytes >= 512 * 1024; // 512KB
 
-                // Try progressive extraction every 10MB downloaded
-                if (downloadedMB - lastExtractionAttempt >= 10) {
-                    lastExtractionAttempt = downloadedMB;
+                if (enoughDataForFirstAttempt &&
+                    (lastExtractionAttemptBytes === 0 || (downloadedBytes - lastExtractionAttemptBytes) >= extractionInterval)) {
+                    lastExtractionAttemptBytes = downloadedBytes;
                     log(`📚 Attempting progressive extraction at ${downloadedMB.toFixed(1)} MB downloaded...`);
                     attemptProgressiveExtraction(mainFile, downloadedBytes);
                 }
@@ -1791,9 +2120,9 @@
                     torrentStatsInterval = null;
                 }
                 updateDownloadStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
-                document.getElementById('readabilityWarning').style.display = 'none';
                 showLibrary();
                 refreshDownloadCard();
+                disableProgressiveExtraction();
             });
 
             currentTorrent.on('error', (err) => {
@@ -1805,12 +2134,12 @@
                     clearInterval(torrentStatsInterval);
                     torrentStatsInterval = null;
                 }
+                disableProgressiveExtraction();
             });
         }
 
         function processLocalArchive(file) {
             updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
-            document.getElementById('readabilityWarning').style.display = 'none';
             showLibrary();
             activeDownload.magnet = null;
             refreshDownloadCard();
@@ -1913,11 +2242,17 @@
 
             if (totalBooks > 0) {
                 if (canReadBooks) {
-                    const statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
+                    let statusText = `✅ Catalog ready: ${totalBooks.toLocaleString()} books available to read`;
+                    if (cachedBookCount > 0) {
+                        statusText += ` • 💾 cached: ${cachedBookCount}`;
+                    }
                     updateStatus(statusText);
                     catalogSummary.status = statusText;
                 } else {
-                    const statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books`;
+                    let statusText = `📚 Catalog loaded: ${totalBooks.toLocaleString()} books`;
+                    if (cachedBookCount > 0) {
+                        statusText += ` • 💾 cached: ${cachedBookCount}`;
+                    }
                     updateStatus(statusText);
                     catalogSummary.status = statusText;
                 }
@@ -1941,11 +2276,6 @@
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         const query = e.target.value.trim().toLowerCase();
-
-                        if (!isArchiveReady()) {
-                            displayBooks([]);
-                            return;
-                        }
 
                         if (query.length === 0) {
                             displayBooks(catalogBooks.slice(0, 50));
@@ -1973,29 +2303,31 @@
             const bookList = document.getElementById('bookList');
             bookList.innerHTML = '';
             const archiveReady = isArchiveReady();
+            const haveBooks = Array.isArray(books) && books.length > 0;
+            currentDisplayedBooks = haveBooks ? books.slice() : [];
 
-                if (!archiveReady) {
-                    const message = document.createElement('div');
-                    message.className = 'book-item';
-                    message.style.color = '#888';
-                    message.style.fontStyle = 'italic';
-                    message.textContent = 'Download the Gutenberg archive to browse books here.';
-                bookList.appendChild(message);
-                updateDownloadedFilesView(currentTorrent);
-                return;
-            }
-
-            if (!books || books.length === 0) {
+            if (!haveBooks) {
                 const message = document.createElement('div');
                 message.className = 'book-item';
                 message.style.color = '#888';
                 message.style.fontStyle = 'italic';
-                message.textContent = 'No titles match this search.';
+                message.textContent = archiveReady
+                    ? 'No titles match this search.'
+                    : 'Archive still loading. Try again after more blocks download.';
                 bookList.appendChild(message);
                 return;
             }
 
-            books.forEach(book => {
+            if (!archiveReady) {
+                const banner = document.createElement('div');
+                banner.className = 'book-item';
+                banner.style.color = '#666';
+                banner.style.fontStyle = 'italic';
+                banner.textContent = 'Download in progress — cached titles show as 💾 and can be opened now.';
+                bookList.appendChild(banner);
+            }
+
+            books.forEach((book) => {
                 const row = document.createElement('div');
                 row.className = 'book-item';
 
@@ -2004,10 +2336,9 @@
                 author.style.color = '#666';
 
                 const title = document.createElement('div');
-                // Show cached indicator if book is already extracted
                 if (book.cached) {
                     title.textContent = `💾 ${book.title}`;
-                    title.style.color = '#2e7d32'; // Green for cached
+                    title.style.color = '#2e7d32';
                 } else {
                     title.textContent = book.title;
                 }
@@ -2147,6 +2478,10 @@
                 const textContent = new TextDecoder('utf-8').decode(bookFile.buffer);
 
                 // Display the book
+                book.cached = true;
+                book.content = textContent;
+                refreshCatalogCard();
+                refreshCachedBookList();
                 displayBook(book, textContent);
 
             } catch (error) {

@@ -75,7 +75,7 @@ make seed-multi-logs
 Need a faster smoke test? Use the 10-book sample archive:
 
 ```
-c693df61ab7547ed58ed4f8264c1358b1e25cf6a
+0635b88c37691032b5679cdd5d8a31880cf6494e
 ```
 
 This pairs with `mini-gutenberg-10mb.tar.gz` and is ideal for verifying progressive extraction or WebRTC connectivity before pulling the full 10 GB dataset.

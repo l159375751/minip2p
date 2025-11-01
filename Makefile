@@ -46,7 +46,7 @@ seed: build-docker
 	fi
 	@echo "🌱 Starting seeder..."
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
-		-v $$(pwd):/data:ro \
+		-v $$(pwd):/data \
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent
 	@echo "✅ Seeder started!"

@@ -881,34 +881,46 @@
                 log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
                 // Parse torrent to get magnet link
+                let tempTorrent;
                 try {
-                    client.add(torrentBuffer, (torrent) => {
-                    const magnetLink = torrent.magnetURI;
-                    const infoHash = torrent.infoHash;
+                    tempTorrent = client.add(torrentBuffer, (torrent) => {
+                        const magnetLink = torrent.magnetURI;
+                        const infoHash = torrent.infoHash;
 
-                    log(`✅ Torrent file loaded: ${file.name}`);
-                    log(`🔗 InfoHash: ${infoHash}`);
-                    log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
+                        log(`✅ Torrent file loaded: ${file.name}`);
+                        log(`🔗 InfoHash: ${infoHash}`);
+                        log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
 
-                    alert(`✅ Torrent file loaded!\n\nFile: ${file.name}\nInfoHash: ${infoHash}\n\nNow click "Start Download" to begin.`);
+                        alert(`✅ Torrent file loaded!\n\nFile: ${file.name}\nInfoHash: ${infoHash}\n\nNow click "Start Download" to begin.`);
 
-                    // Store the magnet link for later use
-                    loadedMagnetLink = magnetLink;
-                    activeDownload.magnet = magnetLink;
-                    refreshDownloadCard();
-                    updateDownloadStatus('✅ Torrent file loaded. Click "Start Download" to connect.');
+                        // Store the magnet link for later use
+                        loadedMagnetLink = magnetLink;
+                        activeDownload.magnet = magnetLink;
+                        refreshDownloadCard();
+                        updateDownloadStatus('✅ Torrent file loaded. Click "Start Download" to connect.');
 
-                    // Show magnet link in input
-                    document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
-                    document.getElementById('magnetInput').style.fontSize = '0.75rem';
+                        // Show magnet link in input
+                        document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
+                        document.getElementById('magnetInput').style.fontSize = '0.75rem';
 
-                    // Set background color from InfoHash
-                    setBackgroundFromHash(infoHash);
-                    updateInfoHashDisplay(infoHash);
+                        // Set background color from InfoHash
+                        setBackgroundFromHash(infoHash);
+                        updateInfoHashDisplay(infoHash);
 
-                    // Destroy temp torrent (we'll re-add with actual download)
-                    torrent.destroy();
-                });
+                        // Destroy temp torrent (we'll re-add with actual download)
+                        torrent.destroy();
+                    });
+
+                    // Add error handler to the torrent object
+                    if (tempTorrent) {
+                        tempTorrent.on('error', (err) => {
+                            alert(`❌ Torrent error: ${err.message}\n\nTry using the magnet link instead:\nmagnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c`);
+                            log(`❌ Torrent error: ${err.message}`);
+                            console.error('Torrent error details:', err);
+                        });
+                    } else {
+                        throw new Error('client.add() returned null/undefined');
+                    }
                 } catch (err) {
                     alert(`❌ Error parsing torrent: ${err.message}`);
                     log(`❌ Error parsing torrent: ${err.message}`);
@@ -957,42 +969,54 @@
                 log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
                 // Parse torrent to get metadata
+                let tempTorrent;
                 try {
-                    client.add(torrentBuffer, (torrent) => {
-                    seedTorrentMetadata = {
-                        infoHash: torrent.infoHash,
-                        magnetURI: torrent.magnetURI,
-                        name: torrent.name,
-                        files: torrent.files.map(f => ({ name: f.name, length: f.length, path: f.path })),
-                        announce: torrent.announce,
-                        pieceLength: torrent.pieceLength,
-                        lastPieceLength: torrent.lastPieceLength,
-                        pieces: torrent.pieces ? torrent.pieces.length : 0,
-                        length: torrent.length,
-                        created: torrent.created,
-                        createdBy: torrent.createdBy,
-                        comment: torrent.comment
-                    };
-                    seedTorrentFile = file;
+                    tempTorrent = client.add(torrentBuffer, (torrent) => {
+                        seedTorrentMetadata = {
+                            infoHash: torrent.infoHash,
+                            magnetURI: torrent.magnetURI,
+                            name: torrent.name,
+                            files: torrent.files.map(f => ({ name: f.name, length: f.length, path: f.path })),
+                            announce: torrent.announce,
+                            pieceLength: torrent.pieceLength,
+                            lastPieceLength: torrent.lastPieceLength,
+                            pieces: torrent.pieces ? torrent.pieces.length : 0,
+                            length: torrent.length,
+                            created: torrent.created,
+                            createdBy: torrent.createdBy,
+                            comment: torrent.comment
+                        };
+                        seedTorrentFile = file;
 
-                    log(`✅ Torrent metadata loaded: ${torrent.name}`);
-                    log(`🔗 InfoHash: ${torrent.infoHash}`);
+                        log(`✅ Torrent metadata loaded: ${torrent.name}`);
+                        log(`🔗 InfoHash: ${torrent.infoHash}`);
 
-                    const statusEl = document.getElementById('seedTorrentStatus');
-                    if (statusEl) {
-                        statusEl.textContent = `✅ ${file.name}`;
-                        statusEl.style.color = '#2e7d32';
+                        const statusEl = document.getElementById('seedTorrentStatus');
+                        if (statusEl) {
+                            statusEl.textContent = `✅ ${file.name}`;
+                            statusEl.style.color = '#2e7d32';
+                        }
+
+                        // Show debug panel with technical details
+                        displaySeedDebugInfo(seedTorrentMetadata);
+
+                        // Destroy temp torrent
+                        torrent.destroy();
+
+                        // Check if we can enable seeding button
+                        checkSeedingReady();
+                    });
+
+                    // Add error handler to the torrent object
+                    if (tempTorrent) {
+                        tempTorrent.on('error', (err) => {
+                            alert(`❌ Torrent error: ${err.message}\n\nTry using a magnet link instead, or check browser console for details.`);
+                            log(`❌ Torrent error: ${err.message}`);
+                            console.error('Torrent error details:', err);
+                        });
+                    } else {
+                        throw new Error('client.add() returned null/undefined');
                     }
-
-                    // Show debug panel with technical details
-                    displaySeedDebugInfo(seedTorrentMetadata);
-
-                    // Destroy temp torrent
-                    torrent.destroy();
-
-                    // Check if we can enable seeding button
-                    checkSeedingReady();
-                });
                 } catch (err) {
                     alert(`❌ Error parsing torrent: ${err.message}`);
                     log(`❌ Error parsing torrent: ${err.message}`);

@@ -1051,6 +1051,11 @@
             if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
                 log(`📦 No torrent data. torrent keys: ${torrent ? Object.keys(torrent).join(', ') : 'N/A'}`);
                 log(`📦 Bitfield: ${torrent ? torrent.bitfield : 'N/A'}`);
+                if (torrent && torrent.bitfield) {
+                    log(`📦 Bitfield keys: ${Object.keys(torrent.bitfield).join(', ')}`);
+                    log(`📦 typeof bitfield.length: ${typeof torrent.bitfield.length}`);
+                    log(`📦 bitfield.length: ${torrent.bitfield.length}`);
+                }
                 pieceContainer.style.display = 'none';
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';

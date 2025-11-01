@@ -8,6 +8,9 @@
 # Example infohash (will be auto-converted to magnet, uncomment to seed):
 # a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
 
+# Quick test sample (10 MB, 10 books) - ACTIVE
+c693df61ab7547ed58ed4f8264c1358b1e25cf6a
+
 # Add your torrents below (one per line):
 
 # Gutenberg collection - ACTIVE

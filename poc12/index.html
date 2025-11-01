@@ -318,6 +318,14 @@
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
         <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
             style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
+            <button type="button" onclick="applyMagnetPreset('full')" style="flex: 1; min-width: 180px; background: #5c6bc0;">
+                🧲 Full Gutenberg (10GB)
+            </button>
+            <button type="button" onclick="applyMagnetPreset('mini')" style="flex: 1; min-width: 180px; background: #009688;">
+                ⚡ Mini Sample (10MB)
+            </button>
+        </div>
         <div style="display: flex; gap: 0.5rem;">
             <button onclick="startDownload()" style="flex: 1;">🚀 Start Download</button>
             <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">📄 or .torrent</button>
@@ -605,6 +613,28 @@
             '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
             '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
+        const MINI_ARCHIVE_MAGNET = 'magnet:?xt=urn:btih:c693df61ab7547ed58ed4f8264c1358b1e25cf6a&dn=mini-gutenberg-10mb.tar.gz' +
+            '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
+            '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
+            '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
+            '&tr=wss%3A%2F%2Ftracker.fastcast.nz' +
+            '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce';
+        const MAGNET_PRESETS = {
+            full: {
+                id: 'full',
+                label: 'Full Gutenberg (10GB)',
+                magnet: DEFAULT_MAGNET,
+                infoHash: 'a7bb7a777b775c6f7205e90b57c44b014a4e5f0c',
+                description: 'Complete 80k title archive'
+            },
+            mini: {
+                id: 'mini',
+                label: 'Mini Sample (10MB)',
+                magnet: MINI_ARCHIVE_MAGNET,
+                infoHash: 'c693df61ab7547ed58ed4f8264c1358b1e25cf6a',
+                description: '10 demo books for quick testing'
+            }
+        };
 
         if (typeof window.WebTorrent === 'undefined') {
             const message = 'WebTorrent library failed to load. Please use a modern Chromium- or Firefox-based browser.';
@@ -784,6 +814,25 @@
                     : 'Ready. Click "Start Download" or load a local file.';
                 updateDownloadStatus(statusMessage);
             }
+        }
+
+        function applyMagnetPreset(presetId) {
+            const preset = MAGNET_PRESETS[presetId];
+            if (!preset) return;
+
+            const input = document.getElementById('magnetInput');
+            if (input) {
+                input.value = preset.magnet;
+                input.style.fontSize = '0.75rem';
+            }
+
+            loadedMagnetLink = null;
+            activeDownload.magnet = preset.magnet;
+            updateDownloadStatus(`Preset loaded: ${preset.label}. Click "Start Download" to begin.`);
+            log(`🎯 Magnet preset selected: ${preset.label} (${preset.infoHash})`);
+            updateInfoHashDisplay(preset.infoHash);
+            setBackgroundFromHash(preset.infoHash);
+            refreshDownloadCard();
         }
 
         function clearCachedBooks() {

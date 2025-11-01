@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test seed-multi seed-multi-stop seed-multi-logs
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
@@ -33,67 +33,7 @@ setup-docker:
 build-docker:
 	docker build -t webtorrent .
 
-seed-gutenberg: build-docker
-	@if [ -z "$(MAGNET)" ]; then \
-		echo "Usage: make seed-gutenberg MAGNET='magnet:?xt=...'" ; \
-		exit 1; \
-	fi
-	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent download "$(MAGNET)" --keep-seeding --verbose --torrent-port 6881
-
-seed-from-file: build-docker convert-to-targz
-	@if [ -f gutenberg-txt-files.tar.gz.torrent ]; then \
-		echo "✅ Using .torrent file (instant seeding, no rehashing!)"; \
-		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-			-e DEBUG='webtorrent*,bittorrent-tracker*' \
-			webtorrent seed /data/gutenberg-txt-files.tar.gz.torrent --verbose --torrent-port 6881; \
-	else \
-		echo "⚠️  No .torrent file found, seeding raw .tar.gz (will take 10-30 min to hash)"; \
-		echo "💡 Create .torrent via POC8 to enable instant seeding!"; \
-		docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-			-v $$(pwd):/data:ro -p 6881:6881 -p 6881:6881/udp \
-			-e DEBUG='webtorrent*,bittorrent-tracker*' \
-			webtorrent seed /data/gutenberg-txt-files.tar.gz --verbose --torrent-port 6881; \
-	fi
-
-seed-stop:
-	-docker stop webtorrent-gutenberg
-	-docker rm webtorrent-gutenberg
-
-seed-logs:
-	docker logs -f webtorrent-gutenberg
-
-seed-status:
-	@echo "🌱 === WebTorrent Seeder Status ==="
-	@docker ps --filter name=webtorrent-gutenberg --format "Status: {{.Status}}" 2>/dev/null || echo "❌ Container not running"
-	@echo ""
-	@if docker ps --filter name=webtorrent-gutenberg --format "{{.Names}}" 2>/dev/null | grep -q webtorrent-gutenberg; then \
-		echo "📊 === Latest Stats ==="; \
-		docker logs webtorrent-gutenberg --tail 100 2>&1 | grep -i "speed\|upload\|download\|peers\|progress" | tail -20 || echo "No stats yet"; \
-		echo ""; \
-		echo "📈 === Speed Summary ==="; \
-		LAST_LOG=$$(docker logs webtorrent-gutenberg --tail 50 2>&1); \
-		UP_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬆️|↑|Upload:?\s*)\\K[\\d.]+\\s*[KMG]?B/s" | tail -1); \
-		DOWN_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬇️|↓|Download:?\s*)\\K[\\d.]+\\s*[KMG]?B/s" | tail -1); \
-		PEERS=$$(echo "$$LAST_LOG" | grep -oP "\\d+(?=\s*peers?)" | tail -1); \
-		if [ -n "$$UP_SPEED" ]; then echo "⬆️  Upload: $$UP_SPEED"; else echo "⬆️  Upload: 0 B/s"; fi; \
-		if [ -n "$$DOWN_SPEED" ]; then echo "⬇️  Download: $$DOWN_SPEED"; else echo "⬇️  Download: 0 B/s"; fi; \
-		if [ -n "$$PEERS" ]; then echo "👥 Peers: $$PEERS"; else echo "👥 Peers: 0"; fi; \
-	else \
-		echo "ℹ️  Start seeding with: make seed-from-file"; \
-	fi
-
-seed-test: seed-stop build-docker
-	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
-		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent download "$(GUTENBERG_MAGNET)" --keep-seeding --verbose --torrent-port 6881
-	@echo "Container started! Showing logs (Ctrl+C to exit, container keeps running)"
-	@sleep 2
-	docker logs -f webtorrent-gutenberg
-
-seed-multi: build-docker
+seed: build-docker
 	@if [ ! -f torrents.txt ]; then \
 		echo "❌ torrents.txt not found!"; \
 		echo "Create torrents.txt with one magnet link or infohash per line."; \
@@ -104,19 +44,19 @@ seed-multi: build-docker
 		echo "Add magnet links or infohashes to torrents.txt, one per line."; \
 		exit 1; \
 	fi
-	@echo "🌱 Starting multi-torrent seeder..."
-	docker run -d --name webtorrent-multi --restart unless-stopped \
+	@echo "🌱 Starting seeder..."
+	docker run -d --name webtorrent-seeder --restart unless-stopped \
 		-v $$(pwd):/data:ro \
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent
-	@echo "✅ Multi-seeder started!"
-	@echo "📋 Check logs: make seed-multi-logs"
-	@echo "🛑 Stop: make seed-multi-stop"
+	@echo "✅ Seeder started!"
+	@echo "📋 Check logs: make seed-logs"
+	@echo "🛑 Stop: make seed-stop"
 
-seed-multi-stop:
-	-docker stop webtorrent-multi
-	-docker rm webtorrent-multi
-	@echo "✅ Multi-seeder stopped"
+seed-stop:
+	-docker stop webtorrent-seeder
+	-docker rm webtorrent-seeder
+	@echo "✅ Seeder stopped"
 
-seed-multi-logs:
-	docker logs -f webtorrent-multi
+seed-logs:
+	docker logs -f webtorrent-seeder

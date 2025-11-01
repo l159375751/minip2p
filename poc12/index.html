@@ -387,6 +387,9 @@
 
     <script>
         // Bencode parser for .torrent files
+        // NOTE: Using custom parser because WebTorrent's client.add(buffer) was throwing
+        // "Invalid torrent identifier" errors. WebTorrent SHOULD have parse-torrent built-in,
+        // but it may not be exposed in the browser bundle. Check console logs below.
         function parseBencode(buffer, offset = 0) {
             const view = new Uint8Array(buffer);
             let pos = offset;
@@ -550,6 +553,12 @@
                 dht: true,            // Enable DHT for peer discovery
                 webSeeds: true        // Enable web seeds if available
             });
+
+            // Check if WebTorrent exposes parseTorrent
+            console.log('🔍 Checking WebTorrent capabilities:');
+            console.log('  - WebTorrent:', typeof window.WebTorrent);
+            console.log('  - parseTorrent:', typeof window.WebTorrent.parseTorrent);
+            console.log('  - Available:', Object.keys(window.WebTorrent).filter(k => k.toLowerCase().includes('parse')));
         } else {
             console.warn('WebTorrent not available in this environment.');
         }

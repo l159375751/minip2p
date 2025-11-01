@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-sha
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
@@ -63,3 +63,6 @@ seed-logs:
 
 mini-archive:
 	./utils/create-mini-archive.cjs
+
+mini-archive-sha:
+	sha256sum mini-gutenberg-10mb.tar.gz

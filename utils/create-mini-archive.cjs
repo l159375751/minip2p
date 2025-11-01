@@ -18,7 +18,7 @@ const SAMPLE_FILES = [
   { id: 1007, file: 'frankenstein.txt' }
 ];
 
-const TARGET_BYTES = 512 * 1024; // ~0.5 MiB each -> ~5 MiB compressed
+const TARGET_BYTES = 1024 * 1024; // ~1 MiB each -> ~10 MiB compressed
 const ROOT = path.resolve(__dirname, '..');
 const POC1_DIR = path.join(ROOT, 'poc1');
 const OUTPUT = path.join(ROOT, 'mini-gutenberg-10mb.tar.gz');

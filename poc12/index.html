@@ -112,37 +112,63 @@
             border-bottom: none;
         }
         .book-list {
-            background: white;
-            border: 1px solid #ddd;
-            font-size: 0.8rem;
-            max-height: 500px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(102, 126, 234, 0.15);
+            font-size: 0.85rem;
+            max-height: 480px;
             overflow-y: auto;
+            border-radius: 0.4rem;
         }
-        .book-item {
+        .book-row {
             display: grid;
-            grid-template-columns: 1fr 2fr 40px;
-            gap: 1rem;
-            padding: 0.4rem 0.6rem;
-            border-bottom: 1px solid #eee;
+            grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1fr) 150px;
+            gap: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.08);
             align-items: center;
         }
-        .book-item:hover {
-            background: #f5f5f5;
+        .book-row:last-child {
+            border-bottom: none;
         }
-        .book-item a {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 1.2rem;
+        .book-row:hover {
+            background: rgba(102, 126, 234, 0.06);
         }
-        .book-item a:hover {
-            opacity: 0.7;
+        .book-title {
+            font-weight: 600;
+            color: #2f3c7e;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
-        .book-item a.disabled {
-            color: #bbb;
+        .book-meta {
+            font-size: 0.75rem;
+            color: #666;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .book-actions {
+            display: flex;
+            gap: 0.35rem;
+            justify-content: flex-end;
+        }
+        .book-actions button {
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            background: white;
+            color: #2f3c7e;
+            border-radius: 0.35rem;
+            padding: 0.35rem 0.6rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .book-actions button:hover {
+            border-color: rgba(118, 75, 162, 0.5);
+            color: #764ba2;
+        }
+        .book-actions button:disabled {
+            border-color: #ccc;
+            color: #aaa;
             cursor: not-allowed;
-        }
-        .book-item a.disabled:hover {
-            opacity: 1;
         }
         .download-card-header {
             display: flex;
@@ -918,6 +944,66 @@
 
         function getCachedBooks() {
             return catalogBooks.filter((book) => book.cached);
+        }
+
+        async function extractArchiveBuffer(arrayBuffer) {
+            if (!arrayBuffer) return 0;
+            let decompressed;
+            try {
+                decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
+            } catch (error) {
+                decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
+            }
+
+            const entries = await untar(decompressed.buffer);
+            let updated = 0;
+
+            entries.forEach((entry) => {
+                if (!entry || !entry.name || !entry.buffer) return;
+                const match = entry.name.match(/pg(\d+)\.txt$/i);
+                if (!match) return;
+                const etextNo = parseInt(match[1], 10);
+                const book = ensureCatalogEntry(etextNo);
+                if (!book) return;
+
+                const content = new TextDecoder('utf-8').decode(entry.buffer);
+                const wasCached = !!book.cached;
+                book.cached = true;
+                book.content = content;
+                if (!wasCached) {
+                    cachedBookCount += 1;
+                    updated += 1;
+                }
+            });
+
+            if (updated > 0) {
+                log(`📚 Cached ${updated} books from archive`);
+                updateCatalogStatus();
+                updateBookDisplay();
+            }
+
+            return updated;
+        }
+
+        function ensureCatalogEntry(etextNo) {
+            if (!Number.isFinite(etextNo)) return null;
+            if (catalogIndexByEtext && catalogIndexByEtext.has(etextNo)) {
+                return catalogIndexByEtext.get(etextNo);
+            }
+            const book = {
+                id: `gutenberg-${etextNo}`,
+                etextNo,
+                title: `Gutenberg #${etextNo}`,
+                author: 'Unknown',
+                cached: false,
+                content: null,
+                source: 'local'
+            };
+            catalogBooks.push(book);
+            if (catalogIndexByEtext) {
+                catalogIndexByEtext.set(etextNo, book);
+            }
+            return book;
         }
 
         function refreshCachedBookList() {
@@ -2309,10 +2395,25 @@
                     clearInterval(torrentStatsInterval);
                     torrentStatsInterval = null;
                 }
-                updateDownloadStatus(`✅ Download complete! ${catalogBooks.length.toLocaleString()} books ready to read`);
+                updateCatalogStatus();
+                const cached = cachedBookCount;
+                updateDownloadStatus(`✅ Download complete! ${cached.toLocaleString()} book${cached === 1 ? '' : 's'} ready to read`);
                 showLibrary();
                 refreshDownloadCard();
                 disableProgressiveExtraction();
+
+                const file = currentTorrent.files && currentTorrent.files[0];
+                if (file) {
+                    file.getBlob(async (err, blob) => {
+                        if (err) {
+                            console.warn('Failed to read torrent blob on completion', err);
+                            return;
+                        }
+                        const arrayBuffer = await blob.arrayBuffer();
+                        await extractArchiveBuffer(arrayBuffer);
+                        showLibrary();
+                    });
+                }
             });
 
             currentTorrent.on('error', (err) => {
@@ -2329,7 +2430,7 @@
         }
 
         async function processLocalArchive(file) {
-            updateStatus(`✅ Local file loaded: ${catalogBooks.length.toLocaleString()} books ready to read`);
+            updateStatus('📁 Local archive loaded. Extracting books…');
             activeDownload.magnet = null;
             refreshDownloadCard();
             updateDownloadStatus(`📁 Local archive loaded: ${file.name}`);
@@ -2338,39 +2439,11 @@
 
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                let decompressed;
-                try {
-                    decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
-                } catch (error) {
-                    decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
-                }
-
-                const entries = await untar(decompressed.buffer);
-                let updated = 0;
-
-                entries.forEach((entry) => {
-                    if (!entry || !entry.name || !entry.buffer) return;
-                    const match = entry.name.match(/pg(\d+)\.txt$/i);
-                    if (!match) return;
-                    const etextNo = parseInt(match[1], 10);
-                    if (!catalogIndexByEtext || !catalogIndexByEtext.has(etextNo)) return;
-
-                    const book = catalogIndexByEtext.get(etextNo);
-                    if (!book) return;
-
-                    book.cached = true;
-                    book.content = new TextDecoder('utf-8').decode(entry.buffer);
-                    updated += 1;
-                });
-
-                if (updated > 0) {
-                    log(`📚 Cached ${updated} books from local archive`);
-                } else {
+                const updated = await extractArchiveBuffer(arrayBuffer);
+                if (updated === 0) {
                     log('⚠️ No matching books found in local archive');
                 }
-
-                updateCatalogStatus();
-                updateBookDisplay();
+                showLibrary();
                 refreshBrowserFilesystem();
             } catch (error) {
                 console.error('Failed to process local archive', error);
@@ -2511,26 +2584,30 @@
                 return;
             }
 
-            bookList.className = 'book-grid';
+            bookList.className = 'book-list';
 
             books.forEach((book) => {
-                const card = document.createElement('div');
-                card.className = 'book-card';
+                const row = document.createElement('div');
+                row.className = 'book-row';
 
-                const title = document.createElement('h3');
-                title.textContent = book.title;
-                card.appendChild(title);
+                const idCell = document.createElement('div');
+                idCell.className = 'book-meta';
+                idCell.textContent = `pg${book.etextNo || '—'}`;
 
-                const meta = document.createElement('div');
-                meta.className = 'book-meta';
-                meta.innerHTML = `${escapeHtml(book.author || 'Unknown author')}<br>ID: ${book.etextNo || '—'}`;
-                card.appendChild(meta);
+                const titleCell = document.createElement('div');
+                titleCell.className = 'book-title';
+                titleCell.textContent = book.title;
+
+                const authorCell = document.createElement('div');
+                authorCell.className = 'book-meta';
+                authorCell.textContent = book.author || 'Unknown author';
 
                 const actions = document.createElement('div');
                 actions.className = 'book-actions';
 
                 const openBtn = document.createElement('button');
                 openBtn.textContent = 'Open';
+                openBtn.disabled = !book.content;
                 openBtn.onclick = () => {
                     if (!book.content) {
                         alert('Book content not yet cached. Please wait for extraction to finish.');
@@ -2541,7 +2618,7 @@
 
                 const saveBtn = document.createElement('button');
                 saveBtn.textContent = 'Save';
-                saveBtn.className = 'save';
+                saveBtn.disabled = !book.content;
                 saveBtn.onclick = () => {
                     if (!book.content) {
                         alert('Book content not yet cached. Please wait for extraction to finish.');
@@ -2552,9 +2629,12 @@
 
                 actions.appendChild(openBtn);
                 actions.appendChild(saveBtn);
-                card.appendChild(actions);
 
-                bookList.appendChild(card);
+                row.appendChild(idCell);
+                row.appendChild(titleCell);
+                row.appendChild(authorCell);
+                row.appendChild(actions);
+                bookList.appendChild(row);
             });
         }
 
@@ -2562,126 +2642,46 @@
             log(`📖 Opening "${book.title}"...`);
 
             try {
-                // Check if book is already cached in memory from progressive extraction
-        if (book.cached && book.content) {
-            log(`💾 Loading from cache (no extraction needed)`);
-            displayBook(book, book.content);
-            return;
-        }
-
                 if (!isArchiveReady()) {
                     throw new Error('Archive not ready yet. Download must finish or a local file must be loaded.');
                 }
 
-                let arrayBuffer;
-                let progress = 0;
+                if (!book.cached || !book.content) {
+                    let arrayBuffer;
 
-                // Check if we're using local file or torrent
-                if (localArchiveFile) {
-                    log(`📁 Reading from local file: ${localArchiveFile.name}`);
-                    arrayBuffer = await localArchiveFile.arrayBuffer();
-                    progress = 100;
-                } else if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
-                    // Get the .tar.gz file from WebTorrent
-                    const file = currentTorrent.files[0];
-                    progress = (file.progress * 100).toFixed(1);
-                    log(`📦 Archive progress: ${progress}% (${formatBytes(file.downloaded)} / ${formatBytes(file.length)})`);
-
-                    // Select this file with high priority to download needed pieces
-                    file.select(0); // Highest priority
-
-                    log(`🔍 Reading from downloaded blocks...`);
-
-                    // Try to get available data using streaming
-                    const stream = file.createReadStream();
-                    const chunks = [];
-                    let totalBytes = 0;
-                    const maxBytes = 500 * 1024 * 1024; // Read up to 500MB for extraction attempt
-
-                    // Read available data
-                    for await (const chunk of stream) {
-                        chunks.push(chunk);
-                        totalBytes += chunk.length;
-
-                        if (totalBytes >= maxBytes || totalBytes >= file.downloaded) {
-                            break;
-                        }
+                    if (localArchiveFile) {
+                        log(`📁 Reading from local file: ${localArchiveFile.name}`);
+                        arrayBuffer = await localArchiveFile.arrayBuffer();
+                    } else if (currentTorrent && currentTorrent.files && currentTorrent.files.length > 0) {
+                        const file = currentTorrent.files[0];
+                        log(`📦 Reading torrent archive: ${formatBytes(file.length)} total`);
+                        const blob = await new Promise((resolve, reject) => {
+                            file.getBlob((err, blob) => {
+                                if (err) {
+                                    reject(err);
+                                } else {
+                                    resolve(blob);
+                                }
+                            });
+                        });
+                        arrayBuffer = await blob.arrayBuffer();
+                    } else {
+                        throw new Error('No archive available');
                     }
 
-                    log(`📥 Read ${formatBytes(totalBytes)} from available blocks`);
-
-                    // Combine chunks
-                    const combinedBuffer = new Uint8Array(totalBytes);
-                    let offset = 0;
-                    for (const chunk of chunks) {
-                        combinedBuffer.set(chunk, offset);
-                        offset += chunk.length;
-                    }
-
-                    arrayBuffer = combinedBuffer.buffer;
-                } else {
-                    throw new Error('No archive available');
+                    await extractArchiveBuffer(arrayBuffer);
                 }
 
-                log(`🔓 Decompressing with gzip...`);
-                let decompressed;
-                try {
-                    decompressed = pako.ungzip(new Uint8Array(arrayBuffer));
-                } catch (e) {
-                    // If gzip fails, try partial decompression
-                    log(`⚠️ Partial gzip data, attempting extraction...`);
-                    decompressed = pako.inflate(new Uint8Array(arrayBuffer), { raw: true });
+                if (!book.content) {
+                    throw new Error('Book content not yet cached. Try again once extraction finishes.');
                 }
 
-                log(`📂 Extracting books from tar archive...`);
-
-                // Look for the book file - try common patterns
-                const bookFileName = `pg${book.etextNo}.txt`;
-                const possiblePaths = [
-                    `cache/epub/${book.etextNo}/${bookFileName}`,
-                    `${book.etextNo}/${bookFileName}`,
-                    bookFileName
-                ];
-
-                log(`🔍 Looking for: ${possiblePaths[0]}`);
-
-                // Use js-untar to extract
-                const files = await untar(decompressed.buffer);
-
-                // Find the book file
-                let bookFile = null;
-                for (const path of possiblePaths) {
-                    bookFile = files.find(f => f.name === path || f.name.endsWith(path));
-                    if (bookFile) break;
-                }
-
-                if (!bookFile) {
-                    // Try fuzzy match
-                    bookFile = files.find(f => f.name.includes(`${book.etextNo}`) && f.name.endsWith('.txt'));
-                }
-
-                if (!bookFile) {
-                    throw new Error(`Book not yet available in downloaded blocks. Try again as more downloads (currently ${progress}%)`);
-                }
-
-                log(`✅ Found: ${bookFile.name}`);
-
-                // Read the text content
-                const textContent = new TextDecoder('utf-8').decode(bookFile.buffer);
-
-                book.cached = true;
-                book.content = textContent;
-                refreshCatalogCard();
-                refreshCachedBookList();
-                displayBook(book, textContent);
+                displayBook(book, book.content);
 
             } catch (error) {
                 log(`❌ Error: ${error.message}`);
                 console.error('Book opening error:', error);
-                const downloadPct = (currentTorrent && currentTorrent.files && currentTorrent.files[0])
-                    ? (currentTorrent.files[0].progress * 100).toFixed(1)
-                    : '0';
-                alert(`Could not extract book from available blocks (${downloadPct}% downloaded)\n\n${error.message}\n\nTry again as more data downloads, or wait until download is complete.`);
+                alert(`Could not open book.\n\n${error.message}`);
             }
         }
 

@@ -1171,10 +1171,8 @@
         updateTorrentInfo(torrent);
 
             if (blockStripEl) {
-                const focusIndex = firstPartialIndex !== -1 ? firstPartialIndex : (firstCompleteIndex !== -1 ? firstCompleteIndex : 0);
-                const windowRadius = 12;
-                const start = Math.max(0, focusIndex - windowRadius);
-                const end = Math.min(blockStates.length, start + windowRadius * 2);
+                const start = 0;
+                const end = blockStates.length;
                 blockStripEl.innerHTML = '';
                 for (let i = start; i < end; i++) {
                     const state = blockStates[i];
@@ -1188,9 +1186,7 @@
                     } else {
                         item.style.background = '#e0e0e0';
                     }
-                    if (i === focusIndex) {
-                        item.style.border = '2px solid #283593';
-                    }
+
                     item.textContent = state.index;
                     const pct = document.createElement('span');
                     pct.textContent = `${state.percent.toFixed(0)}%`;

@@ -1049,6 +1049,7 @@
             if (!pieceMap || !pieceContainer) return;
 
             if (!torrent || !torrent.bitfield || typeof torrent.bitfield.length !== 'number' || torrent.bitfield.length === 0) {
+                log('📦 No torrent data available to display blocks.');
                 pieceContainer.style.display = 'none';
                 pieceMap.innerHTML = '';
                 if (summaryEl) summaryEl.textContent = 'Waiting for data…';
@@ -1171,6 +1172,7 @@
         updateTorrentInfo(torrent);
 
             if (blockStripEl) {
+                log(`📦 Torrent data available, showing ${blockStates.length} blocks.`);
                 const start = 0;
                 const end = blockStates.length;
                 blockStripEl.innerHTML = '';

@@ -1100,6 +1100,9 @@
 
                 let complete = 0;
                 for (let j = startPiece; j < endPiece; j++) {
+                    if (i === 0) { // Log only for the first block
+                        log(`📦 Checking piece ${j}: ${torrent.bitfield.get(j)}`);
+                    }
                     if (torrent.bitfield.get(j)) complete++;
                 }
 

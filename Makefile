@@ -1,11 +1,10 @@
-
 .PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed-gutenberg seed-from-file seed-stop seed-logs seed-status seed-test seed-multi seed-multi-stop seed-multi-logs
 
 # Gutenberg collection magnet link with working 2025 trackers
 GUTENBERG_MAGNET := magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
 
 deploy:
-	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new seed-multi.js webtorrent-hybrid-docker/Dockerfile
+	git add index.html poc*/index.html poc*/GUTINDEX.ALL.new seed-multi.js webtorrent-hybrid-docker/Dockerfile Makefile
 	git diff --cached --quiet || git commit -m "Deploy updates"
 	git push
 	ssh 0x6du 'cd /var/www/minip2p && git pull'
@@ -20,7 +19,7 @@ convert-to-targz:
 	@if [ -f gutenberg-txt-files.tar.gz ]; then \
 		echo "✅ gutenberg-txt-files.tar.gz already exists"; \
 	else \
-		echo "🔄 Converting tar.zip to tar.gz (this takes 5-10 minutes)..."; \
+		echo "🔄 Converting tar.zip to tar.gz (this takes 5-10 minutes)"; \
 		unzip -p gutenberg-txt-files.tar.zip | gzip -9 > gutenberg-txt-files.tar.gz; \
 		ls -lh gutenberg-txt-files.tar.gz; \
 		echo "✅ Conversion complete!"; \
@@ -36,7 +35,7 @@ build-docker:
 
 seed-gutenberg: build-docker
 	@if [ -z "$(MAGNET)" ]; then \
-		echo "Usage: make seed-gutenberg MAGNET='magnet:?xt=...'"; \
+		echo "Usage: make seed-gutenberg MAGNET='magnet:?xt=...'" ; \
 		exit 1; \
 	fi
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
@@ -76,9 +75,9 @@ seed-status:
 		echo ""; \
 		echo "📈 === Speed Summary ==="; \
 		LAST_LOG=$$(docker logs webtorrent-gutenberg --tail 50 2>&1); \
-		UP_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬆️|↑|Upload:?\s*)\K[\d.]+\s*[KMG]?B/s" | tail -1); \
-		DOWN_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬇️|↓|Download:?\s*)\K[\d.]+\s*[KMG]?B/s" | tail -1); \
-		PEERS=$$(echo "$$LAST_LOG" | grep -oP "\d+(?=\s*peers?)" | tail -1); \
+		UP_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬆️|↑|Upload:?\s*)\\K[\\d.]+\\s*[KMG]?B/s" | tail -1); \
+		DOWN_SPEED=$$(echo "$$LAST_LOG" | grep -oP "(?<=⬇️|↓|Download:?\s*)\\K[\\d.]+\\s*[KMG]?B/s" | tail -1); \
+		PEERS=$$(echo "$$LAST_LOG" | grep -oP "\\d+(?=\s*peers?)" | tail -1); \
 		if [ -n "$$UP_SPEED" ]; then echo "⬆️  Upload: $$UP_SPEED"; else echo "⬆️  Upload: 0 B/s"; fi; \
 		if [ -n "$$DOWN_SPEED" ]; then echo "⬇️  Download: $$DOWN_SPEED"; else echo "⬇️  Download: 0 B/s"; fi; \
 		if [ -n "$$PEERS" ]; then echo "👥 Peers: $$PEERS"; else echo "👥 Peers: 0"; fi; \
@@ -90,7 +89,7 @@ seed-test: seed-stop build-docker
 	docker run -d --name webtorrent-gutenberg --restart unless-stopped \
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent download "$(GUTENBERG_MAGNET)" --keep-seeding --verbose --torrent-port 6881
-	@echo "Container started! Showing logs (Ctrl+C to exit, container keeps running)..."
+	@echo "Container started! Showing logs (Ctrl+C to exit, container keeps running)"
 	@sleep 2
 	docker logs -f webtorrent-gutenberg
 
@@ -108,7 +107,6 @@ seed-multi: build-docker
 	@echo "🌱 Starting multi-torrent seeder..."
 	docker run -d --name webtorrent-multi --restart unless-stopped \
 		-v $$(pwd):/data:ro \
-
 		-p 6881:6881 -p 6881:6881/udp \
 		-w /app \
 		webtorrent node /app/seed-multi.js /data/torrents.txt

@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 console.log('*********************************');
+console.log('*      SEED-MULTI.JS v3         *');
+console.log('*********************************');
+console.log('*********************************');
 console.log('*      SEED-MULTI.JS v2         *');
 console.log('*********************************');
 
@@ -8,9 +11,9 @@ console.log('*********************************');
  * Usage: node seed-multi.js [torrents.txt]
  */
 
-const WebTorrent = require('webtorrent')
-const fs = require('fs')
-const path = require('path')
+import WebTorrent from 'webtorrent'
+import fs from 'fs'
+import path from 'path'
 
 // Default trackers to add to all torrents
 const DEFAULT_TRACKERS = [

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A multi-torrent seeder using webtorrent-hybrid",
   "main": "seed-multi.js",
+  "type": "module",
   "dependencies": {
     "webtorrent": "^2.8.4"
   }

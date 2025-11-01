@@ -386,6 +386,161 @@
     <script src="vendor/webtorrent.min.js"></script>
 
     <script>
+        // Bencode parser for .torrent files
+        function parseBencode(buffer, offset = 0) {
+            const view = new Uint8Array(buffer);
+            let pos = offset;
+
+            function readUntil(delimiter) {
+                const start = pos;
+                while (pos < view.length && view[pos] !== delimiter) pos++;
+                return view.slice(start, pos);
+            }
+
+            function decode() {
+                const ch = String.fromCharCode(view[pos]);
+
+                // Integer: i<number>e
+                if (ch === 'i') {
+                    pos++; // skip 'i'
+                    const numBytes = readUntil(101); // 'e' = 101
+                    pos++; // skip 'e'
+                    const numStr = new TextDecoder().decode(numBytes);
+                    return parseInt(numStr, 10);
+                }
+
+                // List: l<items>e
+                if (ch === 'l') {
+                    pos++; // skip 'l'
+                    const list = [];
+                    while (view[pos] !== 101) { // 'e' = 101
+                        list.push(decode());
+                    }
+                    pos++; // skip 'e'
+                    return list;
+                }
+
+                // Dictionary: d<key><value>...e
+                if (ch === 'd') {
+                    pos++; // skip 'd'
+                    const dict = {};
+                    while (view[pos] !== 101) { // 'e' = 101
+                        const key = decode();
+                        const value = decode();
+                        dict[key] = value;
+                    }
+                    pos++; // skip 'e'
+                    return dict;
+                }
+
+                // String: <length>:<string>
+                if (ch >= '0' && ch <= '9') {
+                    const lenBytes = readUntil(58); // ':' = 58
+                    pos++; // skip ':'
+                    const len = parseInt(new TextDecoder().decode(lenBytes), 10);
+                    const str = view.slice(pos, pos + len);
+                    pos += len;
+                    // Try to decode as UTF-8 text, fallback to raw bytes
+                    try {
+                        return new TextDecoder().decode(str);
+                    } catch {
+                        return str;
+                    }
+                }
+
+                throw new Error(`Invalid bencode at position ${pos}: ${ch}`);
+            }
+
+            const result = decode();
+            return { value: result, endOffset: pos };
+        }
+
+        // Calculate InfoHash from .torrent file
+        async function calculateInfoHash(torrentBuffer) {
+            const parsed = parseBencode(torrentBuffer);
+            const torrent = parsed.value;
+
+            if (!torrent || !torrent.info) {
+                throw new Error('Invalid torrent: missing info dictionary');
+            }
+
+            // Find the raw bytes of the "info" dictionary
+            // We need to bencode it again to get the exact bytes for hashing
+            const torrentArray = new Uint8Array(torrentBuffer);
+
+            // Find "4:info" in the buffer (bencode for the key "info")
+            const infoKeyBytes = new Uint8Array([52, 58, 105, 110, 102, 111]); // "4:info"
+            let infoStart = -1;
+            for (let i = 0; i < torrentArray.length - 6; i++) {
+                let match = true;
+                for (let j = 0; j < 6; j++) {
+                    if (torrentArray[i + j] !== infoKeyBytes[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    infoStart = i + 6; // Start after "4:info"
+                    break;
+                }
+            }
+
+            if (infoStart === -1) {
+                throw new Error('Could not find info dictionary in torrent file');
+            }
+
+            // Parse from infoStart to get the info dictionary bytes
+            const infoResult = parseBencode(torrentBuffer, infoStart);
+            const infoBytes = torrentArray.slice(infoStart, infoResult.endOffset);
+
+            // Calculate SHA-1 hash
+            const hashBuffer = await crypto.subtle.digest('SHA-1', infoBytes);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const infoHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            return {
+                infoHash,
+                name: torrent.info.name || 'unknown',
+                announce: torrent.announce || '',
+                announceList: torrent['announce-list'] || [],
+                comment: torrent.comment || '',
+                createdBy: torrent['created by'] || '',
+                creationDate: torrent['creation date'] || 0
+            };
+        }
+
+        // Create magnet link from torrent metadata
+        function createMagnetLink(metadata) {
+            let magnet = `magnet:?xt=urn:btih:${metadata.infoHash}`;
+
+            if (metadata.name) {
+                magnet += `&dn=${encodeURIComponent(metadata.name)}`;
+            }
+
+            // Add trackers
+            const trackers = [];
+            if (metadata.announce) {
+                trackers.push(metadata.announce);
+            }
+            if (metadata.announceList && metadata.announceList.length > 0) {
+                metadata.announceList.forEach(tierOrTracker => {
+                    if (Array.isArray(tierOrTracker)) {
+                        tierOrTracker.forEach(t => trackers.push(t));
+                    } else {
+                        trackers.push(tierOrTracker);
+                    }
+                });
+            }
+
+            // Deduplicate and add trackers
+            const uniqueTrackers = [...new Set(trackers)];
+            uniqueTrackers.forEach(tracker => {
+                magnet += `&tr=${encodeURIComponent(tracker)}`;
+            });
+
+            return magnet;
+        }
+
         // Optimized WebTorrent client for faster downloads
         const MAX_TORRENT_CONNECTIONS = 80;
         let client = null;
@@ -874,55 +1029,43 @@
                 alert(`❌ Error reading torrent file: ${e.target.error}`);
                 log(`❌ FileReader error: ${e.target.error}`);
             };
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const torrentBuffer = new Uint8Array(e.target.result);
                 log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
-                // Parse torrent to get magnet link
-                let tempTorrent;
                 try {
-                    tempTorrent = client.add(torrentBuffer, (torrent) => {
-                        const magnetLink = torrent.magnetURI;
-                        const infoHash = torrent.infoHash;
+                    // Parse .torrent file and calculate InfoHash
+                    log(`🔍 Parsing torrent file...`);
+                    const metadata = await calculateInfoHash(torrentBuffer.buffer);
+                    const magnetLink = createMagnetLink(metadata);
 
-                        log(`✅ Torrent file loaded: ${file.name}`);
-                        log(`🔗 InfoHash: ${infoHash}`);
-                        log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
+                    log(`✅ Torrent file loaded: ${file.name}`);
+                    log(`🔗 InfoHash: ${metadata.infoHash}`);
+                    log(`📋 Name: ${metadata.name}`);
+                    log(`📡 Trackers: ${metadata.announceList.length > 0 ? metadata.announceList.flat().length : (metadata.announce ? 1 : 0)}`);
+                    log(`🧲 Magnet link: ${magnetLink.substring(0, 100)}...`);
 
-                        alert(`✅ Torrent file loaded!\n\nFile: ${file.name}\nInfoHash: ${infoHash}\n\nNow click "Start Download" to begin.`);
+                    alert(`✅ Torrent file parsed!\n\nFile: ${file.name}\nName: ${metadata.name}\nInfoHash: ${metadata.infoHash}\n\nNow click "Start Download" to begin.`);
 
-                        // Store the magnet link for later use
-                        loadedMagnetLink = magnetLink;
-                        activeDownload.magnet = magnetLink;
-                        refreshDownloadCard();
-                        updateDownloadStatus('✅ Torrent file loaded. Click "Start Download" to connect.');
+                    // Store the magnet link for later use
+                    loadedMagnetLink = magnetLink;
+                    activeDownload.magnet = magnetLink;
+                    refreshDownloadCard();
+                    updateDownloadStatus('✅ Torrent file loaded. Click "Start Download" to connect.');
 
-                        // Show magnet link in input
-                        document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
-                        document.getElementById('magnetInput').style.fontSize = '0.75rem';
+                    // Show magnet link in input
+                    document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
+                    document.getElementById('magnetInput').style.fontSize = '0.75rem';
 
-                        // Set background color from InfoHash
-                        setBackgroundFromHash(infoHash);
-                        updateInfoHashDisplay(infoHash);
+                    // Set background color from InfoHash
+                    setBackgroundFromHash(metadata.infoHash);
+                    updateInfoHashDisplay(metadata.infoHash);
 
-                        // Destroy temp torrent (we'll re-add with actual download)
-                        torrent.destroy();
-                    });
-
-                    // Add error handler to the torrent object
-                    if (tempTorrent) {
-                        tempTorrent.on('error', (err) => {
-                            alert(`❌ Torrent error: ${err.message}\n\nTry using the magnet link instead:\nmagnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c`);
-                            log(`❌ Torrent error: ${err.message}`);
-                            console.error('Torrent error details:', err);
-                        });
-                    } else {
-                        throw new Error('client.add() returned null/undefined');
-                    }
                 } catch (err) {
-                    alert(`❌ Error parsing torrent: ${err.message}`);
+                    alert(`❌ Error parsing torrent: ${err.message}\n\nThe file may be corrupted or in an unsupported format.`);
                     log(`❌ Error parsing torrent: ${err.message}`);
                     console.error('Torrent parse error:', err);
+                    updateDownloadStatus('❌ Failed to parse torrent file');
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -999,65 +1142,65 @@
                 alert(`❌ Error reading torrent file: ${e.target.error}`);
                 log(`❌ FileReader error: ${e.target.error}`);
             };
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const torrentBuffer = new Uint8Array(e.target.result);
                 log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
-                // Parse torrent to get metadata
-                let tempTorrent;
                 try {
-                    tempTorrent = client.add(torrentBuffer, (torrent) => {
-                        seedTorrentMetadata = {
-                            infoHash: torrent.infoHash,
-                            magnetURI: torrent.magnetURI,
-                            name: torrent.name,
-                            files: torrent.files.map(f => ({ name: f.name, length: f.length, path: f.path })),
-                            announce: torrent.announce,
-                            pieceLength: torrent.pieceLength,
-                            lastPieceLength: torrent.lastPieceLength,
-                            pieces: torrent.pieces ? torrent.pieces.length : 0,
-                            length: torrent.length,
-                            created: torrent.created,
-                            createdBy: torrent.createdBy,
-                            comment: torrent.comment
-                        };
-                        seedTorrentFile = file;
+                    // Parse .torrent file
+                    log(`🔍 Parsing torrent file...`);
+                    const metadata = await calculateInfoHash(torrentBuffer.buffer);
+                    const parsed = parseBencode(torrentBuffer.buffer);
+                    const torrent = parsed.value;
 
-                        log(`✅ Torrent metadata loaded: ${torrent.name}`);
-                        log(`🔗 InfoHash: ${torrent.infoHash}`);
+                    // Extract detailed metadata
+                    const info = torrent.info;
+                    const files = info.files || [{ length: info.length, path: [info.name] }];
+                    const totalLength = info.files ? info.files.reduce((sum, f) => sum + f.length, 0) : info.length;
 
-                        const statusEl = document.getElementById('seedTorrentStatus');
-                        if (statusEl) {
-                            statusEl.textContent = `✅ ${file.name}`;
-                            statusEl.style.color = '#2e7d32';
-                        }
+                    seedTorrentMetadata = {
+                        infoHash: metadata.infoHash,
+                        magnetURI: createMagnetLink(metadata),
+                        name: info.name || 'unknown',
+                        files: files.map(f => ({
+                            name: Array.isArray(f.path) ? f.path.join('/') : f.path,
+                            length: f.length,
+                            path: Array.isArray(f.path) ? f.path.join('/') : f.path
+                        })),
+                        announce: metadata.announce || torrent.announce,
+                        pieceLength: info['piece length'] || 0,
+                        lastPieceLength: totalLength % (info['piece length'] || 1) || (info['piece length'] || 0),
+                        pieces: info.pieces ? info.pieces.length / 20 : 0,
+                        length: totalLength,
+                        created: torrent['creation date'] || 0,
+                        createdBy: metadata.createdBy || torrent['created by'] || '',
+                        comment: metadata.comment || torrent.comment || ''
+                    };
+                    seedTorrentFile = file;
 
-                        // Show seeding panel when any file is loaded
-                        const panel = document.getElementById('seedingStatusPanel');
-                        if (panel) panel.style.display = 'block';
+                    log(`✅ Torrent metadata loaded: ${seedTorrentMetadata.name}`);
+                    log(`🔗 InfoHash: ${metadata.infoHash}`);
+                    log(`📦 Size: ${formatBytes(totalLength)}`);
+                    log(`🧩 Pieces: ${seedTorrentMetadata.pieces}`);
 
-                        // Show debug panel with technical details
-                        displaySeedDebugInfo(seedTorrentMetadata);
-
-                        // Destroy temp torrent
-                        torrent.destroy();
-
-                        // Check if we can enable seeding button
-                        checkSeedingReady();
-                    });
-
-                    // Add error handler to the torrent object
-                    if (tempTorrent) {
-                        tempTorrent.on('error', (err) => {
-                            alert(`❌ Torrent error: ${err.message}\n\nTry using a magnet link instead, or check browser console for details.`);
-                            log(`❌ Torrent error: ${err.message}`);
-                            console.error('Torrent error details:', err);
-                        });
-                    } else {
-                        throw new Error('client.add() returned null/undefined');
+                    const statusEl = document.getElementById('seedTorrentStatus');
+                    if (statusEl) {
+                        statusEl.textContent = `✅ ${file.name}`;
+                        statusEl.style.color = '#2e7d32';
                     }
+
+                    // Show seeding panel when any file is loaded
+                    const panel = document.getElementById('seedingStatusPanel');
+                    if (panel) panel.style.display = 'block';
+
+                    // Show debug panel with technical details
+                    displaySeedDebugInfo(seedTorrentMetadata);
+
+                    // Check if we can enable seeding button
+                    checkSeedingReady();
+
                 } catch (err) {
-                    alert(`❌ Error parsing torrent: ${err.message}`);
+                    alert(`❌ Error parsing torrent: ${err.message}\n\nThe file may be corrupted or in an unsupported format.`);
                     log(`❌ Error parsing torrent: ${err.message}`);
                     console.error('Torrent parse error:', err);
                 }

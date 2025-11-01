@@ -245,6 +245,61 @@
             display: grid;
             gap: 0.25rem;
         }
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.85rem;
+            padding: 0;
+        }
+        .book-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(102, 126, 234, 0.25);
+            border-radius: 0.6rem;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+            box-shadow: 0 6px 18px rgba(102, 126, 234, 0.12);
+        }
+        .book-card h3 {
+            margin: 0;
+            font-size: 1rem;
+            color: #303f9f;
+            line-height: 1.35;
+        }
+        .book-card .book-meta {
+            font-size: 0.78rem;
+            color: #666;
+        }
+        .book-card .book-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .book-card .book-actions button {
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 0.45rem 0.4rem;
+            border-radius: 0.45rem;
+            border: none;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .book-card .book-actions button.save {
+            background: linear-gradient(135deg, #26a69a, #43cea2);
+        }
+        .book-card .book-actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+        }
+        .book-empty {
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            font-style: italic;
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -1321,6 +1376,14 @@
                 .replace(/'/g, '&#39;');
         }
 
+        function sanitizeFileName(name) {
+            return (name || 'book')
+                .replace(/[^\w\d\-_. ]+/g, '')
+                .trim()
+                .replace(/\s+/g, '_')
+                .substring(0, 60) || 'book';
+        }
+
         // Load saved background color and catalog on page load
         window.addEventListener('DOMContentLoaded', () => {
             // Set background from hash of our own source code (static parts only)
@@ -2394,10 +2457,8 @@
             currentDisplayedBooks = haveBooks ? books.slice() : [];
 
             if (!haveBooks) {
+                bookList.className = 'book-empty';
                 const message = document.createElement('div');
-                message.className = 'book-item';
-                message.style.color = '#888';
-                message.style.fontStyle = 'italic';
                 if (archiveReady) {
                     message.textContent = 'No titles match this search.';
                 } else {
@@ -2410,51 +2471,50 @@
                 return;
             }
 
-            if (!archiveReady) {
-                const banner = document.createElement('div');
-                banner.className = 'book-item';
-                banner.style.color = '#666';
-                banner.style.fontStyle = 'italic';
-                banner.textContent = 'Download in progress — cached titles show as 💾 and can be opened now.';
-                bookList.appendChild(banner);
-            }
+            bookList.className = 'book-grid';
 
             books.forEach((book) => {
-                const row = document.createElement('div');
-                row.className = 'book-item';
+                const card = document.createElement('div');
+                card.className = 'book-card';
 
-                const author = document.createElement('div');
-                author.textContent = book.author;
-                author.style.color = '#666';
+                const title = document.createElement('h3');
+                title.textContent = book.title;
+                card.appendChild(title);
 
-                const title = document.createElement('div');
-                if (book.cached) {
-                    title.textContent = `💾 ${book.title}`;
-                    title.style.color = '#2e7d32';
-                } else {
-                    title.textContent = book.title;
-                }
+                const meta = document.createElement('div');
+                meta.className = 'book-meta';
+                meta.innerHTML = `${escapeHtml(book.author || 'Unknown author')}<br>ID: ${book.etextNo || '—'}`;
+                card.appendChild(meta);
 
-                const link = document.createElement('a');
-                link.href = '#';
-                link.textContent = book.cached ? '✓' : '→';
-                if (book.cached) {
-                    link.style.color = '#2e7d32';
-                    link.style.fontWeight = 'bold';
-                }
-                link.onclick = (e) => {
-                    e.preventDefault();
-                    if (!isArchiveReady() && !book.cached) {
-                        alert('Archive not ready yet. Finish download or load a local Gutenberg archive first.');
+                const actions = document.createElement('div');
+                actions.className = 'book-actions';
+
+                const openBtn = document.createElement('button');
+                openBtn.textContent = 'Open';
+                openBtn.onclick = () => {
+                    if (!book.content) {
+                        alert('Book content not yet cached. Please wait for extraction to finish.');
                         return;
                     }
-                    openBookFromTorrent(book);
+                    displayBook(book, book.content);
                 };
 
-                row.appendChild(author);
-                row.appendChild(title);
-                row.appendChild(link);
-                bookList.appendChild(row);
+                const saveBtn = document.createElement('button');
+                saveBtn.textContent = 'Save';
+                saveBtn.className = 'save';
+                saveBtn.onclick = () => {
+                    if (!book.content) {
+                        alert('Book content not yet cached. Please wait for extraction to finish.');
+                        return;
+                    }
+                    downloadBook(book);
+                };
+
+                actions.appendChild(openBtn);
+                actions.appendChild(saveBtn);
+                card.appendChild(actions);
+
+                bookList.appendChild(card);
             });
         }
 
@@ -2621,6 +2681,25 @@
             log(`✅ Displaying "${book.title}"`);
         }
 
+        function downloadBook(book) {
+            const text = book && book.content;
+            if (!text) {
+                alert('Book content not available yet.');
+                return;
+            }
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${sanitizeFileName(book.title)}.txt`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            URL.revokeObjectURL(url);
+            log(`💾 Saved "${book.title}" to disk`);
+        }
+
         window.startDownload = startDownload;
         window.handleTorrentFile = handleTorrentFile;
         window.loadLocalFile = loadLocalFile;
@@ -2628,6 +2707,7 @@
         window.handleSeedTorrentFile = handleSeedTorrentFile;
         window.handleSeedContentFile = handleSeedContentFile;
         window.startSeeding = startSeeding;
+        window.downloadBook = downloadBook;
 
         log('✅ Ready to download Gutenberg collection');
         log('💡 Click "Start Download" to begin');

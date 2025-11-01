@@ -1732,26 +1732,28 @@
             localArchiveFile = seedContentFile;
             processLocalArchive(seedContentFile);
 
-            // Read the torrent file and add it to WebTorrent
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const torrentBuffer = new Uint8Array(e.target.result);
+            const torrentId = seedTorrentMetadata.magnetURI || seedTorrentMetadata.infoHash;
+            if (!torrentId) {
+                alert('Unable to determine magnet link or infohash from the .torrent file.');
+                return;
+            }
 
-                log(`📡 Adding torrent to announce seeding...`);
+            log(`📡 Adding torrent to announce seeding...`);
 
-                // Add the torrent (this will start downloading, but we already have the file)
-                // WebTorrent will verify pieces and announce to trackers that we're seeding
-                currentTorrent = client.add(torrentBuffer, {
-                    path: '/downloads',
-                    maxWebConns: 10
-                });
+            // Add the torrent (this will start downloading, but we already have the file)
+            // WebTorrent will verify pieces and announce to trackers that we're seeding
+            currentTorrent = client.add(torrentId, {
+                path: '/downloads',
+                maxWebConns: 10,
+                announce: seedTorrentMetadata.announce || undefined
+            });
 
-                log(`✅ Torrent added, waiting for metadata...`);
+            log(`✅ Torrent added, waiting for metadata...`);
 
-                // Wait for metadata
-                currentTorrent.on('metadata', () => {
-                    log(`✅ Metadata received, InfoHash: ${currentTorrent.infoHash}`);
-                    log(`📦 Size: ${formatBytes(currentTorrent.length)}, Pieces: ${currentTorrent.pieces.length}`);
+            // Wait for metadata
+            currentTorrent.on('metadata', () => {
+                log(`✅ Metadata received, InfoHash: ${currentTorrent.infoHash}`);
+                log(`📦 Size: ${formatBytes(currentTorrent.length)}, Pieces: ${currentTorrent.pieces.length}`);
 
                     // Update UI
                     updateInfoHashDisplay(currentTorrent.infoHash);
@@ -1793,11 +1795,11 @@
 
                 // Update stats periodically
                 torrentStatsInterval = setInterval(() => {
-                    if (!currentTorrent) return;
+                if (!currentTorrent) return;
 
-                    const peers = currentTorrent.numPeers;
-                    const uploaded = formatBytes(currentTorrent.uploaded);
-                    const uploadSpeed = currentTorrent.uploadSpeed ? formatBytes(currentTorrent.uploadSpeed) : '0 B';
+                const peers = currentTorrent.numPeers;
+                const uploaded = formatBytes(currentTorrent.uploaded);
+                const uploadSpeed = currentTorrent.uploadSpeed ? formatBytes(currentTorrent.uploadSpeed) : '0 B';
                     const downloaded = formatBytes(currentTorrent.downloaded);
                     const progress = currentTorrent.progress ? (currentTorrent.progress * 100).toFixed(1) : '0.0';
 
@@ -1805,11 +1807,9 @@
                         updateDownloadStatus(`⬇️ Downloading: ${progress}% • ${downloaded} / ${formatBytes(currentTorrent.length)} • ${peers} peer${peers !== 1 ? 's' : ''}`);
                     } else {
                         updateDownloadStatus(`🌱 Seeding • ${uploaded} uploaded • ${uploadSpeed}/s • ${peers} peer${peers !== 1 ? 's' : ''}`);
-                    }
-                    refreshDownloadCard();
-                }, 1000);
-            };
-            reader.readAsArrayBuffer(seedTorrentFile);
+                }
+                refreshDownloadCard();
+            }, 1000);
         }
 
         function log(message) {

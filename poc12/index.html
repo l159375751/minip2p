@@ -381,7 +381,7 @@
         <div id="catalogMetadata" style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace;">
             <div style="color: #999;">Loading...</div>
         </div>
-        <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog… • InfoHash: —</div>
+        <div id="catalogSummary" style="margin-bottom: 0.75rem; color: #555; font-size: 0.8rem;">📚 Loading catalog…</div>
         <div id="browserFilesystem" style="padding: 0.75rem; background: #f8f8f8; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
         <div id="downloadedFiles" style="margin-top: 0.75rem; padding: 0.75rem; background: #f0f7ff; border-radius: 0.25rem; font-size: 0.8rem; font-family: monospace; max-height: 200px; overflow-y: auto; display:none;"></div>
     </div>
@@ -591,7 +591,7 @@
         let currentInfoHash = null;
         let catalogSummary = {
             status: '📚 Loading catalog…',
-            infoHash: '—'
+            infoHash: null
         };
         let activeDownload = { magnet: null };
         let hasStartedDownload = false;
@@ -676,7 +676,7 @@
                 catalogSummary.infoHash = infoHash;
             } else {
                 infoHashEl.textContent = 'InfoHash: —';
-                catalogSummary.infoHash = '—';
+                catalogSummary.infoHash = null;
             }
             refreshDownloadCard();
             refreshCatalogCard();
@@ -2207,7 +2207,7 @@
             const summaryEl = document.getElementById('catalogSummary');
             updateDownloadedFilesView(currentTorrent);
             if (summaryEl) {
-                summaryEl.textContent = `${catalogSummary.status} • InfoHash: ${catalogSummary.infoHash}`;
+                summaryEl.textContent = catalogSummary.status;
             }
         }
 

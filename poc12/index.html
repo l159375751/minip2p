@@ -833,6 +833,11 @@
             updateInfoHashDisplay(preset.infoHash);
             setBackgroundFromHash(preset.infoHash);
             refreshDownloadCard();
+
+            if (presetId === 'mini') {
+                log('⚡ Auto-starting Mini Sample download');
+                startDownload();
+            }
         }
 
         function clearCachedBooks() {

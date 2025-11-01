@@ -860,19 +860,29 @@
         }
 
         function handleTorrentFile(file) {
-            if (!file) return;
+            if (!file) {
+                alert('⚠️ No file selected');
+                return;
+            }
             if (!client) {
-                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                alert('❌ WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
                 return;
             }
             log(`🔥 Loading .torrent file: ${file.name}`);
+            updateDownloadStatus(`🔥 Loading torrent file: ${file.name}...`);
 
             const reader = new FileReader();
+            reader.onerror = (e) => {
+                alert(`❌ Error reading torrent file: ${e.target.error}`);
+                log(`❌ FileReader error: ${e.target.error}`);
+            };
             reader.onload = (e) => {
                 const torrentBuffer = new Uint8Array(e.target.result);
+                log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
                 // Parse torrent to get magnet link
-                client.add(torrentBuffer, (torrent) => {
+                try {
+                    client.add(torrentBuffer, (torrent) => {
                     const magnetLink = torrent.magnetURI;
                     const infoHash = torrent.infoHash;
 
@@ -880,11 +890,13 @@
                     log(`🔗 InfoHash: ${infoHash}`);
                     log(`📋 Magnet link: ${magnetLink.substring(0, 100)}...`);
 
+                    alert(`✅ Torrent file loaded!\n\nFile: ${file.name}\nInfoHash: ${infoHash}\n\nNow click "Start Download" to begin.`);
+
                     // Store the magnet link for later use
                     loadedMagnetLink = magnetLink;
                     activeDownload.magnet = magnetLink;
                     refreshDownloadCard();
-                    updateDownloadStatus('Torrent file loaded. Click "Start Download" to connect.');
+                    updateDownloadStatus('✅ Torrent file loaded. Click "Start Download" to connect.');
 
                     // Show magnet link in input
                     document.getElementById('magnetInput').value = magnetForDisplay(magnetLink);
@@ -897,6 +909,11 @@
                     // Destroy temp torrent (we'll re-add with actual download)
                     torrent.destroy();
                 });
+                } catch (err) {
+                    alert(`❌ Error parsing torrent: ${err.message}`);
+                    log(`❌ Error parsing torrent: ${err.message}`);
+                    console.error('Torrent parse error:', err);
+                }
             };
             reader.readAsArrayBuffer(file);
         }
@@ -920,19 +937,28 @@
 
         // Seeding functions
         function handleSeedTorrentFile(file) {
-            if (!file) return;
+            if (!file) {
+                alert('⚠️ No torrent file selected');
+                return;
+            }
             if (!client) {
-                alert('WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
+                alert('❌ WebTorrent is not available in this browser. Please try the latest Firefox or Chromium.');
                 return;
             }
             log(`🌱 Loading .torrent file for seeding: ${file.name}`);
 
             const reader = new FileReader();
+            reader.onerror = (e) => {
+                alert(`❌ Error reading torrent file: ${e.target.error}`);
+                log(`❌ FileReader error: ${e.target.error}`);
+            };
             reader.onload = (e) => {
                 const torrentBuffer = new Uint8Array(e.target.result);
+                log(`📄 Torrent file read: ${torrentBuffer.length} bytes`);
 
                 // Parse torrent to get metadata
-                client.add(torrentBuffer, (torrent) => {
+                try {
+                    client.add(torrentBuffer, (torrent) => {
                     seedTorrentMetadata = {
                         infoHash: torrent.infoHash,
                         magnetURI: torrent.magnetURI,
@@ -967,6 +993,11 @@
                     // Check if we can enable seeding button
                     checkSeedingReady();
                 });
+                } catch (err) {
+                    alert(`❌ Error parsing torrent: ${err.message}`);
+                    log(`❌ Error parsing torrent: ${err.message}`);
+                    console.error('Torrent parse error:', err);
+                }
             };
             reader.readAsArrayBuffer(file);
         }

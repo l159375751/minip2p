@@ -94,3 +94,20 @@ This pairs with `mini-gutenberg-10mb.tar.gz` and is ideal for verifying progress
 **Want to add more torrents?**
 1. Edit `torrents.txt` and add new lines
 2. Run `make seed-multi-stop && make seed-multi`
+
+## Mini Archive SHA-256
+
+Keep the 10 MB sampler in sync:
+
+```
+make mini-archive
+make mini-archive-sha
+# Example output: 8a80699b771c168ace3108bb69179687cc2ceb9e98c5bc64c4fceff65bcca4db  mini-gutenberg-10mb.tar.gz
+```
+
+Recreate the torrent via POC8, then restart the seeder:
+
+```
+make seed-stop
+make seed
+```

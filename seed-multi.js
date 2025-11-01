@@ -86,8 +86,8 @@ lines.forEach((line, idx) => {
   console.log(`\n[${idx + 1}/${lines.length}] Adding torrent...`)
   console.log(`🔗 ${magnetLink.substring(0, 80)}...`)
 
-  // Add magnet link without options (WebTorrent handles download path automatically)
-  const torrent = client.add(magnetLink)
+  // Add magnet link with path to seed local files
+  const torrent = client.add(magnetLink, { path: '/data' })
 
   activeTorrents++
 

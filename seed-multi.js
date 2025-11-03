@@ -2,15 +2,15 @@
 
 /**
  * Seed multiple torrents from a list of magnet links or infohashes
- * Usage: node seed-multi.js [torrents.txt]
+ * Usage: node seed-multi.js [torrents.txt] [trackers.txt]
  */
 
 import WebTorrent from 'webtorrent'
 import fs from 'fs'
 import path from 'path'
 
-// Default trackers to add to all torrents
-const DEFAULT_TRACKERS = [
+// Default trackers applied when no tracker file is provided
+const FALLBACK_TRACKERS = [
   'wss://tracker.openwebtorrent.com',
   'wss://tracker.webtorrent.dev',
   'wss://tracker.btorrent.xyz',
@@ -22,6 +22,7 @@ const DEFAULT_TRACKERS = [
 
 // Read torrents file
 const torrentsFile = process.argv[2] || 'torrents.txt'
+const trackersArg = process.argv[3] || null
 
 if (!fs.existsSync(torrentsFile)) {
   console.error(`❌ File not found: ${torrentsFile}`)
@@ -44,6 +45,17 @@ if (lines.length === 0) {
 
 console.log(`📋 Found ${lines.length} torrent(s) to seed\n`)
 
+const { trackers, source: trackerSource } = loadTrackerList({
+  trackersArg,
+  torrentsFile
+})
+
+if (trackerSource) {
+  console.log(`📡 Using ${trackers.length} tracker(s) from ${trackerSource}`)
+} else {
+  console.log(`📡 Using built-in tracker list (${trackers.length} total)`)
+}
+
 // Create WebTorrent client
 const client = new WebTorrent({
   maxConns: 200,
@@ -57,7 +69,7 @@ client.on('error', err => {
 })
 
 // Convert infohash to magnet link
-function toMagnetLink(input) {
+function toMagnetLink(input, trackerList) {
   if (input.startsWith('magnet:')) {
     return input
   }
@@ -71,7 +83,7 @@ function toMagnetLink(input) {
   }
 
   // Build magnet link with trackers
-  const trackerParams = DEFAULT_TRACKERS.map(t => `&tr=${encodeURIComponent(t)}`).join('')
+  const trackerParams = trackerList.map(t => `&tr=${encodeURIComponent(t)}`).join('')
   return `magnet:?xt=urn:btih:${infohash}${trackerParams}`
 }
 
@@ -79,7 +91,7 @@ function toMagnetLink(input) {
 let activeTorrents = 0
 
 lines.forEach((line, idx) => {
-  const magnetLink = toMagnetLink(line)
+  const magnetLink = toMagnetLink(line, trackers)
 
   if (!magnetLink) {
     return
@@ -144,6 +156,53 @@ function formatBytes(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+function loadTrackerList({ trackersArg, torrentsFile }) {
+  const fallback = {
+    trackers: [...FALLBACK_TRACKERS],
+    source: null
+  }
+
+  const candidates = []
+
+  if (trackersArg) {
+    candidates.push(trackersArg)
+  } else {
+    const colocated = path.join(path.dirname(torrentsFile), 'trackers.txt')
+    candidates.push(colocated)
+    if (path.resolve(colocated) !== path.resolve('trackers.txt')) {
+      candidates.push('trackers.txt')
+    }
+  }
+
+  for (const candidate of [...new Set(candidates)]) {
+    if (!candidate) continue
+
+    if (!fs.existsSync(candidate)) {
+      if (trackersArg) {
+        console.warn(`⚠️  Provided trackers file not found: ${candidate}`)
+      }
+      continue
+    }
+
+    const data = fs.readFileSync(candidate, 'utf8')
+    const entries = data.split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'))
+
+    if (entries.length === 0) {
+      console.warn(`⚠️  No trackers found in ${candidate} (all lines empty or comments)`)
+      continue
+    }
+
+    return {
+      trackers: Array.from(new Set(entries)),
+      source: candidate
+    }
+  }
+
+  return fallback
 }
 
 console.log(`\n🌱 WebTorrent Multi-Seeder started!`)

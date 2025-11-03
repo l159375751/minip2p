@@ -18,6 +18,15 @@ a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
 def456...
 ```
 
+Optionally, create `trackers.txt` alongside `torrents.txt` (or pass a custom path as the second CLI argument) to override the default tracker list. Add one WebTorrent-compatible tracker URL per line:
+
+```bash
+# trackers.txt
+wss://tracker.openwebtorrent.com
+wss://tracker.webtorrent.dev
+udp://tracker.opentrackr.org:1337/announce
+```
+
 ### 2. Start seeding
 
 ```bash
@@ -36,11 +45,29 @@ make seed-multi-logs
 make seed-multi-stop
 ```
 
+### Optional: Regenerate mini archives for testing
+
+Need fresh sample payloads without touching production artifacts? Use the dedicated helpers:
+
+```bash
+make mini-archive         # builds ~10/100/1000 MB samplers under data/
+make mini-archive SAMPLE=10mb
+make mini-archive SAMPLE=100mb
+make mini-archive SAMPLE=1000mb
+make test-data            # same samplers under data/test-data/
+make test-data-clean
+make mini-torrents        # write .torrent files to ./torrents/
+make main-torrent         # (optional) create torrent for full Gutenberg bundle
+```
+
+Archives themselves stay out of git (regardless of `OUTPUT_DIR`), while `checksums/mini-gutenberg-*.tar.gz.sha256` store one hash per archive so you can verify any copy you keep elsewhere.
+Each torrent command prints the magnet URI—copy those straight into `torrents.txt` so the Docker seeder picks them up on the next run.
+
 ## Features
 
 - ✅ Seed unlimited torrents from a single Docker container
 - ✅ Auto-converts infohashes to magnet links
-- ✅ Adds 7+ trackers to all torrents for better peer discovery
+- ✅ Adds configurable tracker list (defaults to 7+ tried-and-true endpoints)
 - ✅ Supports up to 200 peer connections
 - ✅ Status updates every 30 seconds
 - ✅ Auto-restart on failure
@@ -97,16 +124,12 @@ This pairs with `mini-gutenberg-10mb.tar.gz` and is ideal for verifying progress
 
 ## Mini Archive SHA-256
 
-Keep the 10 MB sampler in sync:
+Keep the samplers in sync:
 
 ```
 make mini-archive
 make mini-archive-sha
 # Example output: feb2fedcf0cd62b5da35e3bc2d9354d3930deb483645c3acbc2ae6fe3a0b6039  mini-gutenberg-10mb.tar.gz
-# Larger samplers (optional)
-make mini-archive SAMPLE=100
-make mini-archive SAMPLE=1k
-make mini-archive SAMPLE=10k
 ```
 
 Recreate the torrent via POC8, then restart the seeder:

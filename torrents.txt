@@ -8,11 +8,17 @@
 # Example infohash (will be auto-converted to magnet, uncomment to seed):
 # a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
 
-# Quick test sample (10 MB, 10 books) - ACTIVE
-a9b9e56d524c5541c54ccb2d8385e711953a4c21
+# Quick test sampler (~10 MB, curated 39 books)
+magnet:?xt=urn:btih:d647ee27ef510b630cff6223e5fa6b98a8bb5f0f&dn=mini-gutenberg-10mb.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451&tr=udp%3A%2F%2Fexodus.desync.com%3A6969
+
+# Medium sampler (~134 MB, ~800 books)
+magnet:?xt=urn:btih:c32547adca48b23c5189ef1405b2af8820daf20c&dn=mini-gutenberg-100mb.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451&tr=udp%3A%2F%2Fexodus.desync.com%3A6969
+
+# Large sampler (~877 MB, ~6000 books)
+magnet:?xt=urn:btih:877e29f032ca2751d11da1ec8e66b2fbccbe504a&dn=mini-gutenberg-1000mb.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451&tr=udp%3A%2F%2Fexodus.desync.com%3A6969
 
 # Add your torrents below (one per line):
 
 # Gutenberg collection - ACTIVE
-a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
+magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451&tr=udp%3A%2F%2Fexodus.desync.com%3A6969
 

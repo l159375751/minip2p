@@ -1040,14 +1040,14 @@
             const query = (currentSearchQuery || '').trim().toLowerCase();
 
             if (!query || query.length < 2) {
-                displayBooks(cachedBooks.slice(0, 50));
+                displayBooks(cachedBooks);
                 return;
             }
 
             const results = cachedBooks.filter((book) =>
                 book.title.toLowerCase().includes(query) ||
                 book.author.toLowerCase().includes(query)
-            ).slice(0, 100);
+            );
 
             displayBooks(results);
         }

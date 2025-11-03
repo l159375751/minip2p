@@ -401,7 +401,7 @@
 
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
-        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
             style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
             <button type="button" onclick="applyMagnetPreset('full')" style="flex: 1; min-width: 180px; background: #5c6bc0;">
@@ -413,8 +413,6 @@
         </div>
         <div style="display: flex; gap: 0.5rem;">
             <button onclick="startDownload()" style="flex: 1;">🚀 Start Download</button>
-            <button onclick="document.getElementById('torrentFileInput').click()" style="flex: 0.8;">📄 or .torrent</button>
-            <input type="file" id="torrentFileInput" accept=".torrent" style="display: none;" onchange="handleTorrentFile(this.files[0])">
         </div>
     </div>
 
@@ -692,7 +690,7 @@
         ];
 
         // Default magnet link with MANY trackers for better peer discovery
-        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz' +
+        const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz' +
             '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
             '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
             '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
@@ -700,7 +698,7 @@
             '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
             '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
-        const MINI_ARCHIVE_MAGNET = 'magnet:?xt=urn:btih:a9b9e56d524c5541c54ccb2d8385e711953a4c21&dn=mini-gutenberg-10mb.tar.gz' +
+        const MINI_ARCHIVE_MAGNET = 'magnet:?xt=urn:btih:5d2cc360cb0ce5396121ea61a95478f499d9c532&dn=mini-gutenberg-10mb.tar.gz' +
             '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
             '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
             '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
@@ -711,14 +709,14 @@
                 id: 'full',
                 label: 'Full Gutenberg (10GB)',
                 magnet: DEFAULT_MAGNET,
-                infoHash: 'a7bb7a777b775c6f7205e90b57c44b014a4e5f0c',
+                infoHash: '38ea08e57e7fd054ed83165b7705bd57ca0250af',
                 description: 'Complete 80k title archive'
             },
             mini: {
                 id: 'mini',
                 label: 'Mini Sample (10MB)',
                 magnet: MINI_ARCHIVE_MAGNET,
-                infoHash: 'a9b9e56d524c5541c54ccb2d8385e711953a4c21',
+                infoHash: '5d2cc360cb0ce5396121ea61a95478f499d9c532',
                 description: '10 demo books for quick testing'
             }
         };

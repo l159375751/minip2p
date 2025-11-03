@@ -10,6 +10,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 import subprocess
@@ -82,6 +83,60 @@ def build_id_list(mode: str) -> list[int]:
     return list(range(start, end))
 
 
+def dedupe_preserve_order(values: list[int]) -> list[int]:
+    seen: set[int] = set()
+    ordered: list[int] = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            ordered.append(value)
+    return ordered
+
+
+def collect_sample_ids(samples: list[str]) -> tuple[dict[str, list[int]], list[int]]:
+    id_map: dict[str, list[int]] = {}
+    superset: list[int] = []
+
+    for sample in samples:
+        ids = build_id_list(sample)
+        id_map[sample] = ids
+        superset.extend(ids)
+
+    return id_map, dedupe_preserve_order(superset)
+
+
+def extract_superset(etext_ids: list[int], staging_dir: Path) -> dict[int, str]:
+    if not etext_ids:
+        return {}
+
+    staging_dir.mkdir(parents=True, exist_ok=True)
+
+    initial_list = [f'cache/epub/{etext_id}/pg{etext_id}.txt' for etext_id in etext_ids]
+    list_file = write_list_file(initial_list)
+    try:
+        run_tar([
+            '-xzf', str(FULL_ARCHIVE),
+            '-C', str(staging_dir),
+            '--ignore-failed-read',
+            '--files-from', str(list_file)
+        ])
+    finally:
+        try:
+            list_file.unlink()
+        except FileNotFoundError:
+            pass
+
+    mapping: dict[int, str] = {}
+    for txt_path in staging_dir.glob('cache/epub/*/pg*.txt'):
+        match = re.match(r'pg(\d+)', txt_path.stem)
+        if not match:
+            continue
+        etext_id = int(match.group(1))
+        mapping[etext_id] = str(txt_path.relative_to(staging_dir))
+
+    return mapping
+
+
 def run_tar(args: list[str]) -> None:
     result = subprocess.run(['tar', *args], capture_output=True, text=True)
     allow_fail = '--ignore-failed-read' in args
@@ -131,49 +186,65 @@ def update_existing_hashes() -> None:
         print(f'Updated {archive.name}.sha256 -> {digest}')
 
 
-def build_mini_archive(mode: str) -> None:
-    canonical = resolve_sample(mode)
-    if canonical == 'all':
-        raise ValueError('Use "all" only as a top-level mode.')
+def build_archives(samples: list[str]) -> None:
+    if not samples:
+        return
 
     ensure_output_dir()
     ensure_full_archive()
-    etext_ids = build_id_list(canonical)
-    output = OUTPUT_DIR / f'mini-gutenberg-{canonical}.tar.gz'
+    canonical_samples: list[str] = []
+    for sample in samples:
+        resolved = resolve_sample(sample)
+        if resolved == 'all':
+            raise ValueError('Use "all" only as a top-level mode.')
+        if resolved not in canonical_samples:
+            canonical_samples.append(resolved)
+
+    id_map, superset_ids = collect_sample_ids(canonical_samples)
 
     with tempfile.TemporaryDirectory(prefix='mini-gutenberg-') as tmp:
-        tmp_path = Path(tmp)
-        extract_dir = tmp_path / 'extract'
-        extract_dir.mkdir()
+        staging_root = Path(tmp) / 'extract'
+        available_files = extract_superset(superset_ids, staging_root)
+        print(f'Extracted {len(available_files)} of {len(superset_ids)} requested text files into staging.')
 
-        initial_list = [f'cache/epub/{etext_id}/pg{etext_id}.txt' for etext_id in etext_ids]
-        list_file = write_list_file(initial_list)
-        try:
-            run_tar(['-xzf', str(FULL_ARCHIVE), '-C', str(extract_dir), '--ignore-failed-read', '--files-from', str(list_file)])
-        finally:
+        for sample in canonical_samples:
+            ids = id_map[sample]
+            selected_paths: list[str] = []
+            missing_ids: list[int] = []
+
+            for etext_id in ids:
+                rel_path = available_files.get(etext_id)
+                if rel_path:
+                    selected_paths.append(rel_path)
+                else:
+                    missing_ids.append(etext_id)
+
+            if not selected_paths:
+                print(f'⚠️  No files found for sampler "{sample}" (all entries missing).')
+                continue
+
+            output = OUTPUT_DIR / f'mini-gutenberg-{sample}.tar.gz'
+
+            list_file = write_list_file(selected_paths)
             try:
-                list_file.unlink()
-            except FileNotFoundError:
-                pass
+                run_tar([
+                    '-czf', str(output),
+                    '-C', str(staging_root),
+                    '--files-from', str(list_file)
+                ])
+            finally:
+                try:
+                    list_file.unlink()
+                except FileNotFoundError:
+                    pass
 
-        extracted_paths = sorted(path.relative_to(extract_dir) for path in extract_dir.glob('cache/epub/*/pg*.txt'))
-        if not extracted_paths:
-            raise FileNotFoundError('No matching entries were extracted from the archive.')
+            size_mb = output.stat().st_size / (1024 * 1024)
+            digest = write_sha256(output)
+            record_checksum(output, digest)
 
-        second_list_file = write_list_file([str(path) for path in extracted_paths])
-        try:
-            run_tar(['-czf', str(output), '-C', str(extract_dir), '--files-from', str(second_list_file)])
-        finally:
-            try:
-                second_list_file.unlink()
-            except FileNotFoundError:
-                pass
-
-    size_mb = output.stat().st_size / (1024 * 1024)
-    digest = write_sha256(output)
-    record_checksum(output, digest)
-    print(f'Created {output.name} (~{size_mb:.2f} MiB) with up to {len(etext_ids)} books (missing entries skipped).')
-    print(f'SHA256: {digest}')
+            missing_note = f" | Missing entries skipped: {len(missing_ids)}" if missing_ids else ""
+            print(f'Created {output.name} (~{size_mb:.2f} MiB){missing_note}.')
+            print(f'SHA256: {digest}')
 
 
 def main() -> None:
@@ -185,13 +256,11 @@ def main() -> None:
         update_existing_hashes()
         return
 
-    if resolve_sample(mode) == 'all':
-        modes = DEFAULT_BUILD_ORDER
+    resolved_mode = resolve_sample(mode)
+    if resolved_mode == 'all':
+        build_archives(DEFAULT_BUILD_ORDER)
     else:
-        modes = [resolve_sample(mode)]
-
-    for sample in modes:
-        build_mini_archive(sample)
+        build_archives([resolved_mode])
 
 
 if __name__ == '__main__':

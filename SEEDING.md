@@ -10,11 +10,11 @@ Edit `torrents.txt` and add one magnet link or infohash per line:
 
 ```bash
 # torrents.txt
-magnet:?xt=urn:btih:a7bb7a777b775c6f7205e90b57c44b014a4e5f0c&dn=gutenberg-txt-files.tar.gz
+magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz
 magnet:?xt=urn:btih:abc123...
 
 # Or just infohashes (auto-converted to magnets):
-a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
+38ea08e57e7fd054ed83165b7705bd57ca0250af
 def456...
 ```
 
@@ -87,7 +87,7 @@ Each torrent command prints the magnet URI—copy those straight into `torrents.
 Add this to `torrents.txt`:
 
 ```
-a7bb7a777b775c6f7205e90b57c44b014a4e5f0c
+38ea08e57e7fd054ed83165b7705bd57ca0250af
 ```
 
 Then run:
@@ -129,7 +129,7 @@ Keep the samplers in sync:
 ```
 make mini-archive
 make mini-archive-sha
-# Example output: feb2fedcf0cd62b5da35e3bc2d9354d3930deb483645c3acbc2ae6fe3a0b6039  mini-gutenberg-10mb.tar.gz
+# Example output: d3f63c8b7b055f41df4542518c6f07e5d3b71b6202d79818559d8261f3eb57d2  mini-gutenberg-10mb.tar.gz
 ```
 
 Recreate the torrent via POC8, then restart the seeder:

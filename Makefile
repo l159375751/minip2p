@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add
 
 SAMPLE ?= all
 
@@ -121,3 +121,19 @@ main-torrent:
 	fi
 
 all-torrents: mini-torrents main-torrent
+
+transmission-add:
+	@echo "📡 Adding torrents to transmission..."
+	@for torrent in $(TORRENT_DIR)/*.torrent; do \
+		echo "➕ Adding $$(basename $$torrent)"; \
+		transmission-remote -a "$$torrent"; \
+	done
+	@echo ""
+	@echo "🔗 Adding UDP trackers to all torrents..."
+	@grep '^udp://' $(TRACKERS_FILE) | while read -r tracker; do \
+		echo "  Adding tracker: $$tracker"; \
+		transmission-remote -t all -td "$$tracker"; \
+	done
+	@echo ""
+	@echo "✅ Verifying trackers..."
+	@transmission-remote -t all -it

@@ -10,7 +10,6 @@ Usage:
 from __future__ import annotations
 
 import os
-import re
 import sys
 import tempfile
 import subprocess
@@ -23,23 +22,14 @@ OUTPUT_DIR = Path(os.environ.get('OUTPUT_DIR', DATA_DIR)).expanduser()
 FULL_ARCHIVE = DATA_DIR / 'gutenberg-txt-files.tar.gz'
 CHECKSUM_DIR = ROOT / 'checksums'
 
-# Approximate samplers by target archive size (MB scale)
+# Build cascading archives: each is 1/10 of previous
+# 1000mb from full → 100mb from 1000mb → 10mb from 100mb
 TARGETS = {
-    '10mb': {
-        'ids': [
-            11, 27, 35, 45, 84, 98, 115, 118, 120, 123, 345, 430, 492, 514, 768,
-            907, 1076, 1184, 1232, 1342, 1514, 1661, 1952, 2350, 2542, 2638, 2701,
-            3186, 4020, 4230, 4276, 4363, 4432, 4746, 5200, 5300, 5400, 5500, 5600
-        ]
-    },
-    '100mb': {
-        'range': (1, 801)  # first ~800 books, missing entries skipped
-    },
-    '1000mb': {
-        'range': (1, 6001)  # first ~6000 books, missing entries skipped
-    },
+    '1000mb': {'source': FULL_ARCHIVE, 'fraction': 0.1},
+    '100mb': {'source': None, 'fraction': 0.1},  # from 1000mb
+    '10mb': {'source': None, 'fraction': 0.1},   # from 100mb
 }
-DEFAULT_BUILD_ORDER = list(TARGETS.keys())
+DEFAULT_BUILD_ORDER = ['1000mb', '100mb', '10mb']
 SAMPLE_ALIASES = {
     'demo': '10mb',
     '100': '100mb',
@@ -70,71 +60,15 @@ def resolve_sample(mode: str) -> str:
     return canonical
 
 
-def build_id_list(mode: str) -> list[int]:
-    canonical = resolve_sample(mode)
-    if canonical == 'all':
-        raise ValueError('Cannot build id list for "all" directly.')
-
-    config = TARGETS[canonical]
-    if 'ids' in config:
-        return config['ids']
-
-    start, end = config['range']
-    return list(range(start, end))
-
-
-def dedupe_preserve_order(values: list[int]) -> list[int]:
-    seen: set[int] = set()
-    ordered: list[int] = []
-    for value in values:
-        if value not in seen:
-            seen.add(value)
-            ordered.append(value)
-    return ordered
-
-
-def collect_sample_ids(samples: list[str]) -> tuple[dict[str, list[int]], list[int]]:
-    id_map: dict[str, list[int]] = {}
-    superset: list[int] = []
-
-    for sample in samples:
-        ids = build_id_list(sample)
-        id_map[sample] = ids
-        superset.extend(ids)
-
-    return id_map, dedupe_preserve_order(superset)
-
-
-def extract_superset(etext_ids: list[int], staging_dir: Path) -> dict[int, str]:
-    if not etext_ids:
-        return {}
-
-    staging_dir.mkdir(parents=True, exist_ok=True)
-
-    initial_list = [f'cache/epub/{etext_id}/pg{etext_id}.txt' for etext_id in etext_ids]
-    list_file = write_list_file(initial_list)
-    try:
-        run_tar([
-            '-xzf', str(FULL_ARCHIVE),
-            '-C', str(staging_dir),
-            '--ignore-failed-read',
-            '--files-from', str(list_file)
-        ])
-    finally:
-        try:
-            list_file.unlink()
-        except FileNotFoundError:
-            pass
-
-    mapping: dict[int, str] = {}
-    for txt_path in staging_dir.glob('cache/epub/*/pg*.txt'):
-        match = re.match(r'pg(\d+)', txt_path.stem)
-        if not match:
-            continue
-        etext_id = int(match.group(1))
-        mapping[etext_id] = str(txt_path.relative_to(staging_dir))
-
-    return mapping
+def list_tar_files(archive_path: Path) -> list[str]:
+    """List all files (not directories) from a tar.gz, sorted."""
+    result = subprocess.run(
+        ['tar', '-tzf', str(archive_path)],
+        capture_output=True, text=True, check=True
+    )
+    # Filter out directories (ending with /)
+    files = [line for line in result.stdout.splitlines() if not line.endswith('/')]
+    return sorted(files)
 
 
 def run_tar(args: list[str]) -> None:
@@ -192,43 +126,60 @@ def build_archives(samples: list[str]) -> None:
 
     ensure_output_dir()
     ensure_full_archive()
-    canonical_samples: list[str] = []
+
+    # Build in cascading order: 1000mb → 100mb → 10mb
+    # Each archive is a subset of the previous one
     for sample in samples:
         resolved = resolve_sample(sample)
         if resolved == 'all':
             raise ValueError('Use "all" only as a top-level mode.')
-        if resolved not in canonical_samples:
-            canonical_samples.append(resolved)
+        if resolved not in TARGETS:
+            print(f'⚠️  Unknown sample: {resolved}')
+            continue
 
-    id_map, superset_ids = collect_sample_ids(canonical_samples)
+        config = TARGETS[resolved]
+        fraction = config['fraction']
 
-    with tempfile.TemporaryDirectory(prefix='mini-gutenberg-') as tmp:
-        staging_root = Path(tmp) / 'extract'
-        available_files = extract_superset(superset_ids, staging_root)
-        print(f'Extracted {len(available_files)} of {len(superset_ids)} requested text files into staging.')
+        # Determine source archive
+        if resolved == '1000mb':
+            source_archive = FULL_ARCHIVE
+        elif resolved == '100mb':
+            source_archive = OUTPUT_DIR / 'mini-gutenberg-1000mb.tar.gz'
+        elif resolved == '10mb':
+            source_archive = OUTPUT_DIR / 'mini-gutenberg-100mb.tar.gz'
+        else:
+            print(f'⚠️  Unknown cascade for {resolved}')
+            continue
 
-        for sample in canonical_samples:
-            ids = id_map[sample]
-            selected_paths: list[str] = []
-            missing_ids: list[int] = []
+        if not source_archive.exists():
+            print(f'⚠️  Source archive missing: {source_archive.name}')
+            continue
 
-            for etext_id in ids:
-                rel_path = available_files.get(etext_id)
-                if rel_path:
-                    selected_paths.append(rel_path)
-                else:
-                    missing_ids.append(etext_id)
+        # List all files from source, sorted
+        all_files = list_tar_files(source_archive)
+        if not all_files:
+            print(f'⚠️  No files found in {source_archive.name}')
+            continue
 
-            if not selected_paths:
-                print(f'⚠️  No files found for sampler "{sample}" (all entries missing).')
-                continue
+        # Take first N files based on fraction
+        num_files = int(len(all_files) * fraction)
+        if num_files == 0:
+            num_files = min(100, len(all_files))  # at least 100 files
+        selected_files = all_files[:num_files]
 
-            output = OUTPUT_DIR / f'mini-gutenberg-{sample}.tar.gz'
+        print(f'Building {resolved}: {len(selected_files)} of {len(all_files)} files from {source_archive.name}')
 
-            list_file = write_list_file(selected_paths)
+        # Extract selected files to temp, then repackage
+        with tempfile.TemporaryDirectory(prefix=f'mini-gutenberg-{resolved}-') as tmp:
+            staging_root = Path(tmp) / 'extract'
+            staging_root.mkdir(parents=True, exist_ok=True)
+
+            # Write file list
+            list_file = write_list_file(selected_files)
             try:
+                # Extract from source
                 run_tar([
-                    '-czf', str(output),
+                    '-xzf', str(source_archive),
                     '-C', str(staging_root),
                     '--files-from', str(list_file)
                 ])
@@ -238,12 +189,19 @@ def build_archives(samples: list[str]) -> None:
                 except FileNotFoundError:
                     pass
 
+            # Create output archive
+            output = OUTPUT_DIR / f'mini-gutenberg-{resolved}.tar.gz'
+            run_tar([
+                '-czf', str(output),
+                '-C', str(staging_root),
+                '.'
+            ])
+
             size_mb = output.stat().st_size / (1024 * 1024)
             digest = write_sha256(output)
             record_checksum(output, digest)
 
-            missing_note = f" | Missing entries skipped: {len(missing_ids)}" if missing_ids else ""
-            print(f'Created {output.name} (~{size_mb:.2f} MiB){missing_note}.')
+            print(f'Created {output.name} (~{size_mb:.2f} MiB).')
             print(f'SHA256: {digest}')
 
 

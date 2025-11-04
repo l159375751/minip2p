@@ -132,7 +132,7 @@ transmission-add:
 	@echo "🔗 Adding UDP trackers to all torrents..."
 	@grep '^udp://' $(TRACKERS_FILE) | while read -r tracker; do \
 		echo "  Adding tracker: $$tracker/announce"; \
-		transmission-remote -t all -td "$$tracker/announce"; \
+		transmission-remote -t 0 -td "$$tracker/announce"; \
 	done
 	@echo ""
 	@echo "✅ Verifying trackers..."

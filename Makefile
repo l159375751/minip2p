@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop
 
 SAMPLE ?= all
 
@@ -123,10 +123,10 @@ main-torrent:
 all-torrents: mini-torrents main-torrent
 
 transmission-add:
-	@echo "📡 Adding torrents to transmission..."
+	@echo "📡 Adding torrents to transmission (paused)..."
 	@for torrent in $(TORRENT_DIR)/*.torrent; do \
 		echo "➕ Adding $$(basename $$torrent)"; \
-		transmission-remote -a "$$torrent"; \
+		transmission-remote -a "$$torrent" -w "$(TORRENT_DIR)" --start-paused; \
 	done
 	@echo ""
 	@echo "🔗 Adding UDP trackers to all torrents..."
@@ -135,5 +135,42 @@ transmission-add:
 		transmission-remote -t 0 -td "$$tracker/announce"; \
 	done
 	@echo ""
-	@echo "✅ Verifying trackers..."
-	@transmission-remote -t all -it
+	@echo "📋 Current torrents:"
+	@transmission-remote -l
+	@echo ""
+	@echo "⏳ Next steps (for each torrent ID):"
+	@echo "   1. Verify: make transmission-verify ID=<torrent-id>"
+	@echo "   2. Check:  make transmission-status"
+	@echo "   3. Start:  make transmission-start ID=<torrent-id>"
+
+transmission-status:
+	@transmission-remote -l
+
+transmission-verify:
+	@if [ -z "$(ID)" ]; then \
+		echo "❌ Error: ID required"; \
+		echo "Usage: make transmission-verify ID=<torrent-id>"; \
+		exit 1; \
+	fi
+	@echo "🔍 Verifying torrent $(ID)..."
+	@transmission-remote -t $(ID) --verify
+
+transmission-start:
+	@if [ -z "$(ID)" ]; then \
+		echo "❌ Error: ID required"; \
+		echo "Usage: make transmission-start ID=<torrent-id>"; \
+		exit 1; \
+	fi
+	@echo "▶️  Starting torrent $(ID)..."
+	@transmission-remote -t $(ID) --start
+	@transmission-remote -t $(ID) -i
+
+transmission-stop:
+	@if [ -z "$(ID)" ]; then \
+		echo "❌ Error: ID required"; \
+		echo "Usage: make transmission-stop ID=<torrent-id>"; \
+		exit 1; \
+	fi
+	@echo "⏸️  Stopping torrent $(ID)..."
+	@transmission-remote -t $(ID) --stop
+	@transmission-remote -t $(ID) -i

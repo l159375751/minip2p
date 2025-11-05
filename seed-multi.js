@@ -2,12 +2,13 @@
 
 /**
  * Seed multiple torrents from a list of magnet links or infohashes
- * Usage: node seed-multi.js [torrents.txt] [trackers.txt]
+ * Usage: node seed-multi.js [torrents.txt] [trackers.txt] [torrent-files-dir]
  */
 
 import WebTorrent from 'webtorrent'
 import fs from 'fs'
 import path from 'path'
+import { glob } from 'glob'
 
 // Default trackers applied when no tracker file is provided
 const FALLBACK_TRACKERS = [
@@ -23,27 +24,43 @@ const FALLBACK_TRACKERS = [
 // Read torrents file
 const torrentsFile = process.argv[2] || 'torrents.txt'
 const trackersArg = process.argv[3] || null
+const torrentFilesDir = process.argv[4] || null
 
-if (!fs.existsSync(torrentsFile)) {
-  console.error(`❌ File not found: ${torrentsFile}`)
-  console.log(`\nCreate ${torrentsFile} with one magnet link or infohash per line.`) // Corrected: \n to 
+let lines = []
 
+// Read from torrents.txt if it exists
+if (fs.existsSync(torrentsFile)) {
+  const content = fs.readFileSync(torrentsFile, 'utf8')
+  lines = content.split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'))
+
+  if (lines.length > 0) {
+    console.log(`📋 Found ${lines.length} torrent(s) from ${torrentsFile}`)
+  }
+} else {
+  console.log(`ℹ️  No ${torrentsFile} file found, checking for .torrent files...`)
+}
+
+// Read .torrent files from directory if specified
+let torrentFiles = []
+if (torrentFilesDir && fs.existsSync(torrentFilesDir)) {
+  const pattern = path.join(torrentFilesDir, '*.torrent')
+  torrentFiles = glob.sync(pattern)
+  if (torrentFiles.length > 0) {
+    console.log(`📁 Found ${torrentFiles.length} .torrent file(s) in ${torrentFilesDir}`)
+  }
+}
+
+if (lines.length === 0 && torrentFiles.length === 0) {
+  console.error(`❌ No torrents found`)
+  console.log(`\nProvide either:`)
+  console.log(`  - A ${torrentsFile} with magnet links/infohashes, one per line`)
+  console.log(`  - A directory with .torrent files as 4th argument`)
   process.exit(1)
 }
 
-const content = fs.readFileSync(torrentsFile, 'utf8')
-const lines = content.split('\n')
-  .map(line => line.trim())
-  .filter(line => line && !line.startsWith('#'))
-
-if (lines.length === 0) {
-  console.error(`❌ No torrents found in ${torrentsFile}`)
-  console.log(`\nAdd magnet links or infohashes to ${torrentsFile}, one per line.`) // Corrected: \n to 
-
-  process.exit(1)
-}
-
-console.log(`📋 Found ${lines.length} torrent(s) to seed\n`)
+console.log(`📦 Total: ${lines.length + torrentFiles.length} torrent(s) to seed\n`)
 
 const { trackers, source: trackerSource } = loadTrackerList({
   trackersArg,
@@ -89,21 +106,10 @@ function toMagnetLink(input, trackerList) {
 
 // Seed each torrent
 let activeTorrents = 0
+const totalTorrents = lines.length + torrentFiles.length
 
-lines.forEach((line, idx) => {
-  const magnetLink = toMagnetLink(line, trackers)
-
-  if (!magnetLink) {
-    return
-  }
-
-  console.log(`\n[${idx + 1}/${lines.length}] Adding torrent...`)
-  console.log(`🔗 ${magnetLink.substring(0, 80)}...`)
-
-
-  // Add magnet link with path to seed local files
-  const torrent = client.add(magnetLink, { path: '/data' })
-
+// Helper to setup torrent event handlers
+function setupTorrentHandlers(torrent, label) {
   activeTorrents++
 
   torrent.on('infoHash', () => {
@@ -125,9 +131,41 @@ lines.forEach((line, idx) => {
   })
 
   torrent.on('error', err => {
-    console.error(`   ❌ Error with ${torrent.infoHash}:`, err.message)
+    console.error(`   ❌ Error with ${label}:`, err.message)
     activeTorrents--
   })
+}
+
+// Seed torrents from torrents.txt (magnet links / infohashes)
+lines.forEach((line, idx) => {
+  const magnetLink = toMagnetLink(line, trackers)
+
+  if (!magnetLink) {
+    return
+  }
+
+  console.log(`\n[${idx + 1}/${totalTorrents}] Adding torrent from text file...`)
+  console.log(`🔗 ${magnetLink.substring(0, 80)}...`)
+
+  const torrent = client.add(magnetLink, { path: '/data' })
+  setupTorrentHandlers(torrent, `magnet ${idx + 1}`)
+})
+
+// Seed torrents from .torrent files
+torrentFiles.forEach((torrentPath, idx) => {
+  const fileIdx = lines.length + idx + 1
+  const fileName = path.basename(torrentPath)
+
+  console.log(`\n[${fileIdx}/${totalTorrents}] Adding torrent from file...`)
+  console.log(`📄 ${fileName}`)
+
+  try {
+    const torrentBuffer = fs.readFileSync(torrentPath)
+    const torrent = client.add(torrentBuffer, { path: '/data' })
+    setupTorrentHandlers(torrent, fileName)
+  } catch (err) {
+    console.error(`   ❌ Failed to load ${fileName}:`, err.message)
+  }
 })
 
 // Status update every 30 seconds

@@ -7,4 +7,6 @@ RUN npm install
 
 COPY seed-multi.js .
 
-CMD ["node", "seed-multi.js", "/data/torrents.txt"]
+# Args: [torrents.txt] [trackers.txt] [torrent-files-dir]
+# Will read both torrents.txt (if exists) and .torrent files from /data
+CMD ["node", "seed-multi.js", "/data/torrents.txt", "", "/data"]

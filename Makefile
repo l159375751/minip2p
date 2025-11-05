@@ -7,7 +7,7 @@ GUTENBERG_MAGNET := magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af
 
 TEST_DATA_DIR := $(abspath data/test-data)
 TEST_SAMPLES := 10mb 100mb 1000mb
-TORRENT_DIR := $(abspath torrents)
+TORRENT_DIR := $(abspath data)
 TRACKERS_FILE := $(abspath trackers.txt)
 
 deploy:

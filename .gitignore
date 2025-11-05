@@ -1,1 +1,2 @@
-data/
+# Ignore generated archives only
+data/*.tar.gz

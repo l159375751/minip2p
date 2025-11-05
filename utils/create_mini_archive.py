@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / 'data'
 OUTPUT_DIR = Path(os.environ.get('OUTPUT_DIR', DATA_DIR)).expanduser()
 FULL_ARCHIVE = DATA_DIR / 'gutenberg-txt-files.tar.gz'
-CHECKSUM_DIR = ROOT / 'checksums'
 
 # Build cascading archives: each is 1/10 of previous
 # 1000mb from full → 100mb from 1000mb → 10mb from 100mb
@@ -102,10 +101,7 @@ def write_sha256(path: Path) -> str:
     return digest
 
 
-def record_checksum(archive_path: Path, digest: str) -> None:
-    CHECKSUM_DIR.mkdir(parents=True, exist_ok=True)
-    checksum_path = CHECKSUM_DIR / f'{archive_path.name}.sha256'
-    checksum_path.write_text(f'{digest}\n', encoding='utf-8')
+# Checksums stored alongside archives as *.tar.gz.sha256
 
 
 def update_existing_hashes() -> None:
@@ -199,7 +195,6 @@ def build_archives(samples: list[str]) -> None:
 
             size_mb = output.stat().st_size / (1024 * 1024)
             digest = write_sha256(output)
-            record_checksum(output, digest)
 
             print(f'Created {output.name} (~{size_mb:.2f} MiB).')
             print(f'SHA256: {digest}')

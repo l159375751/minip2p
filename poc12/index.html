@@ -403,16 +403,19 @@
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
         <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
             style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
-        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
-            <button type="button" onclick="applyMagnetPreset('full')" style="flex: 1; min-width: 180px; background: #5c6bc0;">
-                🧲 Full Gutenberg (10GB)
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            <button type="button" onclick="applyMagnetPreset('mini10')" style="flex: 1; min-width: 120px; background: #009688;">
+                ⚡ Mini 10MB
             </button>
-            <button type="button" onclick="applyMagnetPreset('mini')" style="flex: 1; min-width: 180px; background: #009688;">
-                ⚡ Mini Sample (10MB)
+            <button type="button" onclick="applyMagnetPreset('mini100')" style="flex: 1; min-width: 120px; background: #00897b;">
+                📦 Mini 100MB
             </button>
-        </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <button onclick="startDownload()" style="flex: 1;">🚀 Start Download</button>
+            <button type="button" onclick="applyMagnetPreset('mini1000')" style="flex: 1; min-width: 120px; background: #00695c;">
+                📚 Mini 1GB
+            </button>
+            <button type="button" onclick="applyMagnetPreset('full')" style="flex: 1; min-width: 120px; background: #5c6bc0;">
+                🧲 Full 11GB
+            </button>
         </div>
     </div>
 
@@ -698,26 +701,40 @@
             '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
             '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
-        const MINI_ARCHIVE_MAGNET = 'magnet:?xt=urn:btih:5d2cc360cb0ce5396121ea61a95478f499d9c532&dn=mini-gutenberg-10mb.tar.gz' +
-            '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
+        const TRACKERS = '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
             '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
             '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
             '&tr=wss%3A%2F%2Ftracker.fastcast.nz' +
             '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce';
+
         const MAGNET_PRESETS = {
             full: {
                 id: 'full',
-                label: 'Full Gutenberg (10GB)',
+                label: 'Full Gutenberg (11GB)',
                 magnet: DEFAULT_MAGNET,
                 infoHash: '38ea08e57e7fd054ed83165b7705bd57ca0250af',
                 description: 'Complete 80k title archive'
             },
-            mini: {
-                id: 'mini',
-                label: 'Mini Sample (10MB)',
-                magnet: MINI_ARCHIVE_MAGNET,
-                infoHash: '5d2cc360cb0ce5396121ea61a95478f499d9c532',
-                description: '10 demo books for quick testing'
+            mini10: {
+                id: 'mini10',
+                label: 'Mini 10MB',
+                magnet: 'magnet:?xt=urn:btih:bbd456a15950aef60ab28e786ae291d00e5fa934&dn=mini-gutenberg-10mb.tar.gz' + TRACKERS,
+                infoHash: 'bbd456a15950aef60ab28e786ae291d00e5fa934',
+                description: '~10MB sample for quick testing'
+            },
+            mini100: {
+                id: 'mini100',
+                label: 'Mini 100MB',
+                magnet: 'magnet:?xt=urn:btih:9dfeaa10e1be1e8d7b5efca400c966335c65447e&dn=mini-gutenberg-100mb.tar.gz' + TRACKERS,
+                infoHash: '9dfeaa10e1be1e8d7b5efca400c966335c65447e',
+                description: '~100MB sample'
+            },
+            mini1000: {
+                id: 'mini1000',
+                label: 'Mini 1GB',
+                magnet: 'magnet:?xt=urn:btih:6bb4c2103418a9e629167df4436c936c5a655793&dn=mini-gutenberg-1000mb.tar.gz' + TRACKERS,
+                infoHash: '6bb4c2103418a9e629167df4436c936c5a655793',
+                description: '~1GB sample'
             }
         };
 
@@ -918,16 +935,15 @@
 
             loadedMagnetLink = null;
             activeDownload.magnet = preset.magnet;
-            updateDownloadStatus(`Preset loaded: ${preset.label}. Click "Start Download" to begin.`);
-            log(`🎯 Magnet preset selected: ${preset.label} (${preset.infoHash})`);
+            updateDownloadStatus(`Starting ${preset.label}...`);
+            log(`🎯 Starting download: ${preset.label} (${preset.infoHash})`);
             updateInfoHashDisplay(preset.infoHash);
             setBackgroundFromHash(preset.infoHash);
             refreshDownloadCard();
 
-            if (presetId === 'mini') {
-                log('⚡ Auto-starting Mini Sample download');
-                startDownload();
-            }
+            // Auto-start download for all presets
+            log(`⚡ Auto-starting ${preset.label} download`);
+            startDownload();
         }
 
         function clearCachedBooks() {

@@ -2408,13 +2408,74 @@
             if (pieceContainer) pieceContainer.style.display = 'none';
             updateDownloadStatus('🔍 Waiting for metadata...');
 
+            // Log tracker configuration
+            log('📡 Tracker configuration:');
+            if (currentTorrent.announce && currentTorrent.announce.length > 0) {
+                currentTorrent.announce.forEach((tracker, idx) => {
+                    log(`   ${idx + 1}. ${tracker}`);
+                });
+            } else {
+                log('   (Will be populated from torrent metadata)');
+            }
+
+            // Track announces per tracker
+            const trackerAnnounces = new Map();
+
+            // Listen for InfoHash
+            currentTorrent.on('infoHash', () => {
+                log(`🧭 InfoHash determined: ${currentTorrent.infoHash}`);
+                updateInfoHashDisplay(currentTorrent.infoHash);
+            });
+
+            // Listen for tracker events
+            currentTorrent.on('tracker', (announce) => {
+                const url = announce.announceUrl || announce.url || 'unknown';
+                log(`📡 Tracker initialized: ${url}`);
+
+                // Log when tracker gets a response
+                if (announce.on) {
+                    announce.on('update', (data) => {
+                        log(`📥 Tracker response from ${url}: ${data.complete || 0} seeders, ${data.incomplete || 0} leechers`);
+                    });
+
+                    announce.on('peer', (peer) => {
+                        log(`👤 Peer discovered via ${url}`);
+                    });
+                }
+            });
+
+            currentTorrent.on('trackerAnnounce', (announce) => {
+                const url = announce.announceUrl || announce.url || 'unknown';
+                const count = (trackerAnnounces.get(url) || 0) + 1;
+                trackerAnnounces.set(url, count);
+                log(`📤 Announcing to tracker: ${url} (announce #${count})`);
+            });
+
+            currentTorrent.on('warning', (err) => {
+                const msg = err.message || String(err);
+                if (msg.includes('tracker')) {
+                    log(`⚠️ Tracker warning: ${msg}`);
+                } else if (!msg.includes('Max number of WebSocket') && !seenTorrentWarnings.has(msg)) {
+                    seenTorrentWarnings.add(msg);
+                    log(`⚠️ Warning: ${msg}`);
+                }
+            });
+
             currentTorrent.on('ready', () => {
                 log(`✅ Torrent ready!`);
                 log(`📊 Total size: ${formatBytes(currentTorrent.length)}`);
                 log(`📁 Files: ${currentTorrent.files.length}`);
                 log(`🧩 Pieces: ${currentTorrent.pieces.length} (${formatBytes(currentTorrent.pieceLength)} each)`);
-                const trackerCount = currentTorrent.announce ? currentTorrent.announce.length : 0;
-                log(`⚡ Max connections: ${MAX_TORRENT_CONNECTIONS} | Tracker count: ${trackerCount}`);
+
+                // Log full tracker list after metadata is received
+                if (currentTorrent.announce && currentTorrent.announce.length > 0) {
+                    log(`📡 Active trackers (${currentTorrent.announce.length}):`);
+                    currentTorrent.announce.forEach((tracker, idx) => {
+                        log(`   ${idx + 1}. ${tracker}`);
+                    });
+                }
+
+                log(`⚡ Max connections: ${MAX_TORRENT_CONNECTIONS}`);
                 if (currentTorrent.infoHash && currentTorrent.infoHash !== currentInfoHash) {
                     updateInfoHashDisplay(currentTorrent.infoHash);
                     log(`🧭 InfoHash: ${currentTorrent.infoHash}`);

@@ -1,4 +1,3 @@
-wss://relay.trustroots.org
 wss://tracker.openwebtorrent.com
 wss://tracker.webtorrent.dev
 wss://tracker.btorrent.xyz

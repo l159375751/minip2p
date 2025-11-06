@@ -416,7 +416,7 @@
 
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
-        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Frelay.trustroots.org&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
+        <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
             style="width: 100%; padding: 0.65rem; border: 1px solid #ddd; border-radius: 0.35rem; font-family: monospace; font-size: 0.85rem; margin-bottom: 0.75rem;">
         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
             <button type="button" onclick="applyMagnetPreset('mini10')" style="flex: 1; min-width: 120px; background: #009688;">
@@ -700,7 +700,6 @@
         let hasStartedDownload = false;
         const seenTorrentWarnings = new Set();
         const FALLBACK_TRACKERS = [
-            'wss://relay.trustroots.org',
             'wss://tracker.openwebtorrent.com',
             'wss://tracker.webtorrent.dev',
             'wss://tracker.btorrent.xyz',
@@ -710,7 +709,6 @@
 
         // Default magnet link with MANY trackers for better peer discovery
         const DEFAULT_MAGNET = 'magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz' +
-            '&tr=wss%3A%2F%2Frelay.trustroots.org' +
             '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
             '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
             '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
@@ -718,8 +716,7 @@
             '&tr=wss%3A%2F%2Ftracker.files.fm%3A7073%2Fannounce' +
             '&tr=wss%3A%2F%2Fspacetradersapi-chatbox.herokuapp.com%3A443%2Fannounce' +
             '&tr=ws%3A%2F%2Ftracker.webtorrent.io';
-        const TRACKERS = '&tr=wss%3A%2F%2Frelay.trustroots.org' +
-            '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
+        const TRACKERS = '&tr=wss%3A%2F%2Ftracker.openwebtorrent.com' +
             '&tr=wss%3A%2F%2Ftracker.webtorrent.dev' +
             '&tr=wss%3A%2F%2Ftracker.btorrent.xyz' +
             '&tr=wss%3A%2F%2Ftracker.fastcast.nz' +

@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop
+.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker
 
 SAMPLE ?= all
 
@@ -168,3 +168,15 @@ transmission-stop:
 	@echo "⏸️  Stopping torrent $(ID)..."
 	@transmission-remote -t $(ID) --stop
 	@transmission-remote -t $(ID) -i
+
+check-tracker:
+	@if [ -z "$(HASH)" ]; then \
+		echo "❌ Error: HASH required"; \
+		echo "Usage: make check-tracker HASH=<infohash|torrent-file>"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make check-tracker HASH=bbd456a15950aef60ab28e786ae291d00e5fa934"; \
+		echo "  make check-tracker HASH=data/mini-gutenberg-10mb.tar.gz.torrent"; \
+		exit 1; \
+	fi
+	node check-tracker.js $(HASH)

@@ -56,7 +56,7 @@ seed: build-docker
 		echo "   Also reading magnet links from torrents.txt"; \
 	fi
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
-		-v $$(pwd):/data \
+		-v $$(pwd)/data:/data \
 		-p 6881:6881 -p 6881:6881/udp \
 		webtorrent
 	@echo "✅ Seeder started!"

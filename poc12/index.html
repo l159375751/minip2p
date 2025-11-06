@@ -2366,7 +2366,8 @@
                     ellipsis.style.padding = '4px 0';
                     ellipsis.style.fontWeight = '500';
                     const icon = type === 'complete' ? '✓' : '□';
-                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} ${type === 'complete' ? 'completed' : 'pending'} block${count > 1 ? 's' : ''}`;
+                    const pieceCount = count * row.length;
+                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} row${count > 1 ? 's' : ''} (${pieceCount} pieces) ${type === 'complete' ? 'completed' : 'pending'}`;
                     pieceMap.appendChild(ellipsis);
 
                     // Count pieces

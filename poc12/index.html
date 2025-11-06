@@ -366,10 +366,6 @@
                 <div class="metric-label">Uploaded</div>
                 <div class="metric-value" id="downloadUpload">—</div>
             </div>
-            <div class="metric">
-                <div class="metric-label">Total Size</div>
-                <div class="metric-value" id="downloadTotalSize">—</div>
-            </div>
         </div>
         <div class="download-meta" style="flex: 0 0 auto;">
             <div class="meta-row">
@@ -890,9 +886,7 @@
             const infoHashEl = document.getElementById('downloadInfoHash');
             const pieceMapEl = document.getElementById('pieceMap');
 
-            const totalSizeEl = document.getElementById('downloadTotalSize');
-
-            if (!archiveEl || !dlSpeedEl || !ulSpeedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl || !totalSizeEl) {
+            if (!archiveEl || !dlSpeedEl || !ulSpeedEl || !peersEl || !uploadEl || !magnetEl || !infoHashEl || !pieceMapEl) {
                 return;
             }
 
@@ -913,7 +907,6 @@
                 uploadEl.textContent = formatBytes(uploadedBytes);
                 infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : '—';
-                totalSizeEl.textContent = totalBytes ? formatBytes(totalBytes) : '—';
 
                 updatePieceMap(currentTorrent);
 
@@ -925,7 +918,6 @@
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : 'Local file';
-                totalSizeEl.textContent = formatBytes(localArchiveFile.size || 0);
                 updatePieceMap(null);
                 updateDownloadStatus('📁 Local archive loaded.');
             } else {
@@ -937,7 +929,6 @@
                 infoHashEl.textContent = currentInfoHash || '—';
                 magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : '—';
                 updatePieceMap(null);
-                totalSizeEl.textContent = '—';
                 const statusMessage = hasStartedDownload
                     ? 'No active downloads.'
                     : 'Ready. Click "Start Download" or load a local file.';

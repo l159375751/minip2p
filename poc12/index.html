@@ -2247,7 +2247,7 @@
                 return row.every(p => p === first);
             }
 
-            // Compact consecutive identical uniform rows
+            // Compact consecutive identical uniform rows into single indicators
             const compactedRows = [];
             let i = 0;
             while (i < rows.length) {
@@ -2255,7 +2255,7 @@
 
                 if (!isUniform(currentRow)) {
                     // Non-uniform row, keep as is
-                    compactedRows.push({ row: currentRow, count: 1 });
+                    compactedRows.push({ row: currentRow, count: 1, type: 'mixed' });
                     i++;
                 } else {
                     // Uniform row - check how many consecutive identical rows
@@ -2267,13 +2267,12 @@
                         consecutiveCount++;
                     }
 
-                    if (consecutiveCount >= 2) {
-                        // Compact: show max 2 rows to represent many
-                        compactedRows.push({ row: currentRow, count: consecutiveCount, compacted: true });
-                    } else {
-                        // Just one row, show normally
-                        compactedRows.push({ row: currentRow, count: 1 });
-                    }
+                    // Always compact uniform rows into a single indicator
+                    compactedRows.push({
+                        row: currentRow,
+                        count: consecutiveCount,
+                        type: state ? 'complete' : 'empty'
+                    });
                     i += consecutiveCount;
                 }
             }
@@ -2283,37 +2282,31 @@
             pieceMap.innerHTML = '';
             let piecesHave = 0;
 
-            for (const { row, count, compacted } of compactedRows) {
-                // Count downloaded pieces (across all compacted rows)
-                for (let j = 0; j < row.length; j++) {
-                    if (row[j]) piecesHave += count;
-                }
-
-                // Show first row
-                for (let j = 0; j < row.length; j++) {
-                    const piece = document.createElement('div');
-                    piece.style.background = row[j] ? '#4caf50' : '#e0e0e0';
-                    pieceMap.appendChild(piece);
-                }
-
-                // If compacted and count > 2, add ellipsis indicator
-                if (compacted && count > 2) {
-                    const ellipsis = document.createElement('div');
-                    ellipsis.style.gridColumn = '1 / -1';
-                    ellipsis.style.textAlign = 'center';
-                    ellipsis.style.fontSize = '0.7rem';
-                    ellipsis.style.color = '#999';
-                    ellipsis.style.padding = '2px 0';
-                    ellipsis.textContent = `... ${count - 2} more identical rows ...`;
-                    pieceMap.appendChild(ellipsis);
-                }
-
-                // Show last row if count > 1
-                if (compacted && count > 1) {
+            for (const { row, count, type } of compactedRows) {
+                if (type === 'mixed') {
+                    // Show mixed row normally
                     for (let j = 0; j < row.length; j++) {
                         const piece = document.createElement('div');
                         piece.style.background = row[j] ? '#4caf50' : '#e0e0e0';
                         pieceMap.appendChild(piece);
+                        if (row[j]) piecesHave++;
+                    }
+                } else {
+                    // Compact indicator for uniform rows
+                    const ellipsis = document.createElement('div');
+                    ellipsis.style.gridColumn = '1 / -1';
+                    ellipsis.style.textAlign = 'center';
+                    ellipsis.style.fontSize = '0.75rem';
+                    ellipsis.style.color = type === 'complete' ? '#4caf50' : '#999';
+                    ellipsis.style.padding = '4px 0';
+                    ellipsis.style.fontWeight = '500';
+                    const icon = type === 'complete' ? '✓' : '□';
+                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} ${type === 'complete' ? 'complete' : 'pending'} row${count > 1 ? 's' : ''}`;
+                    pieceMap.appendChild(ellipsis);
+
+                    // Count pieces
+                    if (type === 'complete') {
+                        piecesHave += count * row.length;
                     }
                 }
             }

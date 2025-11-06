@@ -378,7 +378,7 @@
             </div>
             <div class="meta-row">
                 <span class="meta-label">Magnet</span>
-                <code id="downloadMagnet">—</code>
+                <code id="downloadMagnet" style="word-break: break-all; font-size: 0.7rem;">—</code>
             </div>
         </div>
 
@@ -912,7 +912,7 @@
                 peersEl.textContent = `${currentTorrent.numPeers} peer${currentTorrent.numPeers === 1 ? '' : 's'}`;
                 uploadEl.textContent = formatBytes(uploadedBytes);
                 infoHashEl.textContent = currentTorrent.infoHash || currentInfoHash || '—';
-                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+                magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : '—';
                 totalSizeEl.textContent = totalBytes ? formatBytes(totalBytes) : '—';
 
                 updatePieceMap(currentTorrent);
@@ -924,7 +924,7 @@
                 peersEl.textContent = '—';
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
-                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : 'Local file';
+                magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : 'Local file';
                 totalSizeEl.textContent = formatBytes(localArchiveFile.size || 0);
                 updatePieceMap(null);
                 updateDownloadStatus('📁 Local archive loaded.');
@@ -935,7 +935,7 @@
                 peersEl.textContent = '—';
                 uploadEl.textContent = '—';
                 infoHashEl.textContent = currentInfoHash || '—';
-                magnetEl.textContent = activeDownload.magnet ? truncateMiddle(magnetForDisplay(activeDownload.magnet)) : '—';
+                magnetEl.textContent = activeDownload.magnet ? magnetForDisplay(activeDownload.magnet) : '—';
                 updatePieceMap(null);
                 totalSizeEl.textContent = '—';
                 const statusMessage = hasStartedDownload

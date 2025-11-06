@@ -2356,9 +2356,8 @@
                     ellipsis.style.color = type === 'complete' ? '#4caf50' : '#999';
                     ellipsis.style.padding = '4px 0';
                     ellipsis.style.fontWeight = '500';
-                    const icon = type === 'complete' ? '✓' : '□';
                     const pieceCount = count * row.length;
-                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} row${count > 1 ? 's' : ''} (${pieceCount} pieces) ${type === 'complete' ? 'completed' : 'pending'}`;
+                    ellipsis.textContent = `${count} row${count > 1 ? 's' : ''} (${pieceCount} pieces) ${type === 'complete' ? 'completed' : 'pending'}`;
                     pieceMap.appendChild(ellipsis);
 
                     // Count pieces

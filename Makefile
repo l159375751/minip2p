@@ -50,17 +50,11 @@ build-docker:
 	docker build -t webtorrent .
 
 seed: build-docker
-	@if [ ! -f torrents.txt ]; then \
-		echo "❌ torrents.txt not found!"; \
-		echo "Create torrents.txt with one magnet link or infohash per line."; \
-		exit 1; \
-	fi
-	@if ! grep -q '^[^#]' torrents.txt; then \
-		echo "❌ No torrents found in torrents.txt (all lines are comments or empty)"; \
-		echo "Add magnet links or infohashes to torrents.txt, one per line."; \
-		exit 1; \
-	fi
 	@echo "🌱 Starting seeder..."
+	@echo "   Will seed .torrent files from data/ directory"
+	@if [ -f torrents.txt ] && grep -q '^[^#]' torrents.txt; then \
+		echo "   Also reading magnet links from torrents.txt"; \
+	fi
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
 		-v $$(pwd):/data \
 		-p 6881:6881 -p 6881:6881/udp \

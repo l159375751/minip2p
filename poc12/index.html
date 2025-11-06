@@ -399,6 +399,25 @@
         </div>
     </div>
 
+    <!-- Performance Metrics Card -->
+    <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
+        <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">📊 Performance</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; font-size: 0.85rem;">
+            <div>
+                <div style="color: #999; font-size: 0.75rem; margin-bottom: 0.25rem;">Memory Used</div>
+                <div id="perfMemory" style="font-weight: 600; color: #4a4a4a;">—</div>
+            </div>
+            <div>
+                <div style="color: #999; font-size: 0.75rem; margin-bottom: 0.25rem;">Books Cached</div>
+                <div id="perfBooks" style="font-weight: 600; color: #4a4a4a;">—</div>
+            </div>
+            <div>
+                <div style="color: #999; font-size: 0.75rem; margin-bottom: 0.25rem;">Uptime</div>
+                <div id="perfUptime" style="font-weight: 600; color: #4a4a4a;">—</div>
+            </div>
+        </div>
+    </div>
+
     <div class="card" style="padding: 1.25rem; margin-bottom: 1rem;">
         <h2 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #4a4a4a;">⚙️ Download from Network</h2>
         <input type="text" id="magnetInput" placeholder="magnet:?xt=urn:btih:..." value="magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Frelay.trustroots.org&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.webtorrent.dev"
@@ -1527,7 +1546,50 @@
             });
             loadCatalog(); // Auto-load catalog
             // Removed auto-start: startDownload();
+
+            // Start performance monitoring
+            const startTime = Date.now();
+            setInterval(() => {
+                updatePerformanceMetrics(startTime);
+            }, 1000);
+            updatePerformanceMetrics(startTime);
         });
+
+        function updatePerformanceMetrics(startTime) {
+            // Memory (Chrome only)
+            const memEl = document.getElementById('perfMemory');
+            if (memEl) {
+                if (performance.memory) {
+                    const usedMB = (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(1);
+                    const totalMB = (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(1);
+                    memEl.textContent = `${usedMB} / ${totalMB} MB`;
+                } else {
+                    memEl.textContent = 'Not available';
+                }
+            }
+
+            // Books cached
+            const booksEl = document.getElementById('perfBooks');
+            if (booksEl) {
+                booksEl.textContent = cachedBookCount || 0;
+            }
+
+            // Uptime
+            const uptimeEl = document.getElementById('perfUptime');
+            if (uptimeEl) {
+                const uptime = Math.floor((Date.now() - startTime) / 1000);
+                const hours = Math.floor(uptime / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                const seconds = uptime % 60;
+                if (hours > 0) {
+                    uptimeEl.textContent = `${hours}h ${minutes}m ${seconds}s`;
+                } else if (minutes > 0) {
+                    uptimeEl.textContent = `${minutes}m ${seconds}s`;
+                } else {
+                    uptimeEl.textContent = `${seconds}s`;
+                }
+            }
+        }
 
         function hashToColor(hash) {
             // Convert InfoHash to two colors for gradient
@@ -2304,7 +2366,7 @@
                     ellipsis.style.padding = '4px 0';
                     ellipsis.style.fontWeight = '500';
                     const icon = type === 'complete' ? '✓' : '□';
-                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} ${type === 'complete' ? 'complete' : 'pending'} row${count > 1 ? 's' : ''}`;
+                    ellipsis.textContent = `[${icon.repeat(10)}] ${count} ${type === 'complete' ? 'completed' : 'pending'} block${count > 1 ? 's' : ''}`;
                     pieceMap.appendChild(ellipsis);
 
                     // Count pieces

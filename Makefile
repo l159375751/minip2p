@@ -1,4 +1,4 @@
-.PHONY: deploy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker
+.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker
 
 SAMPLE ?= all
 
@@ -25,6 +25,13 @@ deploy:
 		git push; \
 		ssh 0x6du 'cd /var/www/minip2p && git pull'; \
 	fi
+
+deploy-caddy:
+	@echo "🚀 Deploying Caddy configuration to 0x6d.net..."
+	$(MAKE) deploy
+	@echo "📡 Reloading Caddy on server..."
+	ssh 0x6du 'cd /var/www/minip2p/deploy && make caddy-reload'
+	@echo "✅ Caddy deployment complete!"
 
 fetch-gutenberg:
 	mkdir -p data

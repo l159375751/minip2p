@@ -12,6 +12,10 @@ ip.0x6d.net {
         }
 }
 
+relay.0x6d.net {
+    reverse_proxy 127.0.0.1:7000
+}
+
 0x6d.net {
     @dotgit path /.git*
     respond @dotgit "Not allowed" 403

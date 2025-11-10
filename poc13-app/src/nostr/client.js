@@ -1,10 +1,15 @@
 import { Relay } from 'nostr-tools/relay';
 import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { DEFAULT_RELAYS } from '@/config/app-config';
+import { getState } from '@/state/store';
+import { matchItemsByQuery } from '@/search/match-helpers';
+import { emit } from '@/state/event-bus';
 
 const SEARCH_KIND = 25555;
 const RESPONSE_KIND = 25556;
 const SHARE_KIND = 33333;
+const RESPONDER_CACHE_MS = 5 * 60 * 1000;
+const MAX_RESPONSES_PER_QUERY = 5;
 
 let relayIndex = 0;
 let relay = null;
@@ -14,6 +19,9 @@ let secretKey;
 let publicKey;
 
 const listeners = new Set();
+const answeredQueries = new Map();
+let responderEnabled = false;
+let responsesServed = 0;
 
 function loadKeys() {
   if (secretKey && publicKey) return;
@@ -56,7 +64,7 @@ async function connectRelay() {
 
   try {
     relay = await Relay.connect(url);
-    subscribeToResponses(relay);
+    subscribeToRelayEvents(relay);
   } catch (error) {
     console.warn('[nostr] relay connect failed', error);
     relay = null;
@@ -65,23 +73,37 @@ async function connectRelay() {
   return relay;
 }
 
-function subscribeToResponses(instance) {
+function subscribeToRelayEvents(instance) {
   if (sub) {
     sub.close();
   }
   sub = instance.subscribe(
     {
-      kinds: [RESPONSE_KIND],
+      kinds: [RESPONSE_KIND, SEARCH_KIND],
       since: Math.floor(Date.now() / 1000),
     },
     {
-      label: 'search-responses',
+      label: 'nostr-search-stream',
       receivedEvent: (event) => handleEvent(instance, event),
     },
   );
 }
 
-function handleEvent(instance, event) {
+async function handleEvent(instance, event) {
+  if (event.kind === RESPONSE_KIND) {
+    processSearchResponse(instance, event);
+    return;
+  }
+  if (event.kind === SEARCH_KIND) {
+    try {
+      await maybeAnswerSearch(event);
+    } catch (error) {
+      console.warn('[nostr] responder error', error);
+    }
+  }
+}
+
+function processSearchResponse(instance, event) {
   const idTag = event.tags.find((t) => t[0] === 'id');
   const titleTag = event.tags.find((t) => t[0] === 'title');
   const authorTag = event.tags.find((t) => t[0] === 'author');
@@ -100,6 +122,100 @@ function handleEvent(instance, event) {
   };
 
   listeners.forEach((fn) => fn(payload));
+}
+
+function pruneAnsweredQueries() {
+  const cutoff = Date.now() - RESPONDER_CACHE_MS;
+  answeredQueries.forEach((timestamp, id) => {
+    if (timestamp < cutoff) {
+      answeredQueries.delete(id);
+    }
+  });
+}
+
+async function maybeAnswerSearch(event) {
+  if (!responderEnabled) return;
+  if (!event) return;
+
+  loadKeys();
+
+  if (event.pubkey === publicKey) return;
+
+  const queryTag = event.tags.find((t) => t[0] === 'q');
+  const query = queryTag ? queryTag[1] : '';
+  if (!query) return;
+
+  pruneAnsweredQueries();
+  if (answeredQueries.has(event.id)) return;
+
+  const state = getState();
+  const matches = matchItemsByQuery(query, {
+    manifest: state.manifest,
+    library: state.library,
+    limit: MAX_RESPONSES_PER_QUERY,
+    preferLibrary: true,
+  });
+
+  if (!matches.length) return;
+
+  answeredQueries.set(event.id, Date.now());
+
+  for (const item of matches) {
+    await publishSearchResponse(item, query);
+  }
+
+  responsesServed += matches.length;
+  emit('nostr:responder', {
+    served: responsesServed,
+    lastQuery: query,
+    matches: matches.length,
+    enabled: responderEnabled,
+  });
+}
+
+async function publishSearchResponse(item, query) {
+  if (!item) return;
+  try {
+    await connectRelay();
+  } catch (error) {
+    console.warn('[nostr] responder connect failed', error);
+    return;
+  }
+  if (!relay) return;
+
+  const tags = [
+    ['id', item.id || ''],
+    ['title', item.title || ''],
+    ['author', item.author || 'Unknown'],
+  ];
+
+  if (item.infohash) {
+    tags.push(['hash', item.infohash]);
+  }
+  if (query) {
+    tags.push(['q', query]);
+  }
+  if (item.size_kb) {
+    tags.push(['size', String(item.size_kb)]);
+  }
+
+  const content = item.summary ? item.summary.slice(0, 280) : `library:${item.id}`;
+
+  const eventTemplate = {
+    kind: RESPONSE_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content,
+    pubkey: publicKey,
+  };
+
+  const signed = finalizeEvent(eventTemplate, secretKey);
+
+  try {
+    await relay.publish(signed);
+  } catch (error) {
+    console.warn('[nostr] failed to publish response', error);
+  }
 }
 
 export function subscribeToSearchResults(listener) {
@@ -142,6 +258,19 @@ export async function initNostrClient() {
   } catch (error) {
     console.warn('[nostr] connection error', error);
   }
+}
+
+export function setResponderEnabled(enabled) {
+  responderEnabled = Boolean(enabled);
+  if (!responderEnabled) {
+    answeredQueries.clear();
+  }
+  emit('nostr:responder', {
+    enabled: responderEnabled,
+    served: responsesServed,
+    lastQuery: null,
+    matches: 0,
+  });
 }
 
 export async function publishShareEvent(items = []) {

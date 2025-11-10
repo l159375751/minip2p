@@ -1,5 +1,6 @@
 import { getState } from '@/state/store';
 import { initNostrClient, sendSearchRequest, subscribeToSearchResults } from '@/nostr/client';
+import { matchItemsByQuery } from './match-helpers';
 
 const searchState = {
   query: '',
@@ -49,21 +50,13 @@ function normalize(str) {
 }
 
 function localFallback(query) {
-  const q = normalize(query);
-  if (!q) return [];
   const state = getState();
-  const haystack = [...state.manifest, ...state.library];
-  const unique = new Map();
-  haystack.forEach((item) => {
-    if (unique.has(item.id)) return;
-    const title = normalize(item.title);
-    const author = normalize(item.author);
-    const infohash = normalize(item.infohash);
-    if (title.includes(q) || author.includes(q) || infohash.includes(q)) {
-      unique.set(item.id, item);
-    }
+  return matchItemsByQuery(query, {
+    manifest: state.manifest,
+    library: state.library,
+    limit: 20,
+    preferLibrary: true,
   });
-  return Array.from(unique.values()).slice(0, 20);
 }
 
 export function clearSearch() {

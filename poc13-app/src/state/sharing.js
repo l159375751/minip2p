@@ -1,5 +1,5 @@
 import { getState } from './store.js';
-import { publishShareEvent } from '@/nostr/client.js';
+import { publishShareEvent, setResponderEnabled } from '@/nostr/client.js';
 
 const sharingState = {
   enabled: false,
@@ -23,6 +23,7 @@ export function isSharingEnabled() {
 
 export async function toggleSharing() {
   sharingState.enabled = !sharingState.enabled;
+  setResponderEnabled(sharingState.enabled);
   notify();
   if (sharingState.enabled) {
     const state = getState();
@@ -30,3 +31,5 @@ export async function toggleSharing() {
     publishShareEvent(payload);
   }
 }
+
+setResponderEnabled(sharingState.enabled);

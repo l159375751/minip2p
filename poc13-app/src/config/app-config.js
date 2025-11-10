@@ -1,6 +1,7 @@
 export const APP_NAME = 'Browser-Only Nostr Library Hub';
 
 export const DEFAULT_RELAYS = [
+  'wss://relay.0x6d.net',
   'wss://relay.snort.social',
   'wss://nostr.wine',
   'wss://relay.nostr.band',
@@ -16,7 +17,10 @@ export const TRACKERS = [
   'wss://tracker.webtorrent.dev',
   'wss://tracker.btorrent.xyz',
   'wss://tracker.fastcast.nz',
-  'wss://tracker.files.fm:7073/announce',
+  'udp://tracker.opentrackr.org:1337',
+  'udp://open.demonoid.ch:6969',
+  'udp://tracker.torrent.eu.org:451',
+  'udp://exodus.desync.com:6969',
 ];
 
 export const PERFORMANCE_BUDGETS = {

@@ -1,4 +1,5 @@
 import { getState } from '@/state/store';
+import { initNostrClient, sendSearchRequest, subscribeToSearchResults } from '@/nostr/client';
 
 const searchState = {
   query: '',
@@ -17,26 +18,41 @@ export function subscribeSearch(listener) {
   return () => searchState.listeners.delete(listener);
 }
 
+let remoteSubscriptionCleanup = null;
+let fallbackTimer = null;
+
 export function updateQuery(query) {
   searchState.query = query;
-  performSearch();
+  searchState.results = [];
+  notify();
+
+  if (fallbackTimer) {
+    clearTimeout(fallbackTimer);
+    fallbackTimer = null;
+  }
+
+  if (!query.trim()) {
+    return;
+  }
+
+  sendSearchRequest(query.trim());
+  fallbackTimer = setTimeout(() => {
+    if (searchState.results.length === 0) {
+      searchState.results = localFallback(query);
+      notify();
+    }
+  }, 800);
 }
 
 function normalize(str) {
   return (str || '').toLowerCase();
 }
 
-function performSearch() {
-  const q = normalize(searchState.query);
-  if (!q) {
-    searchState.results = [];
-    notify();
-    return;
-  }
-
+function localFallback(query) {
+  const q = normalize(query);
+  if (!q) return [];
   const state = getState();
   const haystack = [...state.manifest, ...state.library];
-
   const unique = new Map();
   haystack.forEach((item) => {
     if (unique.has(item.id)) return;
@@ -47,9 +63,7 @@ function performSearch() {
       unique.set(item.id, item);
     }
   });
-
-  searchState.results = Array.from(unique.values()).slice(0, 20);
-  notify();
+  return Array.from(unique.values()).slice(0, 20);
 }
 
 export function clearSearch() {
@@ -57,3 +71,21 @@ export function clearSearch() {
   searchState.results = [];
   notify();
 }
+
+function handleRemoteResult(payload) {
+  if (!payload) return;
+  if (searchState.query && payload.query && normalize(payload.query) !== normalize(searchState.query)) {
+    return;
+  }
+  const exists = searchState.results.some((item) => item.id === payload.id);
+  if (exists) return;
+  searchState.results = [...searchState.results, payload];
+  notify();
+}
+
+function init() {
+  initNostrClient();
+  remoteSubscriptionCleanup = subscribeToSearchResults(handleRemoteResult);
+}
+
+init();

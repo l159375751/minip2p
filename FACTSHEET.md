@@ -14,7 +14,7 @@ Notes:
 - `/minip2p` redirects to `/minip2p/` so subpaths behave as expected.
 - The Caddy config lives in `deploy/Caddyfile`; use `make deploy-caddy` if you change it.
 
-## Tracker & Magnet References
+## Tracker & Infohash References
 
 Default tracker list (`trackers.txt` and `poc13-app/src/config/app-config.js`):
 
@@ -29,11 +29,7 @@ udp://tracker.torrent.eu.org:451
 udp://exodus.desync.com:6969
 ```
 
-Primary Gutenberg magnet (also baked into `Makefile` → `GUTENBERG_MAGNET`):
-
-```
-magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
-```
+Primary Gutenberg infohash (sha1: `38ea08e57e7fd054ed83165b7705bd57ca0250af`). When a full magnet is needed, construct it ad hoc: `magnet:?xt=urn:btih:38ea08e5...&tr=<tracker>` using the list above.
 
 ## Build & Deploy Flow
 

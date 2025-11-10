@@ -2,7 +2,7 @@ import { buildMagnetFromInfohash } from '@/config/app-config';
 import { getState, removeFromLibrary, subscribe } from '@/state/store';
 
 const featuredItems = (state) => state.manifest.slice(0, 5);
-const libraryItems = (state) => state.library;
+const libraryItems = (state) => (state.library.length ? state.library : featuredItems(state));
 
 function createFeaturedCard(item) {
   const infohash = item.infohash || '';
@@ -62,20 +62,16 @@ function renderShelf(container, state) {
   fragment.push('<section>');
   fragment.push('<header><h2>My Books</h2><p>Your saved catalog in list form—open, copy, or prune entries without leaving the page.</p></header>');
 
-  if (!shelves.length) {
-    fragment.push('<div class="library-empty"><p>No saved books yet. Use featured cards or search results to add titles.</p></div>');
-  } else {
-    fragment.push('<ul class="library-list">');
-    fragment.push(
-      shelves
-        .map((item) => {
-          const inLibrary = state.library.some((entry) => entry.id === item.id);
-          return createRow(item, inLibrary);
-        })
-        .join(''),
-    );
-    fragment.push('</ul>');
-  }
+  fragment.push('<ul class="library-list">');
+  fragment.push(
+    shelves
+      .map((item) => {
+        const inLibrary = state.library.some((entry) => entry.id === item.id);
+        return createRow(item, inLibrary);
+      })
+      .join(''),
+  );
+  fragment.push('</ul>');
   fragment.push('</section>');
   container.innerHTML = fragment.join('');
 }

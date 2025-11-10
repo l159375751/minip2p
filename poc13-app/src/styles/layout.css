@@ -173,6 +173,53 @@ button:disabled {
   cursor: pointer;
 }
 
+.search-results-wrapper {
+  margin-top: 0.75rem;
+}
+
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0.75rem;
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+}
+
+.search-result strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.search-result span {
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.search-result__actions button {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: white;
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.6rem;
+}
+
+.search-empty {
+  margin: 0.5rem 0 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
 @media (max-width: 720px) {
   .app-shell {
     padding: 1.5rem 1rem 3rem;

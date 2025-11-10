@@ -2,6 +2,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import { initStore } from '@/state/store';
 import { mountFeaturedShelf, mountLibraryList } from '@/library/ui';
+import { mountSearchPanel } from '@/search/ui';
 
 const appRoot = document.querySelector('#app');
 
@@ -24,12 +25,16 @@ appRoot.innerHTML = `
     <section id="search-panel" class="search-panel">
       <header>
         <h2>Search Collections</h2>
-        <p>Relay-powered discovery across browsers. Hooking in shortly.</p>
+        <p>Relay-powered discovery across browsers (local filter for now).</p>
       </header>
-      <form>
-        <input type="text" placeholder="Search by title, author, or infohash" disabled />
-        <button type="button" disabled>Search (soon)</button>
+      <form id="search-form">
+        <input id="search-input" type="text" placeholder="Search by title, author, or infohash" />
+        <div class="search-actions">
+          <button type="submit">Search</button>
+          <button type="button" id="search-clear">Clear</button>
+        </div>
       </form>
+      <div id="search-results" class="search-results-wrapper"></div>
     </section>
     <section class="placeholder-panel">
       <p>
@@ -55,9 +60,14 @@ appRoot.innerHTML = `
 
 const featuredMount = document.querySelector('#featured-row');
 const listMount = document.querySelector('#library-list');
+const searchPanel = document.querySelector('#search-form');
+const searchInput = document.querySelector('#search-input');
+const searchClear = document.querySelector('#search-clear');
+const searchResults = document.querySelector('#search-results');
 
 (async () => {
   await initStore();
   mountFeaturedShelf(featuredMount);
   mountLibraryList(listMount);
+  mountSearchPanel(searchPanel, searchResults, searchInput, searchClear);
 })();

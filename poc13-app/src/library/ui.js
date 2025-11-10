@@ -1,38 +1,30 @@
 import { buildMagnetFromInfohash } from '@/config/app-config';
 import { getState, removeFromLibrary, subscribe } from '@/state/store';
 
-function createCard(item, inLibrary) {
+function createRow(item, inLibrary) {
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
   const magnetPreview = magnet ? `${magnet.slice(0, 42)}...` : 'n/a';
 
   return `
-    <article class="library-card" data-id="${item.id}">
-      <div class="library-card__meta">
-        <h3>${item.title}</h3>
-        <p>${item.author}</p>
+    <li class="library-row" data-id="${item.id}">
+      <div class="library-row__meta">
+        <div>
+          <strong>${item.title}</strong>
+          <span>${item.author}</span>
+        </div>
+        <p>${item.summary}</p>
       </div>
-      <p class="library-card__summary">${item.summary}</p>
-      <dl class="library-card__details">
-        <div>
-          <dt>Size</dt>
-          <dd>${item.size_kb} KB</dd>
-        </div>
-        <div>
-          <dt>Infohash</dt>
-          <dd class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</dd>
-        </div>
-        <div>
-          <dt>Magnet Preview</dt>
-          <dd class="monospace" title="${magnetPreview}">${magnetPreview}</dd>
-        </div>
-      </dl>
-      <div class="library-card__actions">
+      <div class="library-row__info monospace">
+        <span title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
+        <span title="${magnetPreview}">${magnetPreview}</span>
+      </div>
+      <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Magnet</button>
+        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy</button>
         <button data-action="remove" data-id="${item.id}" class="icon danger" ${inLibrary ? '' : 'disabled'}>&times;</button>
       </div>
-    </article>
+    </li>
   `;
 }
 
@@ -41,16 +33,16 @@ function renderShelf(container, state) {
   const shelves = state.library.length ? state.library : state.manifest.slice(0, 5);
   fragment.push('<section>');
   fragment.push('<header><h2>Featured Shelves</h2><p>These are our own shared collections—trim them locally or open titles directly.</p></header>');
-  fragment.push('<div class="library-grid">');
+  fragment.push('<ul class="library-list">');
   fragment.push(
     shelves
       .map((item) => {
         const inLibrary = state.library.some((entry) => entry.id === item.id);
-        return createCard(item, inLibrary);
+        return createRow(item, inLibrary);
       })
       .join(''),
   );
-  fragment.push('</div></section>');
+  fragment.push('</ul></section>');
   container.innerHTML = fragment.join('');
 }
 

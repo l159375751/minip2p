@@ -46,8 +46,21 @@ function coerceSecretKey(source) {
   if (Array.isArray(source)) {
     return Uint8Array.from(source);
   }
-  if (source && Array.isArray(source.data)) {
-    return Uint8Array.from(source.data);
+  if (source && typeof source === 'object') {
+    if (Array.isArray(source.data)) {
+      return Uint8Array.from(source.data);
+    }
+    const numericKeys = Object.keys(source)
+      .map((key) => Number(key))
+      .filter((num) => Number.isInteger(num) && num >= 0);
+    if (numericKeys.length) {
+      const maxIndex = Math.max(...numericKeys);
+      const bytes = new Uint8Array(maxIndex + 1);
+      numericKeys.forEach((idx) => {
+        bytes[idx] = Number(source[idx]) & 0xff;
+      });
+      return bytes;
+    }
   }
   return null;
 }

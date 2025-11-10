@@ -13,15 +13,16 @@ vi.mock('../persistence', () => ({
   saveLibraryItems: persistenceMock.saveLibraryItems,
 }));
 
+import * as store from '../store.js';
+
 describe('state/store', () => {
   beforeEach(() => {
     persistenceMock.data = [];
     vi.clearAllMocks();
+    store.__resetStore();
   });
 
   test('initializes with sample manifest', async () => {
-    const store = await import(new URL('../store.js', import.meta.url));
-    store.__resetStore();
     await store.initStore();
     const snapshot = store.getState();
     expect(snapshot.manifest).toHaveLength(5);
@@ -29,8 +30,6 @@ describe('state/store', () => {
   });
 
   test('saves and removes library items', async () => {
-    const store = await import(new URL('../store.js', import.meta.url));
-    store.__resetStore();
     await store.initStore();
     const sample = store.getSampleItems(1)[0];
     await store.saveToLibrary(sample);

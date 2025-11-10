@@ -36,7 +36,6 @@ appRoot.innerHTML = `
     <section id="search-panel" class="search-panel">
       <header>
         <h2>Search Collections</h2>
-        <p>Relay-backed discovery to mirror the classic POC10 nostr search flow.</p>
       </header>
       <form id="search-form">
         <input id="search-input" type="text" placeholder="Search by title, author, or infohash" />

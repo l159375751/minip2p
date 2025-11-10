@@ -1,12 +1,14 @@
 import { buildMagnetFromInfohash } from '@/config/app-config';
 import { getState, removeFromLibrary, subscribe } from '@/state/store';
+import { copyText } from '@/utils/clipboard';
 
 const featuredItems = (state) => state.manifest.slice(0, 5);
 const libraryItems = (state) => (state.library.length ? state.library : featuredItems(state));
 
 function createFeaturedCard(item) {
   const infohash = item.infohash || '';
-  const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
+  const magnet = buildMagnetFromInfohash(infohash);
+  const canCopy = Boolean(magnet || infohash);
 
   return `
     <article class="featured-card" data-id="${item.id}">
@@ -18,7 +20,7 @@ function createFeaturedCard(item) {
       <span class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
       <div class="featured-card__actions">
         <button data-action="open" data-id="${item.id}">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Get Book</button>
+        <button data-action="copy-magnet" data-id="${item.id}" ${canCopy ? '' : 'disabled'}>Get Book</button>
       </div>
     </article>
   `;
@@ -26,7 +28,8 @@ function createFeaturedCard(item) {
 
 function createRow(item, inLibrary) {
   const infohash = item.infohash || '';
-  const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
+  const magnet = buildMagnetFromInfohash(infohash);
+  const canCopy = Boolean(magnet || infohash);
 
   return `
     <li class="library-row" data-id="${item.id}">
@@ -40,7 +43,7 @@ function createRow(item, inLibrary) {
       <div class="library-row__info monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</div>
       <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Get Book</button>
+        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${canCopy ? '' : 'disabled'}>Get Book</button>
         <button
           data-action="remove"
           data-id="${item.id}"
@@ -76,6 +79,23 @@ function renderShelf(container, state) {
   container.innerHTML = fragment.join('');
 }
 
+async function copyBookLink(target) {
+  const infohash = target.infohash || '';
+  const magnet = buildMagnetFromInfohash(infohash);
+  const payload = magnet || infohash;
+  if (!payload) {
+    window.alert('This entry is missing sharing metadata.');
+    return;
+  }
+  const label = magnet ? 'Magnet link' : 'Infohash';
+  try {
+    await copyText(payload);
+    window.alert(`${label} copied to clipboard.`);
+  } catch (_) {
+    window.alert(`Unable to copy ${label.toLowerCase()}.`);
+  }
+}
+
 function handleShelfClick(event, state) {
   const action = event.target.dataset.action;
   if (!action) return;
@@ -104,22 +124,7 @@ function handleShelfClick(event, state) {
   }
 
   if (action === 'copy-magnet') {
-    const magnet = buildMagnetFromInfohash(target.infohash);
-    if (!magnet) {
-      window.alert('Missing infohash for this entry.');
-      return;
-    }
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(magnet);
-    } else {
-      const textarea = document.createElement('textarea');
-      textarea.value = magnet;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-    }
-    window.alert('Magnet copied to clipboard.');
+    copyBookLink(target);
     return;
   }
 

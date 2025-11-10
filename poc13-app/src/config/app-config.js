@@ -43,8 +43,10 @@ export const FEATURE_FLAGS = {
   allowCustomWidgets: false,
 };
 
+const INFOHASH_REGEX = /^[0-9a-fA-F]{40}$/;
+
 export const buildMagnetFromInfohash = (infohash, trackers = TRACKERS) => {
-  if (!infohash) return '';
+  if (!infohash || !INFOHASH_REGEX.test(infohash)) return '';
   const trackerQuery = trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join('');
   return `magnet:?xt=urn:btih:${infohash}${trackerQuery}`;
 };

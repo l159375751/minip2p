@@ -1,9 +1,11 @@
 import { buildMagnetFromInfohash } from '@/config/app-config';
+import { copyText } from '@/utils/clipboard';
 import { clearSearch, subscribeSearch, updateQuery } from './state';
 
 function renderResult(item) {
   const infohash = item.infohash || '';
-  const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
+  const magnet = buildMagnetFromInfohash(infohash);
+  const canCopy = Boolean(magnet || infohash);
   return `
     <li class="search-result" data-id="${item.id}">
       <div>
@@ -11,7 +13,7 @@ function renderResult(item) {
         <span>${item.author}</span>
       </div>
       <div class="search-result__actions">
-        <button data-action="copy-magnet" data-infohash="${infohash}" ${magnet ? '' : 'disabled'}>Get Book</button>
+        <button data-action="copy-magnet" data-infohash="${infohash}" ${canCopy ? '' : 'disabled'}>Get Book</button>
       </div>
     </li>
   `;
@@ -42,13 +44,24 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
     });
   }
 
-  const onResultClick = (event) => {
+  const onResultClick = async (event) => {
     const btn = event.target.closest('button[data-action="copy-magnet"]');
     if (!btn) return;
     const infohash = btn.dataset.infohash;
     if (!infohash) return;
     const magnet = buildMagnetFromInfohash(infohash);
-    navigator.clipboard?.writeText(magnet);
+    const payload = magnet || infohash;
+    if (!payload) {
+      window.alert('This entry is missing sharing metadata.');
+      return;
+    }
+    const label = magnet ? 'Magnet link' : 'Infohash';
+    try {
+      await copyText(payload);
+      window.alert(`${label} copied to clipboard.`);
+    } catch (_) {
+      window.alert(`Unable to copy ${label.toLowerCase()}.`);
+    }
   };
   resultsEl.addEventListener('click', onResultClick);
 

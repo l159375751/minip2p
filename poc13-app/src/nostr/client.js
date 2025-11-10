@@ -3,6 +3,7 @@ import { generateSecretKey, getPublicKey, finalizeEvent } from 'nostr-tools';
 import { DEFAULT_RELAYS } from '@/config/app-config';
 import { getState } from '@/state/store';
 import { matchItemsByQuery } from '@/search/match-helpers';
+import { getGutenbergIndex, ensureGutenbergIndexLoaded } from '@/search/index-loader';
 import { emit } from '@/state/event-bus';
 import { pushDiagnosticLog, updateResponderStats, updateRelayStatus } from '@/state/diagnostics';
 
@@ -264,9 +265,11 @@ async function maybeAnswerSearch(event) {
   }
 
   const state = getState();
+  ensureGutenbergIndexLoaded().catch(() => {});
   const matches = matchItemsByQuery(query, {
     manifest: state.manifest,
     library: state.library,
+    catalog: getGutenbergIndex(),
     limit: MAX_RESPONSES_PER_QUERY,
     preferLibrary: true,
   });

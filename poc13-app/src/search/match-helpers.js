@@ -16,6 +16,7 @@ export function matchItemsByQuery(
   {
     manifest = [],
     library = [],
+    catalog = [],
     limit = 20,
     preferLibrary = false,
   } = {},
@@ -23,7 +24,9 @@ export function matchItemsByQuery(
   const q = normalize(query);
   if (!q) return [];
 
-  const order = preferLibrary ? [...library, ...manifest] : [...manifest, ...library];
+  const order = preferLibrary
+    ? [...library, ...manifest, ...catalog]
+    : [...manifest, ...library, ...catalog];
   const seen = new Set();
   const results = [];
 

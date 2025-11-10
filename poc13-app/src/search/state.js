@@ -1,6 +1,7 @@
 import { getState } from '@/state/store';
 import { initNostrClient, sendSearchRequest, subscribeToSearchResults } from '@/nostr/client';
 import { matchItemsByQuery } from './match-helpers';
+import { ensureGutenbergIndexLoaded, getGutenbergIndex } from './index-loader';
 
 const searchState = {
   query: '',
@@ -36,6 +37,7 @@ export function updateQuery(query) {
     return;
   }
 
+  ensureGutenbergIndexLoaded().catch(() => {});
   sendSearchRequest(query.trim());
   fallbackTimer = setTimeout(() => {
     if (searchState.results.length === 0) {
@@ -54,7 +56,8 @@ function localFallback(query) {
   return matchItemsByQuery(query, {
     manifest: state.manifest,
     library: state.library,
-    limit: 20,
+    catalog: getGutenbergIndex(),
+    limit: 30,
     preferLibrary: true,
   });
 }
@@ -78,6 +81,7 @@ function handleRemoteResult(payload) {
 
 function init() {
   initNostrClient();
+  ensureGutenbergIndexLoaded().catch(() => {});
   remoteSubscriptionCleanup = subscribeToSearchResults(handleRemoteResult);
 }
 

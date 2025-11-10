@@ -1889,3 +1889,211 @@
 [2m2025-11-10T11:31:06.519434Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
 [2m2025-11-10T11:31:16.543011Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' Makefile"],"workdir":"/home/user/test/minip2p"}
 [2m2025-11-10T11:31:25.758837Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","make deploy"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:31:35.794070Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git push --set-upstream origin 001-nostr-library-hub"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:31:43.988215Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ssh 0x6du 'cd /var/www/minip2p && git pull'"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:33:38.905197Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T11:34:38.272572Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rg -n \"HUMAN\" -n"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:34:43.494191Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"HUMAN\" -n .. | head"]}
+[2m2025-11-10T11:35:21.972142Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","mv poc13 poc13-app"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:35:28.244566Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13-app && npm run build"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:35:41.657477Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13-app/vite.config.js
+@@
+-export default defineConfig({
+-  base: '/minip2p/poc13/',
+-  resolve: {
+-    alias: [
+-      { find: '@', replacement: path.resolve(__dirname, 'src') },
+-      { find: /^\/src\//, replacement: `${path.resolve(__dirname, 'src')}/` },
+-    ],
+-  },
++export default defineConfig({
++  base: '/minip2p/poc13/',
++  resolve: {
++    alias: {
++      '@': path.resolve(__dirname, './src'),
++    },
++  },
+*** End Patch
+[2m2025-11-10T11:35:49.132906Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13-app/vite.config.js
+@@
+-export default defineConfig({
+-  base: '/minip2p/poc13/',
+-  resolve: {
+-    alias: [
+-      { find: '@', replacement: path.resolve(__dirname, 'src') },
+-      { find: /^\/src\//, replacement: `${path.resolve(__dirname, 'src')}/` },
+-    ],
+-  },
++export default defineConfig({
++  base: '/minip2p/poc13/',
++  resolve: {
++    alias: {
++      '@': path.resolve(__dirname, './src'),
++    },
++  },
+*** End Patch
+[2m2025-11-10T11:35:56.300512Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","pwd"]}
+[2m2025-11-10T11:36:01.830110Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,80p' ../poc13-app/vite.config.js"]}
+[2m2025-11-10T11:36:07.371828Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .."]}
+[2m2025-11-10T11:36:52.620931Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls ../poc13-app"]}
+[2m2025-11-10T11:37:03.373169Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","find .. -name 'vite.config.js'"]}
+[2m2025-11-10T11:37:09.517291Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13-app/vite.config.js
++import { defineConfig } from 'vite';
++import path from 'node:path';
++
++export default defineConfig({
++  base: '/minip2p/poc13/',
++  resolve: {
++    alias: {
++      '@': path.resolve(__dirname, './src'),
++    },
++  },
++  test: {
++    environment: 'jsdom',
++    globals: true,
++    setupFiles: path.resolve(__dirname, 'test/setup.js'),
++    coverage: {
++      reporter: ['text', 'html'],
++    },
++  },
++});
+*** End Patch
+[2m2025-11-10T11:37:16.378188Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd ../poc13-app && npm run build"],"workdir":"/home/user/test/minip2p/nostlib","timeout_ms":120000}
+[2m2025-11-10T11:37:23.443594Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rm -rf ../poc13 && mkdir ../poc13 && cp -R ../poc13-app/dist/* ../poc13/"]}
+[2m2025-11-10T11:37:29.792300Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd ../poc13-app && npm run test"],"workdir":"/home/user/test/minip2p/nostlib","timeout_ms":120000}
+[2m2025-11-10T11:37:45.664335Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd ../poc13-app && npm install -D jsdom"],"timeout_ms":120000}
+[2m2025-11-10T11:37:59.123647Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd ../poc13-app && npm run test"],"timeout_ms":120000}
+[2m2025-11-10T11:38:14.848801Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13-app/src/state/__tests__/store.spec.js
+@@
+-vi.mock('../persistence', () => ({
+-  loadLibraryItems: persistenceMock.loadLibraryItems,
+-  saveLibraryItems: persistenceMock.saveLibraryItems,
+-}));
+-
+-describe('state/store', () => {
++vi.mock('../persistence', () => ({
++  loadLibraryItems: persistenceMock.loadLibraryItems,
++  saveLibraryItems: persistenceMock.saveLibraryItems,
++}));
++
++import * as store from '../store.js';
++
++describe('state/store', () => {
+   beforeEach(() => {
+     persistenceMock.data = [];
+     vi.clearAllMocks();
+-  });
+-
+-  test('initializes with sample manifest', async () => {
+-    const store = await import(new URL('../store.js', import.meta.url));
+-    store.__resetStore();
+-    await store.initStore();
+-    const snapshot = store.getState();
++    store.__resetStore();
++  });
++
++  test('initializes with sample manifest', async () => {
++    await store.initStore();
++    const snapshot = store.getState();
+     expect(snapshot.manifest).toHaveLength(5);
+     expect(snapshot.library).toEqual([]);
+   });
+ 
+   test('saves and removes library items', async () => {
+-    const store = await import(new URL('../store.js', import.meta.url));
+-    store.__resetStore();
+-    await store.initStore();
+-    const sample = store.getSampleItems(1)[0];
+-    await store.saveToLibrary(sample);
+-    expect(store.getState().library).toHaveLength(1);
+-    await store.removeFromLibrary(sample.id);
+-    expect(store.getState().library).toHaveLength(0);
++    await store.initStore();
++    const sample = store.getSampleItems(1)[0];
++    await store.saveToLibrary(sample);
++    expect(store.getState().library).toHaveLength(1);
++    await store.removeFromLibrary(sample.id);
++    expect(store.getState().library).toHaveLength(0);
+   });
+ });
+*** End Patch
+[2m2025-11-10T11:38:21.711257Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd ../poc13-app && npm run test"],"timeout_ms":120000}
+[2m2025-11-10T11:38:28.263440Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git status -sb"]}
+[2m2025-11-10T11:38:35.431208Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat ../poc13/index.html"]}
+[2m2025-11-10T11:38:43.132231Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git add poc13-app poc13"]}
+[2m2025-11-10T11:38:48.640720Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git status -sb"]}
+[2m2025-11-10T11:38:55.399249Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git diff --cached --stat"]}
+[2m2025-11-10T11:39:04.031253Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git commit -m \"build poc13 bundle and add source dir\""],"timeout_ms":120000}
+[2m2025-11-10T11:39:10.657259Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git push"],"timeout_ms":120000}
+[2m2025-11-10T11:40:03.495812Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && ssh 0x6du 'cd /var/www/minip2p && git pull'"],"timeout_ms":120000}
+[2m2025-11-10T11:41:07.781537Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T11:41:55.043219Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T11:42:45.800974Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:42:53.760778Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls deploy"]}
+[2m2025-11-10T11:43:03.515605Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls deploy"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:43:10.684402Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat deploy/Caddyfile"]}
+[2m2025-11-10T11:43:17.983993Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","pwd"]}
+[2m2025-11-10T11:43:24.097757Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat ../deploy/Caddyfile"]}
+[2m2025-11-10T11:43:32.597298Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat ../trackers.txt"]}
+[2m2025-11-10T11:43:50.416145Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../FACTSHEET.md
++# 0x6d.net Fact Sheet
++
++One place to grab our canonical URLs, trackers, and deployment rituals.
++
++## Domains & Reverse Proxies
++
++| Hostname | Purpose | Backend |
++| --- | --- | --- |
++| `0x6d.net` | Public static site (e.g., `/minip2p/poc13/`) | `/var/www/minip2p` |
++| `ip.0x6d.net` | Echo IP helper (reverse proxies the `echoip` service) | `127.0.0.1:18080` |
++| `relay.0x6d.net` | Browser-friendly Nostr relay | `127.0.0.1:7000` |
++
++Notes:
++- `/minip2p` redirects to `/minip2p/` so subpaths behave as expected.
++- The Caddy config lives in `deploy/Caddyfile`; use `make deploy-caddy` if you change it.
++
++## Tracker & Magnet References
++
++Default tracker list (`trackers.txt` and `poc13-app/src/config/app-config.js`):
++
++```
++wss://tracker.openwebtorrent.com
++wss://tracker.webtorrent.dev
++wss://tracker.btorrent.xyz
++wss://tracker.fastcast.nz
++udp://tracker.opentrackr.org:1337
++udp://open.demonoid.ch:6969
++udp://tracker.torrent.eu.org:451
++udp://exodus.desync.com:6969
++```
++
++Primary Gutenberg magnet (also baked into `Makefile` → `GUTENBERG_MAGNET`):
++
++```
++magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af&dn=gutenberg-txt-files.tar.gz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&tr=wss%3A%2F%2Ftracker.webtorrent.dev&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Fopen.demonoid.ch%3A6969%2Fannounce&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451%2Fannounce&tr=udp%3A%2F%2Fexodus.desync.com%3A6969%2Fannounce
++```
++
++## Build & Deploy Flow
++
++1. **Work inside `poc13-app/`** (sources, tests, config).
++2. `npm run test` (Vitest / jsdom) → `npm run build`.
++3. Replace the public bundle: `rm -rf poc13/* && cp -R poc13-app/dist/* poc13/`.
++4. Commit both `poc13-app/` and `poc13/`.
++5. `make deploy` → commits, pushes, and triggers `ssh 0x6du 'cd /var/www/minip2p && git pull'`.
++
++## Seeder & Relay Helpers
++
++- `make seed` / `seed-stop` / `seed-logs`: spins up the Dockerized WebTorrent seeder.
++- `make transmission-*`: bulk-add torrents to a local Transmission instance with the tracker list above.
++- `nostr-relay/`: houses the relay service that Caddy exposes at `relay.0x6d.net`.
++
++Keep this file updated whenever endpoints or workflows change so future deploys stay frictionless.
+*** End Patch
+[2m2025-11-10T11:43:56.252478Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd .. && git add FACTSHEET.md"]}
+[2m2025-11-10T11:47:51.054267Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:47:58.021816Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git commit -am \"Add fact sheet of domains and trackers\""]}

@@ -27,3 +27,12 @@
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762773365,"text":"make sense!"}
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774084,"text":"did you see the makefile, how we deploy to git and to test domain?"}
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774260,"text":"lets do it!"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774364,"text":"print url, just for good mesure"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774376,"text":"also add the .. HUMAN"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774412,"text":"its not on the server .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774820,"text":"you could test that, no .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774828,"text":"i guess we need to switch branches on th server.. OR you work on main ? :D"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774886,"text":"2. and btw, lets also switch to our own relay?! and tracker?!"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762774958,"text":"can you make a fact sheet for future use with the tracker and other urls .. its availibale in caddy in this repo.. all the foo. 0x6d.net"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762775233,"text":"perfect"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762775261,"text":"sgtm"}

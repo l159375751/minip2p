@@ -23,22 +23,72 @@ const answeredQueries = new Map();
 let responderEnabled = false;
 let responsesServed = 0;
 
+function bytesToHex(bytes) {
+  return Array.from(bytes || [], (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex) {
+  if (typeof hex !== 'string') return null;
+  const normalized = hex.trim();
+  if (!normalized || normalized.length % 2 !== 0) return null;
+  const out = new Uint8Array(normalized.length / 2);
+  for (let i = 0; i < normalized.length; i += 2) {
+    out[i / 2] = parseInt(normalized.slice(i, i + 2), 16);
+  }
+  return out;
+}
+
+function coerceSecretKey(source) {
+  if (!source) return null;
+  if (typeof source === 'string') {
+    return hexToBytes(source);
+  }
+  if (Array.isArray(source)) {
+    return Uint8Array.from(source);
+  }
+  if (source && Array.isArray(source.data)) {
+    return Uint8Array.from(source.data);
+  }
+  return null;
+}
+
+function persistKeys(sk, pk) {
+  try {
+    window.localStorage.setItem(
+      'nostr-keypair',
+      JSON.stringify({
+        secretKey: bytesToHex(sk),
+        publicKey: pk,
+      }),
+    );
+  } catch (error) {
+    console.warn('[nostr] failed to persist keypair', error);
+  }
+}
+
 function loadKeys() {
   if (secretKey && publicKey) return;
   const stored = window.localStorage.getItem('nostr-keypair');
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      secretKey = parsed.secretKey;
-      publicKey = parsed.publicKey;
-      return;
-    } catch (_) {
-      // fall through
+      const hydratedSecret = coerceSecretKey(parsed.secretKey);
+      if (hydratedSecret && typeof parsed.publicKey === 'string') {
+        secretKey = hydratedSecret;
+        publicKey = parsed.publicKey;
+        // Re-persist in the canonical hex format if necessary.
+        if (typeof parsed.secretKey !== 'string') {
+          persistKeys(secretKey, publicKey);
+        }
+        return;
+      }
+    } catch (error) {
+      console.warn('[nostr] failed to parse stored keypair, generating new one', error);
     }
   }
   secretKey = generateSecretKey();
   publicKey = getPublicKey(secretKey);
-  window.localStorage.setItem('nostr-keypair', JSON.stringify({ secretKey, publicKey }));
+  persistKeys(secretKey, publicKey);
 }
 
 async function connectRelay() {
@@ -305,4 +355,7 @@ export async function publishShareEvent(items = []) {
   } catch (error) {
     console.warn('[nostr] failed to publish share', error);
   }
+
+  // Ensure latest key format is stored for subsequent sessions.
+  persistKeys(secretKey, publicKey);
 }

@@ -55,10 +55,8 @@
   grid-template-columns: minmax(0, 1fr) 230px auto;
   gap: 1rem;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background: white;
-  border-radius: 0.85rem;
-  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
 .library-row__meta strong {
@@ -100,13 +98,13 @@
 
 .library-row__actions button {
   flex: 0 0 auto;
-  border-radius: 0.65rem;
+  border-radius: 999px;
   border: 1px solid #2563eb;
-  background: #2563eb;
-  color: white;
-  padding: 0.35rem 0.75rem;
+  background: transparent;
+  color: #2563eb;
+  padding: 0.25rem 0.65rem;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .library-row__actions button.ghost {
@@ -115,8 +113,9 @@
 }
 
 .library-row__actions button.icon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
   padding: 0;
   display: flex;
   align-items: center;
@@ -124,16 +123,9 @@
 }
 
 .library-row__actions button.danger {
-  border-color: #ef4444;
-  background: #ef4444;
-  color: #fff;
-}
-
-.library-row__actions button.icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: #ef4444;
 }
 
 button:disabled {

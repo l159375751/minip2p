@@ -18,7 +18,7 @@ function createFeaturedCard(item) {
       <span class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
       <div class="featured-card__actions">
         <button data-action="open" data-id="${item.id}">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Copy Link</button>
+        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Get Book</button>
       </div>
     </article>
   `;
@@ -40,7 +40,7 @@ function createRow(item, inLibrary) {
       <div class="library-row__info monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</div>
       <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Link</button>
+        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Get Book</button>
         <button
           data-action="remove"
           data-id="${item.id}"

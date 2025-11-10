@@ -11,7 +11,7 @@ function renderResult(item) {
         <span>${item.author}</span>
       </div>
       <div class="search-result__actions">
-        <button data-action="copy-magnet" data-infohash="${infohash}" ${magnet ? '' : 'disabled'}>Copy Link</button>
+        <button data-action="copy-magnet" data-infohash="${infohash}" ${magnet ? '' : 'disabled'}>Get Book</button>
       </div>
     </li>
   `;

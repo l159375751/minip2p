@@ -2,6 +2,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import { initStore } from '@/state/store';
 import { mountLibraryList } from '@/library/ui';
+import { mountSearchPanel } from '@/search/ui';
 import { subscribeSharing, toggleSharing } from '@/state/sharing.js';
 
 const appRoot = document.querySelector('#app');
@@ -25,16 +26,35 @@ appRoot.innerHTML = `
       </div>
     </header>
     <section id="library-list"></section>
+    <section id="search-panel" class="search-panel">
+      <header>
+        <h2>Search Collections</h2>
+        <p>Relay-backed discovery to mirror the classic POC10 nostr search flow.</p>
+      </header>
+      <form id="search-form">
+        <input id="search-input" type="text" placeholder="Search by title, author, or infohash" />
+        <div class="search-actions">
+          <button type="submit">Search</button>
+          <button type="button" id="search-clear">Clear</button>
+        </div>
+      </form>
+      <div id="search-results" class="search-results-wrapper"></div>
+    </section>
   </main>
 `;
 
 const listMount = document.querySelector('#library-list');
+const searchPanel = document.querySelector('#search-form');
+const searchInput = document.querySelector('#search-input');
+const searchClear = document.querySelector('#search-clear');
+const searchResults = document.querySelector('#search-results');
 const shareToggle = document.querySelector('#share-toggle');
 const shareNote = document.querySelector('#share-note');
 
 (async () => {
   await initStore();
   mountLibraryList(listMount);
+  mountSearchPanel(searchPanel, searchResults, searchInput, searchClear);
 
   subscribeSharing(({ enabled }) => {
     if (shareToggle) {

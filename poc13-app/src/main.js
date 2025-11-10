@@ -3,7 +3,10 @@ import './styles/layout.css';
 import { initStore } from '@/state/store';
 import { mountLibraryList } from '@/library/ui';
 import { mountSearchPanel } from '@/search/ui';
+import { mountDiagnosticsPanel } from '@/diagnostics/ui';
 import { subscribeSharing, toggleSharing } from '@/state/sharing.js';
+import { subscribeDiagnostics } from '@/state/diagnostics';
+import { toggleSearchResponder } from '@/nostr/client';
 
 const appRoot = document.querySelector('#app');
 
@@ -24,6 +27,10 @@ appRoot.innerHTML = `
         <button id="share-toggle" class="share-button">Start Sharing</button>
         <span id="share-note" class="share-note">Sharing paused</span>
       </div>
+      <div class="share-cta">
+        <button id="daemon-toggle" class="share-button secondary">Pause Search Daemon</button>
+        <span id="daemon-note" class="share-note">Responder live</span>
+      </div>
     </header>
     <section id="library-list"></section>
     <section id="search-panel" class="search-panel">
@@ -40,6 +47,7 @@ appRoot.innerHTML = `
       </form>
       <div id="search-results" class="search-results-wrapper"></div>
     </section>
+    <section id="diagnostics-panel" class="diagnostics-panel"></section>
   </main>
 `;
 
@@ -50,11 +58,15 @@ const searchClear = document.querySelector('#search-clear');
 const searchResults = document.querySelector('#search-results');
 const shareToggle = document.querySelector('#share-toggle');
 const shareNote = document.querySelector('#share-note');
+const daemonToggle = document.querySelector('#daemon-toggle');
+const daemonNote = document.querySelector('#daemon-note');
+const diagnosticsMount = document.querySelector('#diagnostics-panel');
 
 (async () => {
   await initStore();
   mountLibraryList(listMount);
   mountSearchPanel(searchPanel, searchResults, searchInput, searchClear);
+  mountDiagnosticsPanel(diagnosticsMount);
 
   subscribeSharing(({ enabled }) => {
     if (shareToggle) {
@@ -66,9 +78,27 @@ const shareNote = document.querySelector('#share-note');
     }
   });
 
+  subscribeDiagnostics(({ responder }) => {
+    if (daemonToggle) {
+      daemonToggle.textContent = responder.enabled ? 'Pause Search Daemon' : 'Resume Search Daemon';
+      daemonToggle.classList.toggle('active', responder.enabled);
+    }
+    if (daemonNote) {
+      daemonNote.textContent = responder.enabled
+        ? `Responder active · ${responder.served} sent`
+        : 'Responder paused';
+    }
+  });
+
   if (shareToggle) {
     shareToggle.addEventListener('click', () => {
       toggleSharing();
+    });
+  }
+
+  if (daemonToggle) {
+    daemonToggle.addEventListener('click', () => {
+      toggleSearchResponder();
     });
   }
 })();

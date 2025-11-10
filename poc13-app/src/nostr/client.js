@@ -4,6 +4,7 @@ import { DEFAULT_RELAYS } from '@/config/app-config';
 import { getState } from '@/state/store';
 import { matchItemsByQuery } from '@/search/match-helpers';
 import { emit } from '@/state/event-bus';
+import { pushDiagnosticLog, updateResponderStats, updateRelayStatus } from '@/state/diagnostics';
 
 const SEARCH_KIND = 25555;
 const RESPONSE_KIND = 25556;
@@ -20,8 +21,15 @@ let publicKey;
 
 const listeners = new Set();
 const answeredQueries = new Map();
-let responderEnabled = false;
+let responderEnabled = true;
 let responsesServed = 0;
+
+updateResponderStats({
+  enabled: responderEnabled,
+  served: responsesServed,
+  lastQuery: null,
+  lastMatches: 0,
+});
 
 function bytesToHex(bytes) {
   return Array.from(bytes || [], (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -125,11 +133,37 @@ async function connectRelay() {
   const url = DEFAULT_RELAYS[relayIndex % DEFAULT_RELAYS.length];
   relayIndex += 1;
 
+  pushDiagnosticLog({
+    source: 'nostr',
+    message: `Connecting to relay ${url}`,
+  });
+  updateRelayStatus({
+    url,
+    status: 'connecting',
+  });
+
   try {
     relay = await Relay.connect(url);
+    pushDiagnosticLog({
+      source: 'nostr',
+      message: `Connected to relay ${url}`,
+    });
+    updateRelayStatus({
+      url,
+      status: 'connected',
+    });
     subscribeToRelayEvents(relay);
   } catch (error) {
     console.warn('[nostr] relay connect failed', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'nostr',
+      message: `Relay connection failed (${url}): ${error.message || error}`,
+    });
+    updateRelayStatus({
+      url,
+      status: 'error',
+    });
     relay = null;
   }
 
@@ -155,6 +189,12 @@ function subscribeToRelayEvents(instance) {
 }
 
 async function handleEvent(instance, event) {
+  updateRelayStatus({
+    url: instance.url,
+    status: 'connected',
+    lastEvent: Date.now(),
+  });
+
   if (event.kind === RESPONSE_KIND) {
     processSearchResponse(instance, event);
     return;
@@ -199,19 +239,29 @@ function pruneAnsweredQueries() {
 }
 
 async function maybeAnswerSearch(event) {
-  if (!responderEnabled) return;
+  const queryTag = event.tags.find((t) => t[0] === 'q');
+  const query = queryTag ? queryTag[1] : '';
+
+  if (!responderEnabled) {
+    pushDiagnosticLog({
+      level: 'info',
+      source: 'responder',
+      message: `Responder paused; ignoring query "${query}"`,
+    });
+    return;
+  }
   if (!event) return;
 
   loadKeys();
 
   if (event.pubkey === publicKey) return;
 
-  const queryTag = event.tags.find((t) => t[0] === 'q');
-  const query = queryTag ? queryTag[1] : '';
   if (!query) return;
 
   pruneAnsweredQueries();
-  if (answeredQueries.has(event.id)) return;
+  if (answeredQueries.has(event.id)) {
+    return;
+  }
 
   const state = getState();
   const matches = matchItemsByQuery(query, {
@@ -221,7 +271,14 @@ async function maybeAnswerSearch(event) {
     preferLibrary: true,
   });
 
-  if (!matches.length) return;
+  if (!matches.length) {
+    pushDiagnosticLog({
+      level: 'info',
+      source: 'responder',
+      message: `No matches found for query "${query}"`,
+    });
+    return;
+  }
 
   answeredQueries.set(event.id, Date.now());
 
@@ -230,11 +287,18 @@ async function maybeAnswerSearch(event) {
   }
 
   responsesServed += matches.length;
-  emit('nostr:responder', {
+  const responderSnapshot = {
     served: responsesServed,
     lastQuery: query,
-    matches: matches.length,
+    lastMatches: matches.length,
     enabled: responderEnabled,
+  };
+  emit('nostr:responder', responderSnapshot);
+  updateResponderStats(responderSnapshot);
+  pushDiagnosticLog({
+    level: 'info',
+    source: 'responder',
+    message: `Answered query "${query}" with ${matches.length} entr${matches.length === 1 ? 'y' : 'ies'}`,
   });
 }
 
@@ -244,6 +308,11 @@ async function publishSearchResponse(item, query) {
     await connectRelay();
   } catch (error) {
     console.warn('[nostr] responder connect failed', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'responder',
+      message: `Failed to connect relay for response: ${error.message || error}`,
+    });
     return;
   }
   if (!relay) return;
@@ -280,6 +349,11 @@ async function publishSearchResponse(item, query) {
     await relay.publish(signed);
   } catch (error) {
     console.warn('[nostr] failed to publish response', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'responder',
+      message: `Failed to publish response for "${item.title}": ${error.message || error}`,
+    });
   }
 }
 
@@ -295,6 +369,11 @@ export async function sendSearchRequest(query) {
     await connectRelay();
   } catch (error) {
     console.warn('[nostr] failed to connect relay', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'search',
+      message: `Failed to connect relay for search "${query}"`,
+    });
     return;
   }
 
@@ -312,8 +391,17 @@ export async function sendSearchRequest(query) {
 
   try {
     await relay.publish(signed);
+    pushDiagnosticLog({
+      source: 'search',
+      message: `Published search for "${query}"`,
+    });
   } catch (error) {
     console.warn('[nostr] failed to publish search', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'search',
+      message: `Failed to publish search "${query}": ${error.message || error}`,
+    });
   }
 }
 
@@ -325,17 +413,32 @@ export async function initNostrClient() {
   }
 }
 
-export function setResponderEnabled(enabled) {
+export function setSearchResponderEnabled(enabled) {
   responderEnabled = Boolean(enabled);
   if (!responderEnabled) {
     answeredQueries.clear();
   }
-  emit('nostr:responder', {
+  const responderSnapshot = {
     enabled: responderEnabled,
     served: responsesServed,
     lastQuery: null,
-    matches: 0,
+    lastMatches: 0,
+  };
+  emit('nostr:responder', responderSnapshot);
+  updateResponderStats(responderSnapshot);
+  pushDiagnosticLog({
+    source: 'responder',
+    message: responderEnabled ? 'Search responder enabled' : 'Search responder paused',
   });
+}
+
+export function toggleSearchResponder() {
+  setSearchResponderEnabled(!responderEnabled);
+  return responderEnabled;
+}
+
+export function isSearchResponderEnabled() {
+  return responderEnabled;
 }
 
 export async function publishShareEvent(items = []) {
@@ -344,6 +447,11 @@ export async function publishShareEvent(items = []) {
     await connectRelay();
   } catch (error) {
     console.warn('[nostr] failed to connect relay for share', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'share',
+      message: `Failed to connect relay for share (${error.message || error})`,
+    });
     return;
   }
   if (!relay) return;
@@ -367,8 +475,17 @@ export async function publishShareEvent(items = []) {
 
   try {
     await relay.publish(signed);
+    pushDiagnosticLog({
+      source: 'share',
+      message: `Published share event with ${items.length} items`,
+    });
   } catch (error) {
     console.warn('[nostr] failed to publish share', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'share',
+      message: `Failed to publish share: ${error.message || error}`,
+    });
   }
 
   // Ensure latest key format is stored for subsequent sessions.

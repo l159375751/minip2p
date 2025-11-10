@@ -7,17 +7,9 @@ const libraryItems = (state) => (state.library.length ? state.library : featured
 function createFeaturedCard(item) {
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
-  const initials = item.title
-    .split(' ')
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join('');
 
   return `
     <article class="featured-card" data-id="${item.id}">
-      <div class="featured-card__cover">
-        <span>${initials || '📚'}</span>
-      </div>
       <div class="featured-card__meta">
         <strong>${item.title}</strong>
         <p>${item.author}</p>

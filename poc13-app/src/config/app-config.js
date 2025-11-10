@@ -1,4 +1,4 @@
-export const APP_NAME = 'Browser-Only Nostr Library Hub';
+export const APP_NAME = 'Browser Based Nostr Library Hub';
 
 export const DEFAULT_RELAYS = [
   'wss://relay.0x6d.net',

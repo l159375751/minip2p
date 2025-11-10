@@ -12,8 +12,8 @@ if (!appRoot) {
 appRoot.innerHTML = `
   <main class="app-shell">
     <header class="app-header">
-      <span class="badge">browser-only p2p</span>
-      <h1>nostr library hub</h1>
+      <span class="badge">browser based p2p</span>
+      <h1>browser based p2p libraries & collections</h1>
       <p>
         Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
         Nostr + WebRTC/WebTorrent.

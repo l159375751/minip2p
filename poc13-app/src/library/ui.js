@@ -8,7 +8,7 @@ const libraryItems = (state) => (state.library.length ? state.library : featured
 function createFeaturedCard(item) {
   const infohash = item.infohash || '';
   const magnet = buildMagnetFromInfohash(infohash);
-  const canCopy = Boolean(magnet || infohash);
+  const canCopy = Boolean(magnet || infohash || item.downloadUrl);
 
   return `
     <article class="featured-card" data-id="${item.id}">
@@ -20,7 +20,7 @@ function createFeaturedCard(item) {
       <span class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
       <div class="featured-card__actions">
         <button data-action="open" data-id="${item.id}">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" ${canCopy ? '' : 'disabled'}>Get Book</button>
+        <button data-action="get-book" data-id="${item.id}" ${canCopy ? '' : 'disabled'}>Get Book</button>
       </div>
     </article>
   `;
@@ -29,7 +29,7 @@ function createFeaturedCard(item) {
 function createRow(item, inLibrary) {
   const infohash = item.infohash || '';
   const magnet = buildMagnetFromInfohash(infohash);
-  const canCopy = Boolean(magnet || infohash);
+  const canCopy = Boolean(magnet || infohash || item.downloadUrl);
 
   return `
     <li class="library-row" data-id="${item.id}">
@@ -43,7 +43,7 @@ function createRow(item, inLibrary) {
       <div class="library-row__info monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</div>
       <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${canCopy ? '' : 'disabled'}>Get Book</button>
+        <button data-action="get-book" data-id="${item.id}" class="ghost" ${canCopy ? '' : 'disabled'}>Get Book</button>
         <button
           data-action="remove"
           data-id="${item.id}"
@@ -79,12 +79,44 @@ function renderShelf(container, state) {
   container.innerHTML = fragment.join('');
 }
 
-async function copyBookLink(target) {
+function openBook(target) {
+  if (target.downloadUrl) {
+    const win = window.open(target.downloadUrl, '_blank', 'noopener');
+    if (!win) {
+      window.location.href = target.downloadUrl;
+    }
+    return;
+  }
+
+  const preview = window.open('', '_blank', 'noopener');
+  if (preview) {
+    preview.document.write(`
+      <main style="font-family: system-ui; padding: 2rem; max-width: 720px; margin: auto;">
+        <h1>${target.title}</h1>
+        <p><strong>Author:</strong> ${target.author}</p>
+        <p>This is a lightweight preview placeholder. Download via your preferred client using the infohash below:</p>
+        <pre style="background:#f3f4f6; padding:1rem; border-radius:0.5rem; overflow:auto;">${target.infohash || 'n/a'}</pre>
+      </main>
+    `);
+    preview.document.close();
+  } else {
+    window.alert('Unable to open preview window (pop-up blocked).');
+  }
+}
+
+async function getBook(target) {
+  if (target.downloadUrl) {
+    const win = window.open(target.downloadUrl, '_blank', 'noopener');
+    if (!win) {
+      window.location.href = target.downloadUrl;
+    }
+    return;
+  }
   const infohash = target.infohash || '';
   const magnet = buildMagnetFromInfohash(infohash);
   const payload = magnet || infohash;
   if (!payload) {
-    window.alert('This entry is missing sharing metadata.');
+    window.alert('No download metadata for this entry yet.');
     return;
   }
   const label = magnet ? 'Magnet link' : 'Infohash';
@@ -106,30 +138,16 @@ function handleShelfClick(event, state) {
   if (!target) return;
 
   if (action === 'open') {
-    const preview = window.open('', '_blank', 'noopener');
-    if (preview) {
-      preview.document.write(`
-        <main style="font-family: system-ui; padding: 2rem; max-width: 720px; margin: auto;">
-          <h1>${target.title}</h1>
-          <p><strong>Author:</strong> ${target.author}</p>
-          <p>This is a lightweight preview placeholder. Download via your preferred client using the infohash below:</p>
-          <pre style="background:#f3f4f6; padding:1rem; border-radius:0.5rem; overflow:auto;">${target.infohash || 'n/a'}</pre>
-        </main>
-      `);
-      preview.document.close();
-    } else {
-      window.alert('Unable to open preview window (pop-up blocked).');
-    }
+    openBook(target);
     return;
   }
 
-  if (action === 'copy-magnet') {
-    copyBookLink(target);
+  if (action === 'get-book') {
+    getBook(target);
     return;
   }
 
-  if (action === 'save') {
-  } else if (action === 'remove') {
+  if (action === 'remove') {
     removeFromLibrary(id);
   }
 }

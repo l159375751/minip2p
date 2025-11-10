@@ -7,7 +7,8 @@
     "cover": "https://0x6d.net/minip2p/assets/alice.jpg",
     "infohash": "sample-alice",
     "nostr_event": "nostr:sample-alice",
-    "summary": "A curious girl falls through a rabbit hole into a world of whimsical logic."
+    "summary": "A curious girl falls through a rabbit hole into a world of whimsical logic.",
+    "downloadUrl": "https://0x6d.net/minip2p/poc10/alice.txt"
   },
   {
     "id": "gutenberg-84",
@@ -17,7 +18,8 @@
     "cover": "https://0x6d.net/minip2p/assets/frankenstein.jpg",
     "infohash": "sample-frankenstein",
     "nostr_event": "nostr:sample-frankenstein",
-    "summary": "A scientist’s creation challenges the boundaries between life, death, and responsibility."
+    "summary": "A scientist’s creation challenges the boundaries between life, death, and responsibility.",
+    "downloadUrl": "https://0x6d.net/minip2p/poc10/frankenstein.txt"
   },
   {
     "id": "gutenberg-345",
@@ -27,7 +29,8 @@
     "cover": "https://0x6d.net/minip2p/assets/dracula.jpg",
     "infohash": "sample-dracula",
     "nostr_event": "nostr:sample-dracula",
-    "summary": "Journal entries and letters chronicle the hunt for a night-walking count."
+    "summary": "Journal entries and letters chronicle the hunt for a night-walking count.",
+    "downloadUrl": "https://0x6d.net/minip2p/poc10/dracula.txt"
   },
   {
     "id": "gutenberg-1342",
@@ -37,7 +40,8 @@
     "cover": "https://0x6d.net/minip2p/assets/pride.jpg",
     "infohash": "sample-pride",
     "nostr_event": "nostr:sample-pride",
-    "summary": "Elizabeth Bennet learns to balance judgment with empathy amid regency-era society."
+    "summary": "Elizabeth Bennet learns to balance judgment with empathy amid regency-era society.",
+    "downloadUrl": "https://0x6d.net/minip2p/poc10/pride.txt"
   },
   {
     "id": "gutenberg-48320",
@@ -47,6 +51,7 @@
     "cover": "https://0x6d.net/minip2p/assets/sherlock.jpg",
     "infohash": "sample-sherlock",
     "nostr_event": "nostr:sample-sherlock",
-    "summary": "A dozen mysteries showcase Holmes’ deductive flair and Watson’s loyal narration."
+    "summary": "A dozen mysteries showcase Holmes’ deductive flair and Watson’s loyal narration.",
+    "downloadUrl": "https://0x6d.net/minip2p/poc10/sherlock.txt"
   }
 ]

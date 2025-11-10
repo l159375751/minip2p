@@ -5,7 +5,8 @@ import { clearSearch, subscribeSearch, updateQuery } from './state';
 function renderResult(item) {
   const infohash = item.infohash || '';
   const magnet = buildMagnetFromInfohash(infohash);
-  const canCopy = Boolean(magnet || infohash);
+  const canCopy = Boolean(magnet || infohash || item.downloadUrl);
+  const downloadAttr = item.downloadUrl ? `data-download="${encodeURIComponent(item.downloadUrl)}"` : '';
   return `
     <li class="search-result" data-id="${item.id}">
       <div>
@@ -13,7 +14,7 @@ function renderResult(item) {
         <span>${item.author}</span>
       </div>
       <div class="search-result__actions">
-        <button data-action="copy-magnet" data-infohash="${infohash}" ${canCopy ? '' : 'disabled'}>Get Book</button>
+        <button data-action="get-book" data-infohash="${infohash}" ${downloadAttr} ${canCopy ? '' : 'disabled'}>Get Book</button>
       </div>
     </li>
   `;
@@ -45,12 +46,17 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
   }
 
   const onResultClick = async (event) => {
-    const btn = event.target.closest('button[data-action="copy-magnet"]');
+    const btn = event.target.closest('button[data-action="get-book"]');
     if (!btn) return;
     const infohash = btn.dataset.infohash;
-    if (!infohash) return;
-    const magnet = buildMagnetFromInfohash(infohash);
+    const downloadAttr = btn.dataset.download ? decodeURIComponent(btn.dataset.download) : '';
+    const magnet = buildMagnetFromInfohash(infohash || '');
     const payload = magnet || infohash;
+    if (downloadAttr) {
+      const win = window.open(downloadAttr, '_blank', 'noopener');
+      if (!win) window.location.href = downloadAttr;
+      return;
+    }
     if (!payload) {
       window.alert('This entry is missing sharing metadata.');
       return;

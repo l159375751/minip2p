@@ -79,13 +79,7 @@
 }
 
 .library-row__info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
   font-size: 0.75rem;
-}
-
-.library-row__info span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

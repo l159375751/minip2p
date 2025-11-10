@@ -7,7 +7,6 @@ const libraryItems = (state) => (state.library.length ? state.library : featured
 function createFeaturedCard(item) {
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
-  const magnetPreview = magnet ? `${magnet.slice(0, 32)}...` : 'n/a';
 
   return `
     <article class="featured-card" data-id="${item.id}">
@@ -16,10 +15,10 @@ function createFeaturedCard(item) {
         <p>${item.author}</p>
       </div>
       <p>${item.summary}</p>
-      <span class="monospace" title="${magnetPreview}">${magnetPreview}</span>
+      <span class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
       <div class="featured-card__actions">
         <button data-action="open" data-id="${item.id}">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Copy</button>
+        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Copy Link</button>
       </div>
     </article>
   `;
@@ -28,7 +27,6 @@ function createFeaturedCard(item) {
 function createRow(item, inLibrary) {
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
-  const magnetPreview = magnet ? `${magnet.slice(0, 42)}...` : 'n/a';
 
   return `
     <li class="library-row" data-id="${item.id}">
@@ -39,13 +37,10 @@ function createRow(item, inLibrary) {
         </div>
         <p>${item.summary}</p>
       </div>
-      <div class="library-row__info monospace">
-        <span title="${infohash || 'n/a'}">${infohash || 'n/a'}</span>
-        <span title="${magnetPreview}">${magnetPreview}</span>
-      </div>
+      <div class="library-row__info monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</div>
       <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
-        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy</button>
+        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Link</button>
         <button data-action="remove" data-id="${item.id}" class="icon danger" ${inLibrary ? '' : 'disabled'}>&times;</button>
       </div>
     </li>

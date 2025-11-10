@@ -141,10 +141,12 @@ function subscribeToRelayEvents(instance) {
     sub.close();
   }
   sub = instance.subscribe(
-    {
-      kinds: [RESPONSE_KIND, SEARCH_KIND],
-      since: Math.floor(Date.now() / 1000),
-    },
+    [
+      {
+        kinds: [RESPONSE_KIND, SEARCH_KIND],
+        since: Math.floor(Date.now() / 1000),
+      },
+    ],
     {
       label: 'nostr-search-stream',
       receivedEvent: (event) => handleEvent(instance, event),

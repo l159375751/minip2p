@@ -1,8 +1,14 @@
+import { buildMagnetFromInfohash } from '@/config/app-config';
 import { getSampleItems, removeFromLibrary, saveToLibrary, subscribe } from '@/state/store';
+
+const featuredItems = () => getSampleItems(5);
 
 function createCard(item, inLibrary) {
   const buttonLabel = inLibrary ? 'Remove from Library' : 'Save to Library';
   const buttonAction = inLibrary ? 'remove' : 'save';
+  const infohash = item.infohash || '';
+  const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
+  const magnetPreview = magnet ? `${magnet.slice(0, 42)}...` : 'n/a';
 
   return `
     <article class="library-card" data-id="${item.id}">
@@ -17,12 +23,17 @@ function createCard(item, inLibrary) {
           <dd>${item.size_kb} KB</dd>
         </div>
         <div>
-          <dt>Magnet</dt>
-          <dd title="${item.magnet}">${item.magnet.slice(0, 26)}...</dd>
+          <dt>Infohash</dt>
+          <dd class="monospace" title="${infohash || 'n/a'}">${infohash || 'n/a'}</dd>
+        </div>
+        <div>
+          <dt>Magnet Preview</dt>
+          <dd class="monospace" title="${magnetPreview}">${magnetPreview}</dd>
         </div>
       </dl>
       <div class="library-card__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open Preview</button>
+        <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Magnet</button>
         <button data-action="${buttonAction}" data-id="${item.id}">${buttonLabel}</button>
       </div>
     </article>
@@ -31,7 +42,7 @@ function createCard(item, inLibrary) {
 
 function renderShelf(container, state) {
   const fragment = [];
-  const samples = getSampleItems(5);
+  const samples = featuredItems();
   fragment.push('<section>');
   fragment.push('<header><h2>Featured Shelf</h2><p>Boots offline using bundled manifest.</p></header>');
   fragment.push('<div class="library-grid">');
@@ -51,14 +62,33 @@ function handleShelfClick(event) {
   const action = event.target.dataset.action;
   if (!action) return;
   const { id } = event.target.dataset;
+  const sample = featuredItems().find((item) => item.id === id);
+  if (!sample) return;
 
   if (action === 'open') {
     window.alert(`Preview for ${id} coming soon. Rendering sample manifest only right now.`);
     return;
   }
 
-  const sample = getSampleItems(5).find((item) => item.id === id);
-  if (!sample) return;
+  if (action === 'copy-magnet') {
+    const magnet = buildMagnetFromInfohash(sample.infohash);
+    if (!magnet) {
+      window.alert('Missing infohash for this entry.');
+      return;
+    }
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(magnet);
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = magnet;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+    window.alert('Magnet copied to clipboard.');
+    return;
+  }
 
   if (action === 'save') {
     saveToLibrary(sample);

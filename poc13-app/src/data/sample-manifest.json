@@ -5,7 +5,7 @@
     "author": "Lewis Carroll",
     "size_kb": 403,
     "cover": "https://0x6d.net/minip2p/assets/alice.jpg",
-    "magnet": "magnet:?xt=urn:btih:sample-alice",
+    "infohash": "sample-alice",
     "nostr_event": "nostr:sample-alice",
     "summary": "A curious girl falls through a rabbit hole into a world of whimsical logic."
   },
@@ -15,7 +15,7 @@
     "author": "Mary Wollstonecraft Shelley",
     "size_kb": 512,
     "cover": "https://0x6d.net/minip2p/assets/frankenstein.jpg",
-    "magnet": "magnet:?xt=urn:btih:sample-frankenstein",
+    "infohash": "sample-frankenstein",
     "nostr_event": "nostr:sample-frankenstein",
     "summary": "A scientist’s creation challenges the boundaries between life, death, and responsibility."
   },
@@ -25,7 +25,7 @@
     "author": "Bram Stoker",
     "size_kb": 706,
     "cover": "https://0x6d.net/minip2p/assets/dracula.jpg",
-    "magnet": "magnet:?xt=urn:btih:sample-dracula",
+    "infohash": "sample-dracula",
     "nostr_event": "nostr:sample-dracula",
     "summary": "Journal entries and letters chronicle the hunt for a night-walking count."
   },
@@ -35,7 +35,7 @@
     "author": "Jane Austen",
     "size_kb": 723,
     "cover": "https://0x6d.net/minip2p/assets/pride.jpg",
-    "magnet": "magnet:?xt=urn:btih:sample-pride",
+    "infohash": "sample-pride",
     "nostr_event": "nostr:sample-pride",
     "summary": "Elizabeth Bennet learns to balance judgment with empathy amid regency-era society."
   },
@@ -45,7 +45,7 @@
     "author": "Arthur Conan Doyle",
     "size_kb": 654,
     "cover": "https://0x6d.net/minip2p/assets/sherlock.jpg",
-    "magnet": "magnet:?xt=urn:btih:sample-sherlock",
+    "infohash": "sample-sherlock",
     "nostr_event": "nostr:sample-sherlock",
     "summary": "A dozen mysteries showcase Holmes’ deductive flair and Watson’s loyal narration."
   }

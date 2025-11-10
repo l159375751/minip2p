@@ -87,6 +87,12 @@
   color: #111827;
 }
 
+.monospace {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
 .library-card__actions {
   display: flex;
   gap: 0.5rem;

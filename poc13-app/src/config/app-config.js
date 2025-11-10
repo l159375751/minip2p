@@ -30,10 +30,10 @@ export const PERFORMANCE_BUDGETS = {
   bundleKB: 300,
 };
 
-export const SAMPLE_COLLECTION_MAGNETS = {
-  full: 'magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af',
-  mini10: 'magnet:?xt=urn:btih:bbd456a15950aef60ab28e786ae291d00e5fa934',
-  mini100: 'magnet:?xt=urn:btih:9dfeaa10e1be1e8d7b5efca400c966335c65447e',
+export const SAMPLE_COLLECTION_INFOHASHES = {
+  full: '38ea08e57e7fd054ed83165b7705bd57ca0250af',
+  mini10: 'bbd456a15950aef60ab28e786ae291d00e5fa934',
+  mini100: '9dfeaa10e1be1e8d7b5efca400c966335c65447e',
 };
 
 export const STORAGE_LIMIT_WARNING_GB = 11;
@@ -43,12 +43,19 @@ export const FEATURE_FLAGS = {
   allowCustomWidgets: false,
 };
 
+export const buildMagnetFromInfohash = (infohash, trackers = TRACKERS) => {
+  if (!infohash) return '';
+  const trackerQuery = trackers.map((tracker) => `&tr=${encodeURIComponent(tracker)}`).join('');
+  return `magnet:?xt=urn:btih:${infohash}${trackerQuery}`;
+};
+
 export default {
   APP_NAME,
   DEFAULT_RELAYS,
   TRACKERS,
   PERFORMANCE_BUDGETS,
-  SAMPLE_COLLECTION_MAGNETS,
+  SAMPLE_COLLECTION_INFOHASHES,
+  buildMagnetFromInfohash,
   STORAGE_LIMIT_WARNING_GB,
   RELAY_FAILOVER_INTERVAL_MS,
   RELAY_TIMEOUT_MS,

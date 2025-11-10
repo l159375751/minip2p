@@ -41,7 +41,16 @@ function createRow(item, inLibrary) {
       <div class="library-row__actions">
         <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
         <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Link</button>
-        <button data-action="remove" data-id="${item.id}" class="icon danger" ${inLibrary ? '' : 'disabled'}>&times;</button>
+        <button
+          data-action="remove"
+          data-id="${item.id}"
+          class="icon danger"
+          title="Remove from library"
+          ${inLibrary ? '' : 'disabled'}
+          aria-label="Remove ${item.title}"
+        >
+          ✕
+        </button>
       </div>
     </li>
   `;

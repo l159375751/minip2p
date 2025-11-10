@@ -1,0 +1,1891 @@
+[2m2025-11-10T10:10:22.216006Z[0m [32m INFO[0m cwd not set, using current dir
+[2m2025-11-10T10:10:41.202597Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:10:46.087665Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls -a"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:10:48.005023Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .specify"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:10:51.924889Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .specify/templates"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:10:53.869611Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rg -n \"speckit\" -n"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:10:58.642248Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"speckit\" -n"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:11:01.211406Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .specify/memory"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:11:24.897091Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat .specify/memory/constitution.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:11:43.475176Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: .specify/memory/constitution.md\n@@\n-# [PROJECT_NAME] Constitution\n-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->\n-\n-## Core Principles\n-\n-### [PRINCIPLE_1_NAME]\n-<!-- Example: I. Library-First -->\n-[PRINCIPLE_1_DESCRIPTION]\n-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->\n-\n-### [PRINCIPLE_2_NAME]\n-<!-- Example: II. CLI Interface -->\n-[PRINCIPLE_2_DESCRIPTION]\n-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->\n-\n-### [PRINCIPLE_3_NAME]\n-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->\n-[PRINCIPLE_3_DESCRIPTION]\n-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->\n-\n-### [PRINCIPLE_4_NAME]\n-<!-- Example: IV. Integration Testing -->\n-[PRINCIPLE_4_DESCRIPTION]\n-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->\n-\n-### [PRINCIPLE_5_NAME]\n-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->\n-[PRINCIPLE_5_DESCRIPTION]\n-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->\n-\n-## [SECTION_2_NAME]\n-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->\n-\n-[SECTION_2_CONTENT]\n-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->\n-\n-## [SECTION_3_NAME]\n-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->\n-\n-[SECTION_3_CONTENT]\n-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->\n-\n-## Governance\n-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->\n-\n-[GOVERNANCE_RULES]\n-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->\n-\n-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]\n-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->\n+# speckit Constitution\n+\n+## Core Principles\n+\n+### I. Code Quality Integrity (NON-NEGOTIABLE)\n+Every artifact embraces small, purposeful modules, descriptive naming, and accessible semantics; reviewers block any change that introduces duplication, unclear ownership, or untyped data boundaries, and no feature ships with unresolved TODOs in production paths.\n+\n+### II. Testing Fidelity\n+All behavior changes start with executable tests—unit, contract, or fixture-backed HTML checks—that fail before the implementation; green builds require deterministic, automated verification plus documented manual smoke steps for browser-facing work.\n+\n+### III. User Experience Consistency\n+Interfaces follow the active PoC style guide (two-space HTML indentation, kebab-case selectors, semantic tags) and preserve prior affordances; visual or interaction updates must document deltas, highlight fallback behaviors, and validate across at least one desktop Chromium and one Firefox build.\n+\n+### IV. Performance Transparency\n+Features budget their cost up front—call out critical-path latency, DOM weight, and seeding impact—then instrument or measure before merge; any regression over 5% in render time, bundle size, or torrent throughput requires mitigation or explicit sign-off.\n+\n+### V. Progressive Observability\n+Every new workflow exposes actionable diagnostics (structured logs, DOM data attributes, or seeding stats) so failures can be replayed; missing insight is treated as a blocker equal to broken functionality.\n+\n+## Quality & Performance Standards\n+- Document baseline metrics (TTFB, render complete, bundle KB, seeding bandwidth) in specs; store snapshots alongside the relevant `poc*/` artifact.\n+- Require reproducible steps for manual UX validation, including data prerequisites and expected DOM anchors.\n+- Prefer lightweight, dependency-free tooling; when heavier tooling is required, justify its performance impact and provide a rollback plan.\n+- Archive test artifacts (logs, screenshots, HAR files) for any change touching performance-sensitive code paths.\n+\n+## Development Workflow & Review Gates\n+- PRs cite which principles they satisfy and link to evidence (test output, metrics sheet, UX notes).\n+- Code reviews enforce “no orphaned behavior”: every feature references a spec section, test, and UX acceptance note before approval.\n+- Deployment via `make deploy` only occurs after local verification and recorded performance deltas; any skipped step must be called out in the PR description.\n+\n+## Governance\n+This constitution supersedes ad-hoc preferences; amendments demand a documented proposal, impact analysis, and consensus from maintainers plus UX and performance stewards. Reviews must explicitly acknowledge compliance, and unresolved violations block merge and deployment.\n+\n+**Version**: 1.0.0 | **Ratified**: 2025-11-10 | **Last Amended**: 2025-11-10\n*** End Patch\nPATCH\n"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:12:32.268588Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:14:05.643241Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:14:51.554976Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:14:59.147482Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:15:05.911898Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:15:06.245239Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:15:11.257571Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:15:26.548796Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:15:40.949315Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls -a"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:15:43.766870Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat .specify/templates/spec-template.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:15:47.146284Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rg --files | grep spec.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:15:49.398412Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","find .. -name '*spec.md' -maxdepth 3"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:15:51.753833Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","find /home/user/test/minip2p -maxdepth 3 -name 'spec*.md'"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:15:54.313904Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .specify/templates/commands"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:15:58.819323Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","find .specify -type d -maxdepth 2"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:16:03.942077Z[0m [32m INFO[0m ToolCall: update_plan {"explanation":"Drafting the /speckit.specify output requires gathering context and writing a structured spec document.","plan":[{"status":"in_progress","step":"Review existing context (repository guidelines, constitution, prior prototypes) and extract key constraints for the Nostr-backed library app."},{"status":"pending","step":"Draft prioritized user stories, requirements, and success criteria tailored to the browser-only Nostr library experience."},{"status":"pending","step":"Populate spec template with collected details, ensuring clarity on testing and performance expectations."}]}
+[2m2025-11-10T10:16:07.431643Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' README.md"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:16:09.797066Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc12"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:16:43.604159Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: spec.md
++# Feature Specification: Browser-Only Nostr Library Hub
++
++**Feature Branch**: `[nostr-browser-library-hub]`  
++**Created**: 2025-11-10  
++**Status**: Draft  
++**Input**: User description: "//speckit.specify Build an application that is a simple browser based html/js using no backend application that offeres useres a nostr backed book and media library. using p2p in browser tech to distribiute books and meta data. as also profiding a search and discovere. all this, just browser to browser, backed also with nostr. libs can be saved and shared. media too.     new users becomes a simple lib interfaces whre they see 5 sample books and can search and load more books. we have allready buils all this tech in ../poc* .. so you can se how we wanna do it all .."
++
++## User Scenarios & Testing *(mandatory)*
++
++### User Story 1 - Sample Library Onboarding (Priority: P1)
++
++A first-time visitor loads the single-page app, sees five curated starter books/media items, and can open metadata/details without configuring relays or wallets.
++
++**Why this priority**: This is the hello-world moment that proves value immediately and validates that the in-browser stack boots without backend help.
++
++**Independent Test**: Clear browser storage, load `/poc12` successor, verify five cards render with cover/title/size plus a working “Open” action using only bundled data.
++
++**Acceptance Scenarios**:
++
++1. **Given** a fresh browser session, **When** the page loads, **Then** exactly five featured items render with title, author, and size metadata pulled from the embedded manifest.
++2. **Given** an item card, **When** the user taps “Open,” **Then** the media fetches via the configured P2P transport (WebTorrent/WebRTC) and displays progress plus a link to read/download.
++
++---
++
++### User Story 2 - Search & Discovery via Nostr (Priority: P1)
++
++Visitors can search Nostr relays for additional books/media, see deduplicated results, and request downloads directly from browser peers.
++
++**Why this priority**: Search/discovery is the differentiator—without it the library feels static and can’t scale beyond the starter bundle.
++
++**Independent Test**: Point the app at test relays populated from existing `poc10` events, execute keyword and tag queries, confirm new items stream in and can be fetched peer-to-peer.
++
++**Acceptance Scenarios**:
++
++1. **Given** a connected relay list, **When** the user enters a keyword and submits, **Then** the client publishes a Nostr search event and renders matching media cards with relay origin + seed availability indicators.
++2. **Given** search results include items already cached locally, **When** they are displayed, **Then** duplicates are collapsed and marked “available offline” without re-downloading manifests.
++
++---
++
++### User Story 3 - Personal Library Save & Share (Priority: P2)
++
++Users can bookmark items into a personal library, persist it locally, and broadcast their curated list so other browsers can subscribe.
++
++**Why this priority**: Sharing curated libraries is the viral loop that turns each user into a mini catalog node, amplifying distribution without servers.
++
++**Independent Test**: Add three items to “My Library,” reload the page (local persistence should restore), then push the collection as a signed Nostr event and confirm another browser session subscribes to it.
++
++**Acceptance Scenarios**:
++
++1. **Given** a media card, **When** the user clicks “Save to Library,” **Then** the item persists in IndexedDB/localStorage and rehydrates after a reload with consistent order.
++2. **Given** the user toggles “Share my library,” **When** the share is enabled, **Then** the client publishes/syncs a Nostr event containing item metadata hashes so peers can pull referenced torrents without exposing private data.
++
++---
++
++### User Story 4 - Offline & Low-Peer Resilience (Priority: P3)
++
++The app gracefully handles missing relays or peer scarcity by surfacing diagnostics and falling back to cached assets.
++
++**Why this priority**: Reliability reinforces trust; users must know whether issues stem from connectivity or missing seeders.
++
++**Independent Test**: Disconnect from relays and seeders in dev tools, reload, confirm offline banner, cached sample use, and actionable troubleshooting guidance.
++
++**Acceptance Scenarios**:
++
++1. **Given** no relay connection, **When** the user issues a search, **Then** the interface shows a non-blocking warning with last successful sync time and suggests retry/backoff options.
++2. **Given** a download stalls due to zero peers, **When** the timeout passes, **Then** the app shows a “need peers” status plus a one-click copy of magnet/nostr event for requesting help elsewhere.
++
++### Edge Cases
++
++- What happens when no Nostr relays respond within 5 seconds? → App must retry with exponential backoff, cache the failure, and expose a manual relay selector.
++- How does system handle corrupted or mismatched media metadata? → Validate manifest hashes before display; items failing validation are quarantined with a “needs reseed” flag.
++- How to behave when local storage is full or disabled? → Provide a read-only mode warning and limit saves to ephemeral session storage.
++
++## Requirements *(mandatory)*
++
++### Functional Requirements
++
++- **FR-001**: System MUST render five curated starter items (title, author, cover, size, torrent/Nostr pointers) without requiring network access.
++- **FR-002**: System MUST allow users to search across configured Nostr relays using keyword/tag filters and stream incremental results.
++- **FR-003**: Users MUST be able to request downloads directly from browser peers via WebTorrent/WebRTC, with progress + health indicators.
++- **FR-004**: System MUST deduplicate results by magnet hash/content hash and prefer local/cached copies when available.
++- **FR-005**: System MUST provide a persistent “My Library” collection backed by IndexedDB/localStorage and export/share it through signed Nostr events.
++- **FR-006**: Users MUST be able to manage relay lists (add/remove/test) without leaving the page.
++- **FR-007**: System MUST surface telemetry (relay connectivity, peer counts, transfer speed) for troubleshooting, per the observability principle.
++- **FR-008**: System MUST implement graceful degradation when offline—starter items remain usable, and searches queue until connectivity resumes.
++- **FR-009**: System MUST document manual verification steps (Chromium + Firefox) and bundle minimal scripts so QA can replay search/download flows.
++- **FR-010**: System MUST keep bundle size under 300 KB gzip (excluding vendor WebTorrent assets) and initial render under 2.5 s on a 3G Fast profile.
++
++### Key Entities *(include if feature involves data)*
++
++- **MediaItem**: Immutable descriptor combining Gutenberg metadata, magnet hash, cover asset pointer, and optional preview snippet.
++- **LibraryCollection**: Ordered list of `MediaItem` references owned by a user session, including annotations and share status.
++- **RelayConnection**: Configuration object capturing relay URL, authentication (if any), health, and recent latency stats.
++- **PeerSession**: Runtime state describing active WebTorrent/WebRTC peers, piece availability, throughput measurements, and error history.
++
++## Success Criteria *(mandatory)*
++
++### Measurable Outcomes
++
++- **SC-001**: Cold-load of starter experience completes in ≤2.5 s (P95) on Fast 3G with 5 curated items visible.
++- **SC-002**: Search requests return first Nostr-backed result in ≤1 s (P90) when at least one relay is reachable.
++- **SC-003**: 90% of manual QA runs across Chromium + Firefox complete sample download + library share flows without errors.
++- **SC-004**: Personal library exports stay under 25 KB per share event and replay cleanly on at least two independent browser sessions.
++- **SC-005**: Peer-to-peer transfers sustain ≥400 KB/s aggregate throughput when at least two seeders exist, or else surface diagnostics within 3 s.
+*** End Patch
+[2m2025-11-10T10:16:46.845840Z[0m [32m INFO[0m ToolCall: update_plan {"plan":[{"status":"completed","step":"Review existing context (repository guidelines, constitution, prior prototypes) and extract key constraints for the Nostr-backed library app."},{"status":"completed","step":"Draft prioritized user stories, requirements, and success criteria tailored to the browser-only Nostr library experience."},{"status":"completed","step":"Populate spec template with collected details, ensuring clarity on testing and performance expectations."}]}
+[2m2025-11-10T10:16:51.558107Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba spec.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:18:37.337960Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:18:38.698982Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:19:57.431273Z[0m [32m INFO[0m ERR: The image format could not be determined
+[2m2025-11-10T10:20:34.183165Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: plan.md
++# Implementation Plan: Browser-Only Nostr Library Hub
++
++## 1. Objectives & Constraints
++- Ship a single-page Vite app that boots offline with five sample Gutenberg items, requires no custom backend, and relies on Nostr + browser-based P2P (WebTorrent/WebRTC) for discovery and delivery.
++- Favor vanilla HTML/CSS/JS; only pull in unavoidable vendor libraries (WebTorrent client, Nostr helper) already vetted in `../poc*`.
++- UI must feel sleek but essential: responsive layout, semantic structure, keyboard navigation, reduced ornamentation.
++- App both consumes **and responds to** Nostr search events so other pages can discover our catalog via the same protocol.
++- Must honor constitution principles: deterministic tests, performance transparency (≤2.5 s cold load, bundle ≤300 KB gzip), UX consistency (two-space indentation, kebab-case classes), and observable telemetry.
++
++## 2. Target Architecture Overview
++```
++Vite (ESM build)
++├── index.html          # semantic shell, minimal script tags
++├── src/main.js         # bootstraps app, mounts UI
++├── src/state/store.js  # sample manifest + library persistence (IndexedDB/localStorage)
++├── src/nostr/client.js # relay mgmt, search request/response handlers
++├── src/search/ui.js    # search form, results grid, responder status chip
++├── src/library/ui.js   # “My Library” panel, share toggle
++├── src/peers/transfer.js # WebTorrent/WebRTC glue reused from poc12
++└── src/styles/*.css    # vanilla CSS modules (utility + components)
++```
++- **Data flow**: `main.js` seeds UI with sample manifest. Search requests dispatch via `nostr/client`. Responses hydrate `search/ui`. Selecting an item hands off to `peers/transfer` for download streams. Saved items persist through `state/store`. Outbound library share + search responses also travel via `nostr/client`.
++- **Relay integration**: maintain relay list + health metrics; respond to `search.request` events by querying local manifest/cache and sending `search.response` events.
++- **Diagnostics**: global status bar fed by `state/store` events: relay health, peer counts, transfer speed, last response served.
++
++## 3. Implementation Phases
++
++### Phase 1: Environment & Skeleton
++1. Initialize Vite (vanilla JS) inside `nostlib/poc12-successor/` (or reuse existing `poc12` folder).
++2. Configure Vite for relative asset base (`/minip2p/poc13/` style) and import existing vendor bundles (WebTorrent, nostr-tools) via `<script type="module">` or local copies.
++3. Define `src/styles/base.css` (CSS reset, typography) and `src/styles/layout.css` (grid, panels) to establish the sleek/functional appearance.
++4. Add `index.html` with semantic sections: `<header>`, `<section class="search-panel">`, `<section class="results-grid">`, `<aside class="library-panel">`, `<footer class="status-bar">`.
++
++**Exit criteria**: Vite dev server runs, blank layout renders with placeholder content, bundle <100 KB before feature code.
++
++### Phase 2: Sample Shelf & State Layer
++1. Create `sample-manifest.json` (5 curated items pulled from Gutenberg dataset used in `poc12`).
++2. Build `state/store.js` to:
++   - Load sample manifest synchronously for offline boot.
++   - Persist “My Library” entries via IndexedDB (with localStorage fallback).
++   - Emit custom events for UI modules (observer pattern or simple event bus).
++3. Wire `library/ui.js` to render starter items and allow “Save to Library,” “Remove,” and share toggles (UI updates only; network later).
++4. Add accessibility hooks (focus outlines, ARIA labels) to keep UI usable.
++
++**Exit criteria**: Fresh load shows five sample cards; library persistence survives reload; no network dependency yet.
++
++### Phase 3: Nostr Search Consumer & Responder
++1. Adapt existing nostr relay helpers from `../poc10` into `nostr/client.js`:
++   - Manage relay list (default config + user-managed form).
++   - Publish `search.request` events (kind/tag decided from POC) with query tokens.
++   - Subscribe to matching `search.response` events and stream results to `search/ui`.
++2. Implement deduping logic (by magnet hash/content hash) before pushing results downstream.
++3. Build responder path:
++   - Listen for external `search.request` events matching supported filters.
++   - Query local sample manifest + cached search results.
++   - Publish `search.response` events referencing magnet hash, metadata, torrent info.
++   - Surface responder status (active/idle, requests served count) in UI.
++4. Add relay health indicators (latency, last event timestamp) surfaced in header or status bar.
++
++**Exit criteria**: App can search relays and receive responses; devtools shows outbound responses when another client issues queries (use simulator in `../poc10` or local script).
++
++### Phase 4: Peer Transfer & Media Playback
++1. Port WebTorrent/WebRTC glue from `../poc12/library-builder.js` into `src/peers/transfer.js`, stripping unused DOM dependencies.
++2. Integrate with result cards:
++   - “Open” triggers torrent fetch, shows progress ring/bar, handles errors (no peers, timeout).
++   - Provide fallback “Copy magnet” and “Open in external client.”
++3. Add instrumentation hooks (transfer speed, peer count) feeding the status bar and shareable debug log.
++4. Ensure downloads respect bundle size constraints (lazy-load heavy libs after user intent via dynamic `import()`).
++
++**Exit criteria**: User can download/read sample + searched items using browser P2P stack; diagnostics reflect peer/transfer state.
++
++### Phase 5: Sharing, Telemetry & Polish
++1. Finalize library sharing flow:
++   - Compose `library.share` events with trimmed metadata (<25 KB).
++   - Subscribe to other users’ share events and allow importing into local library.
++2. Build unified search panel that can target:
++   - Nostr relays (default).
++   - Local library.
++   - External webpage via copyable “search responder embed” instructions.
++3. Complete UI polish:
++   - CSS animations kept subtle (transitions ≤150 ms).
++   - Responsive layout (mobile: stacked panels; desktop: three-column).
++   - Keyboard shortcuts (`/` to focus search, `s` to save).
++4. Document manual QA steps (Chromium + Firefox) per constitution; include scripts/logging hooks to help testers capture HAR/screenshots.
++
++**Exit criteria**: All spec FRs satisfied; UI, telemetry, and documentation ready for review.
++
++## 4. Risk & Mitigation
++- **Relay latency/availability**: Provide multi-relay default list + backoff UI; supply offline search queue to replay when connected.
++- **Bundle growth**: Lazy-load WebTorrent + nostr-tools; tree-shake vendor imports; monitor gzip size in CI (`npm run build && gzip -c dist/assets/index-*.js`).
++- **Search responder abuse**: Rate-limit responses client-side; expose toggle to pause answering; consider simple allowlist for external queries during MVP.
++- **IndexedDB failures**: Auto-fallback to in-memory session store, show warning banner about limited persistence.
++
++## 5. Validation Plan
++- **Automated**: Add vitest/jsdom smoke tests for store logic, deduping, manifest validation. Add lint check for bundle size threshold (custom script).
++- **Manual**: Document steps for:
++  1. Fresh-load sample shelf (Chromium + Firefox).
++  2. Execute search against local relay simulator and confirm responses/dedupe.
++  3. Respond to external search (use second browser window), verifying responder counter increments.
++  4. Download via WebTorrent with network throttling + zero-peer scenario.
++  5. Share/import library between two browsers.
++- Capture performance metrics via Lighthouse (Fast 3G) and note readings in PR.
++
++## 6. Deliverables
++- `poc13/` (or updated `poc12/`) Vite project with documented scripts (`npm run dev/build/preview`).
++- `docs/manual-qa.md` enumerating manual validation & expected outputs.
++- Configurable relay list + responder toggle surfaced in UI + persisted locally.
++- Evidence artifacts: screenshots, HAR/logs, bundle size report.
+*** End Patch
+[2m2025-11-10T10:20:37.537112Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba plan.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:10.710745Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:21:16.473675Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rg -n \"clarify\" -n .specify -g\"*clarify*\""],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:19.009714Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"clarify\" -n .specify"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:22.413283Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,220p' .specify/prompts/speckit.clarify.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:25.587492Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,220p' .codex/prompts/speckit.clarify.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:28.338195Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc",".specify/scripts/bash/check-prerequisites.sh --json --paths-only"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:21:30.810357Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls .specify"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:21:34.189894Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc",".specify/scripts/bash/check-prerequisites.sh --json --paths-only"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:56.178396Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","python - <<'PY'\nimport itertools\nwith open('.codex/prompts/speckit.clarify.md') as f:\n    text=f.read()\nprint(text[4000:5200])\nPY"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:21:59.995390Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","python3 - <<'PY'\nimport pathlib\ntext=pathlib.Path('.codex/prompts/speckit.clarify.md').read_text()\nstart=text.index('For multiple')\nprint(text[start:start+800])\nPY"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:22:02.964558Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","python3 - <<'PY'\nimport pathlib\ntext=pathlib.Path('.codex/prompts/speckit.clarify.md').read_text()\nstart=text.index('| C |')\nprint(text[start:start+600])\nPY"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:22:05.729627Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","python3 - <<'PY'\nimport pathlib\ntext=pathlib.Path('.codex/prompts/speckit.clarify.md').read_text()\nstart=text.index('**Suggested:**')\nprint(text[start:start+600])\nPY"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:22:34.294966Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:22:37.997935Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:22:50.347954Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:23:18.846483Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: spec.md
+@@
+ **Feature Branch**: `[nostr-browser-library-hub]`  
+ **Created**: 2025-11-10  
+ **Status**: Draft  
+ **Input**: User description: "//speckit.specify Build an application that is a simple browser based html/js using no backend application that offeres useres a nostr backed book and media library. using p2p in browser tech to distribiute books and meta data. as also profiding a search and discovere. all this, just browser to browser, backed also with nostr. libs can be saved and shared. media too.     new users becomes a simple lib interfaces whre they see 5 sample books and can search and load more books. we have allready buils all this tech in ../poc* .. so you can se how we wanna do it all .."
+ 
++## Clarifications
++
++### Session 2025-11-10
++
++- Q: What Nostr key management model should govern publishing search responses and shared libraries from the browser client? → A: Option A — always auto-generate an ephemeral key pair per browser session, persist it locally for continuity, and let users export/import data into new sessions which receive fresh auto-generated keys.
++
+ ## User Scenarios & Testing *(mandatory)*
+@@
+ - **FR-008**: System MUST implement graceful degradation when offline—starter items remain usable, and searches queue until connectivity resumes.
+ - **FR-009**: System MUST document manual verification steps (Chromium + Firefox) and bundle minimal scripts so QA can replay search/download flows.
+ - **FR-010**: System MUST keep bundle size under 300 KB gzip (excluding vendor WebTorrent assets) and initial render under 2.5 s on a 3G Fast profile.
++- **FR-011**: System MUST auto-generate and persist a Nostr key pair per browser profile (stored locally), auto-issue a fresh key for new browsers, and expose export/import so users can migrate their data while keeping publishing fully browser-managed.
+*** End Patch
+[2m2025-11-10T10:23:32.874515Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba spec.md | head -n 80"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:23:36.049146Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba spec.md | sed -n '74,140p'"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:24:47.833504Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: spec.md
+@@
+-### Session 2025-11-10
+-
+-- Q: What Nostr key management model should govern publishing search responses and shared libraries from the browser client? → A: Option A — always auto-generate an ephemeral key pair per browser session, persist it locally for continuity, and let users export/import data into new sessions which receive fresh auto-generated keys.
++### Session 2025-11-10
++
++- Q: What Nostr key management model should govern publishing search responses and shared libraries from the browser client? → A: Option C — start each user with an auto-generated key persisted locally, allow exporting the key material, and optionally let advanced users import their own key when they need consistency across browsers.
+@@
+-- **FR-011**: System MUST auto-generate and persist a Nostr key pair per browser profile (stored locally), auto-issue a fresh key for new browsers, and expose export/import so users can migrate their data while keeping publishing fully browser-managed.
++- **FR-011**: System MUST auto-generate and persist a Nostr key pair per browser profile by default, expose export/import, and allow advanced users to replace the managed key with their own when they require cross-browser continuity.
+*** End Patch
+[2m2025-11-10T10:25:04.114122Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc",".specify/scripts/bash/check-prerequisites.sh --json --paths-only"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:26:17.781798Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:28.017850Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:37.008302Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:47.682293Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:48.806847Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:51.144311Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:26:58.297416Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:27:55.125898Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: spec.md
+@@
+ ### Session 2025-11-10
+ 
+ - Q: What Nostr key management model should govern publishing search responses and shared libraries from the browser client? → A: Option C — start each user with an auto-generated key persisted locally, allow exporting the key material, and optionally let advanced users import their own key when they need consistency across browsers.
++- Q: How should external webpages issue search requests to (and receive responses from) our app? → A: Option A — all inter-page search traffic flows strictly over Nostr events so other sites publish/subscribe using the same request/response schema without relying on widgets or HTTP endpoints.
+@@
+ - **FR-009**: System MUST document manual verification steps (Chromium + Firefox) and bundle minimal scripts so QA can replay search/download flows.
+ - **FR-010**: System MUST keep bundle size under 300 KB gzip (excluding vendor WebTorrent assets) and initial render under 2.5 s on a 3G Fast profile.
+ - **FR-011**: System MUST auto-generate and persist a Nostr key pair per browser profile by default, expose export/import, and allow advanced users to replace the managed key with their own when they require cross-browser continuity.
++- **FR-012**: System MUST expose the search responder exclusively via Nostr events so third-party webpages interact by publishing `search.request` events and subscribing to `search.response` events, maintaining the browser-only contract.
+*** End Patch
+[2m2025-11-10T10:29:25.443159Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:29:50.982349Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git checkout -b 001-nostr-library-hub"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:29:56.778302Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git checkout -b 001-nostr-library-hub"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to create the feature branch required by speckit tooling"}
+[2m2025-11-10T10:30:25.771314Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:30:33.505763Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:30:59.426750Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:31:25.460261Z[0m [32m INFO[0m ToolCall: update_plan {"explanation":"Need to inspect existing POCs and document key mechanisms (search, indexing, Gutenberg usage, collections, torrents) before proceeding.","plan":[{"status":"in_progress","step":"Survey relevant POC directories (poc10, poc12, etc.) to understand existing implementations for search, indexing, Gutenberg data, collections, and torrent handling."},{"status":"pending","step":"Extract and summarize the important decisions/patterns discovered, highlighting how they influence the new app design and where gaps remain."}]}
+[2m2025-11-10T10:31:28.644104Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc10"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:31.909493Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:36.824882Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rg -n \"function searchBooks\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:40.982611Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"function search\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:43.890683Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '900,1150p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:48.089877Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' poc12/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:51.263269Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' poc12/library-builder.js"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:55.154816Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '200,400p' poc12/library-builder.js"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:31:59.968009Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc11"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:04.165685Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"collection\" -n poc10 poc12 | head"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:11.333708Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"wss\" poc10/index.html | head"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:14.852834Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '250,360p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:18.808841Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"connectNostr\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:22.086185Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '580,760p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:28.894786Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '760,1040p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:33.910731Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"gutenbergZip\" poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:40.416614Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1400,1900p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:44.944432Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"seedTestBooks\" poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:48.534200Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '460,540p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:52.669949Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"initDB\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:55.560730Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '400,460p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:32:59.442247Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"downloadGutenbergCollection\" poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:04.070236Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1760,1905p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:07.449735Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"checkStorageQuota\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:10.624377Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1720,1775p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:20.952829Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"<script\" poc12/index.html | head"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:24.725561Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '480,780p' poc12/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:31.718823Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"libp2p\" -n"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:45.132383Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -R \"libp2p\" -n poc* nostlib | head"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:50.969238Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,160p' poc1/plan.md"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:33:57.830970Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"25559\" poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:02.336919Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '880,930p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:07.046856Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"generateKeypair\" -n poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:10.528243Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1580,1645p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:14.317817Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1645,1725p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:18.021901Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"setupPeerConnection\" poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:21.382688Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1120,1405p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:26.605408Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1220,1340p' poc10/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:32.237200Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"function .*catalog\" poc12/index.html | head"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:38.483857Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"catalog\" poc12/index.html | head -n 20"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:44.115803Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '870,1100p' poc12/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:34:49.747635Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","grep -n \"LibraryDB\" poc12/index.html"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:35:05.006601Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '300,360p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:35:08.999465Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '600,760p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:35:13.914631Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '760,860p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:35:18.727766Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '900,1035p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:35:22.926138Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '1350,1545p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:01.428422Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '1700,1910p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:08.392580Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc12/index.html | sed -n '500,660p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:14.289678Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc12/index.html | sed -n '680,780p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:19.247035Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc12/index.html | sed -n '890,1090p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:26.721998Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc12/library-builder.js | sed -n '1,220p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:36.471635Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '1160,1210p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:41.867175Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '1120,1185p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:46.997596Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","nl -ba poc10/index.html | sed -n '420,520p'"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:36:53.039956Z[0m [32m INFO[0m ToolCall: update_plan {"plan":[{"status":"completed","step":"Survey relevant POC directories (poc10, poc12, etc.) to understand existing implementations for search, indexing, Gutenberg data, collections, and torrent handling."},{"status":"completed","step":"Extract and summarize the important decisions/patterns discovered, highlighting how they influence the new app design and where gaps remain."}]}
+[2m2025-11-10T10:38:20.171507Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:38:59.478556Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:39:04.484092Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:39:09.233332Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc",".specify/scripts/bash/check-prerequisites.sh --json"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:39:15.992451Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls /home/user/test/minip2p"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:39:24.900656Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' .specify/scripts/bash/check-prerequisites.sh"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:39:28.485031Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' .specify/scripts/bash/common.sh"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:39:36.676793Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","mkdir -p /home/user/test/minip2p/specs/001-nostr-library-hub && cp /home/user/test/minip2p/nostlib/spec.md /home/user/test/minip2p/specs/001-nostr-library-hub/ && cp /home/user/test/minip2p/nostlib/plan.md /home/user/test/minip2p/specs/001-nostr-library-hub/"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:39:43.504599Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","mkdir -p /home/user/test/minip2p/specs/001-nostr-library-hub && cp /home/user/test/minip2p/nostlib/spec.md /home/user/test/minip2p/specs/001-nostr-library-hub/ && cp /home/user/test/minip2p/nostlib/plan.md /home/user/test/minip2p/specs/001-nostr-library-hub/"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to create the feature directory and copy spec/plan files so speckit tooling can locate them"}
+[2m2025-11-10T10:40:09.444842Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc",".specify/scripts/bash/check-prerequisites.sh --json"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:40:13.439319Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,220p' /home/user/test/minip2p/specs/001-nostr-library-hub/spec.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:40:17.841708Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,220p' /home/user/test/minip2p/specs/001-nostr-library-hub/plan.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:40:22.450181Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' .specify/templates/tasks-template.md"],"workdir":"/home/user/test/minip2p/nostlib"}
+[2m2025-11-10T10:41:47.137453Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: /home/user/test/minip2p/specs/001-nostr-library-hub/tasks.md
++---
++
++description: "Task list for Browser-Only Nostr Library Hub implementation"
++
++---
++
++# Tasks: Browser-Only Nostr Library Hub
++
++**Input**: Design documents from `/specs/001-nostr-library-hub/`  
++**Prerequisites**: plan.md (required), spec.md (required)
++
++**Tests**: Automated vitest smoke tests are scoped where they add measurable value (store logic, deduping, resilience queues). Manual QA remains the source of truth for browser flows per plan.md §5.
++
++## Phase 1: Setup (Shared Infrastructure)
++
++**Purpose**: Project initialization, toolchain, and base assets needed before feature work.
++
++- [ ] T001 Scaffold vanilla Vite application in `poc13/` (generates `poc13/package.json`, `poc13/src/main.js`, `poc13/index.html`)
++- [ ] T002 [P] Add runtime dependencies (`nostr-tools`, `webtorrent`, `idb-keyval`, `pako`, `jszip`) and dev tools (`vitest`, `eslint`) in `poc13/package.json`
++- [ ] T003 [P] Configure `poc13/vite.config.js` with `/minip2p/poc13/` base path, path aliases, and test globals
++
++---
++
++## Phase 2: Foundational (Blocking Prerequisites)
++
++**Purpose**: Cross-cutting infrastructure required by every user story. ⚠️ Complete before story work.
++
++- [ ] T004 Define global typography/layout tokens in `poc13/src/styles/base.css` and responsive grid utilities in `poc13/src/styles/layout.css`
++- [ ] T005 Implement storage helpers with IndexedDB + localStorage fallback in `poc13/src/state/persistence.js`
++- [ ] T006 [P] Create lightweight event-bus + telemetry dispatcher in `poc13/src/state/event-bus.js`
++- [ ] T007 [P] Add relay + transport configuration constants (default relays, trackers, perf budgets) in `poc13/src/config/app-config.js`
++- [ ] T008 [P] Establish Vitest configuration and jsdom setup file in `poc13/vitest.config.js` and `poc13/test/setup.js`
++
++**Checkpoint**: Core styling, persistence, configuration, and testing hooks are ready—user stories can now execute independently.
++
++---
++
++## Phase 3: User Story 1 - Sample Library Onboarding (Priority: P1) 🎯 MVP
++
++**Goal**: Deliver an offline-first shelf showing five curated Gutenberg items with working “Open” actions (FR-001).  
++**Independent Test**: Clear browser storage, load `/poc13/`, confirm five cards render from `sample-manifest.json` and “Open” shows inline reader without network.
++
++### Implementation
++
++- [ ] T009 [P] [US1] Curate five starter items and save manifest metadata in `poc13/src/data/sample-manifest.json`
++- [ ] T010 [US1] Implement core store in `poc13/src/state/store.js` to load manifest, expose selectors, and hydrate starter items
++- [ ] T011 [P] [US1] Build shelf + library components in `poc13/src/library/ui.js` (cards, open button, empty states)
++- [ ] T012 [US1] Wire `poc13/src/main.js` and `poc13/index.html` to mount shelf, register offline reader modal, and preload manifest
++- [ ] T013 [P] [US1] Add vitest covering manifest load + store initialization in `poc13/src/state/__tests__/store.spec.js`
++
++**Checkpoint**: Visitors see five featured items and can open them offline; this is the MVP slice.
++
++---
++
++## Phase 4: User Story 2 - Search & Discovery via Nostr (Priority: P1)
++
++**Goal**: Let users search relays, consume/respond to Nostr events, dedupe results, and request peers (FR-002, FR-004, FR-012).  
++**Independent Test**: Point app at seeded test relays, run a query, observe new cards streaming in with relay/peer info, and confirm search responses emit back onto Nostr.
++
++### Implementation
++
++- [ ] T014 [P] [US2] Implement `poc13/src/nostr/client.js` for relay rotation, key management (auto + BYO), and search request/response plumbing
++- [ ] T015 [US2] Build deduping/result cache module in `poc13/src/search/result-store.js` (magnet/content hash tracking, local-cache preference)
++- [ ] T016 [P] [US2] Create search panel UI + responder status chip in `poc13/src/search/ui.js`
++- [ ] T017 [US2] Hook search pipeline into app shell (`poc13/src/main.js`) and emit responder analytics to `poc13/src/state/event-bus.js`
++- [ ] T018 [P] [US2] Add vitest to verify deduping + responder tagging in `poc13/src/search/__tests__/result-store.spec.js`
++
++**Checkpoint**: Search queries and responses flow purely over Nostr, and results show availability data without duplication.
++
++---
++
++## Phase 5: User Story 3 - Personal Library Save & Share (Priority: P2)
++
++**Goal**: Persist “My Library,” allow saving/removing, and broadcast/import curated collections through Nostr (FR-005, FR-011).  
++**Independent Test**: Save three titles, reload to confirm persistence, enable “Share my library” to publish under 25 KB, and import from a second browser session.
++
++### Implementation
++
++- [ ] T019 [P] [US3] Extend `poc13/src/state/store.js` to persist library mutations via `poc13/src/state/persistence.js` and emit change events
++- [ ] T020 [US3] Implement share composer + exporter in `poc13/src/library/share.js` (payload compression, metadata hashing)
++- [ ] T021 [P] [US3] Build share/import controls in `poc13/src/library/panel.js` (save/remove buttons, share toggle, import feed)
++- [ ] T022 [US3] Subscribe to incoming `library.share` events in `poc13/src/nostr/client.js` and reconcile into store without duplication
++- [ ] T023 [P] [US3] Add vitest ensuring export payload size + schema compliance in `poc13/src/library/__tests__/share.spec.js`
++
++**Checkpoint**: Libraries survive reloads and share/import seamlessly via Nostr events.
++
++---
++
++## Phase 6: User Story 4 - Offline & Low-Peer Resilience (Priority: P3)
++
++**Goal**: Surface diagnostics, queue offline actions, and provide fallbacks when relays or peers go missing (FR-006, FR-007, FR-008, FR-003 telemetry aspects).  
++**Independent Test**: Kill relay + peer connections, verify banners, queued searches, zero-peer warnings, and troubleshooting affordances all behave per spec.
++
++### Implementation
++
++- [ ] T024 [P] [US4] Implement network + relay monitor in `poc13/src/state/network-status.js` (latency sampling, retry/backoff, manual override hooks)
++- [ ] T025 [US4] Render global status bar component in `poc13/src/components/status-bar.js` showing relay, peer, throughput, and responder metrics
++- [ ] T026 [US4] Extend `poc13/src/peers/transfer.js` with zero-peer timeout handling, magnet copy helpers, and diagnostics logging
++- [ ] T027 [US4] Add offline search queue + replay module in `poc13/src/nostr/offline-queue.js` integrated with search UI
++- [ ] T028 [P] [US4] Add vitest covering queue replay + timeout messaging in `poc13/src/nostr/__tests__/offline-queue.spec.js`
++
++**Checkpoint**: The app gracefully degrades and communicates state when connectivity falters.
++
++---
++
++## Phase 7: Polish & Cross-Cutting Concerns
++
++**Purpose**: Repository hardening, documentation, and performance validation across stories.
++
++- [ ] T029 [P] Document manual QA matrix (Chromium + Firefox flows, relay simulator steps, download smoke) in `docs/manual-qa.md`
++- [ ] T030 [P] Add bundle-size + Lighthouse scripts (`poc13/package.json` + `poc13/scripts/report-bundle-size.mjs`) and log SC-001/SC-002 readings
++- [ ] T031 Update `poc13/README.md` with setup, relay management instructions, and transport troubleshooting tips
++- [ ] T032 [P] Run WebTorrent + Nostr logging hardening (structured console + data attributes) in `poc13/src/state/event-bus.js` and `poc13/src/peers/transfer.js`
++
++---
++
++## Dependencies & Execution Order
++
++1. **Phase 1 → Phase 2**: Complete Vite scaffold and dependency setup before creating shared infrastructure.  
++2. **Phase 2 → User Stories**: Styling/persistence/config/testing (T004–T008) unblock all stories; do not start story tasks until these land.  
++3. **Story Order**:  
++   - **US1 (Phase 3)** establishes the base UI and store—MVP + prerequisite for downstream UX.  
++   - **US2 (Phase 4)** depends on store + event bus but not on US3/US4 (can run after Phase 2 if mock store is stubbed, though aligning after US1 reduces rework).  
++   - **US3 (Phase 5)** depends on US1 store functionality but not on US2 search logic.  
++   - **US4 (Phase 6)** consumes telemetry hooks from Phase 2 and extends peers/search modules created in US2; schedule after US2 for minimal conflicts.  
++4. **Polish (Phase 7)** runs after the desired user stories are complete to document and validate the integrated experience.
++
++---
++
++## Parallel Execution Examples
++
++- **Setup**: T002 and T003 can run parallel while T001 scaffolds the repo.  
++- **Foundational**: T005–T008 target different files (`styles`, `state`, `config`, `vitest`) and can be parallelized once T001 completes.  
++- **US1**: T009 and T011 can proceed concurrently; T010 should finish before T012 (since it wires store). T013 can execute once T010 is in place.  
++- **US2**: T014, T015, and T016 are largely independent; T017 depends on the prior trio, while T018 can run once T015 stabilizes.  
++- **US3**: T019 + T020 are parallelizable; T021 depends on them for wiring; T022 follows T020; T023 can run after T020.  
++- **US4**: T024 and T027 touch different modules; T025 depends on diagnostics data; T026 waits for T024; T028 executes after T027.  
++- **Polish**: T029–T032 can largely run independently post-story completion.
++
++---
++
++## Implementation Strategy
++
++1. **MVP First**: Ship Phase 3 (US1) immediately after foundational work to unblock demos and validate offline boot (meets SC-001 basics).  
++2. **Incremental Enhancements**: Layer US2 (search/responder) next for core differentiation, followed by US3 (sharing) and US4 (resilience) as capacity allows.  
++3. **Continuous Telemetry**: Instrument each feature via `event-bus` so diagnostics stay consistent and polishing later is additive, not corrective.  
++4. **Validation Hooks**: Maintain Vitest coverage alongside implementation per story to keep regression surfaces small and ensure manual QA in Phase 7 is confirmatory, not exploratory.
+*** End Patch
+[2m2025-11-10T10:42:13.452259Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:42:27.944788Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:42:36.072526Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:42:44.589233Z[0m [32m INFO[0m interrupt received: abort current task, if any
+[2m2025-11-10T10:43:26.655923Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:43:29.174415Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:43:51.638548Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:43:54.382638Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T10:50:47.626906Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","npm create vite@latest poc13 -- --template vanilla"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:51:03.422801Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","npm create vite@latest poc13 -- --template vanilla"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T10:52:20.488234Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","npm create vite@latest poc13 -- --template vanilla"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to download Vite scaffold from npm registry to start implementing the browser app","timeout_ms":120000}
+[2m2025-11-10T10:52:30.010397Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm install"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to install project dependencies from npm registry for the Vite scaffold","timeout_ms":120000}
+[2m2025-11-10T10:52:49.261767Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm install nostr-tools webtorrent idb-keyval pako jszip"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to add browser runtime dependencies required by the project","timeout_ms":120000}
+[2m2025-11-10T10:53:35.138688Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm install -D vitest eslint"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Need to add dev tooling dependencies for testing and linting per plan","timeout_ms":120000}
+[2m2025-11-10T10:54:54.475722Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:54:59.209203Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:55:19.791521Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/vite.config.js
++import { defineConfig } from 'vite';
++import path from 'node:path';
++
++export default defineConfig({
++  base: '/minip2p/poc13/',
++  resolve: {
++    alias: {
++      '@': path.resolve(__dirname, 'src'),
++    },
++  },
++  test: {
++    environment: 'jsdom',
++    globals: true,
++    setupFiles: path.resolve(__dirname, 'test/setup.js'),
++    coverage: {
++      reporter: ['text', 'html'],
++    },
++  },
++});
+*** End Patch
+[2m2025-11-10T10:55:26.857157Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && ls"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T10:55:31.772367Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:00:17.164898Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,160p' poc13/src/main.js"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:00:34.676320Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,160p' poc13/src/style.css"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:00:39.283762Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Delete File: poc13/src/style.css
+*** End Patch
+[2m2025-11-10T11:01:25.876579Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Delete File: poc13/src/style.css
+*** End Patch
+[2m2025-11-10T11:02:10.317409Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Delete File: ../poc13/src/style.css
+*** End Patch
+[2m2025-11-10T11:03:05.308190Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rm poc13/src/style.css"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:03:10.593164Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rm poc13/src/style.css"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Cleaning default Vite scaffold files we no longer need"}
+[2m2025-11-10T11:03:17.699942Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rm poc13/src/counter.js poc13/src/javascript.svg"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Removing unused Vite starter assets to align with project structure"}
+[2m2025-11-10T11:03:26.812756Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","mkdir -p poc13/src/styles poc13/src/state poc13/src/config poc13/test"],"workdir":"/home/user/test/minip2p","with_escalated_permissions":true,"justification":"Preparing directory structure for foundational modules"}
+[2m2025-11-10T11:03:38.691420Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/src/styles/base.css
++:root {
++  color: #0e1117;
++  background-color: #f8fafd;
++  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
++  line-height: 1.6;
++  font-weight: 400;
++  font-size: 16px;
++  text-rendering: optimizeLegibility;
++  -webkit-font-smoothing: antialiased;
++}
++
++*,
++*::before,
++*::after {
++  box-sizing: border-box;
++}
++
++body {
++  margin: 0;
++  min-height: 100vh;
++  background: radial-gradient(circle at top, #fefefe 0%, #f0f4ff 55%, #e5e9f5 100%);
++  color: #0e1117;
++}
++
++#app {
++  min-height: 100vh;
++}
++
++a {
++  color: inherit;
++  text-decoration: none;
++}
++
++button {
++  font: inherit;
++}
++
++.sr-only {
++  position: absolute;
++  width: 1px;
++  height: 1px;
++  padding: 0;
++  margin: -1px;
++  overflow: hidden;
++  clip: rect(0, 0, 0, 0);
++  border: 0;
++}
+*** End Patch
+[2m2025-11-10T11:03:48.495261Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/src/styles/layout.css
++.app-shell {
++  max-width: 1200px;
++  margin: 0 auto;
++  padding: 2rem clamp(1rem, 3vw, 3rem) 4rem;
++  display: flex;
++  flex-direction: column;
++  gap: 2rem;
++}
++
++.app-header {
++  display: flex;
++  flex-direction: column;
++  gap: 0.5rem;
++}
++
++.badge {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.35rem;
++  padding: 0.25rem 0.75rem;
++  border-radius: 999px;
++  background: #ecf2ff;
++  color: #27447b;
++  font-size: 0.85rem;
++  text-transform: uppercase;
++  letter-spacing: 0.08em;
++}
++
++.placeholder-panel {
++  border: 1px dashed rgba(29, 78, 216, 0.25);
++  border-radius: 1rem;
++  padding: 2rem;
++  background: rgba(255, 255, 255, 0.7);
++  color: #1f2933;
++  font-size: 1rem;
++}
++
++.status-cluster {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
++  gap: 0.75rem;
++  margin-top: 1rem;
++}
++
++.status-pill {
++  padding: 0.5rem 0.75rem;
++  border-radius: 0.75rem;
++  background: rgba(15, 118, 110, 0.1);
++  color: #0f766e;
++  font-size: 0.85rem;
++  display: flex;
++  flex-direction: column;
++}
++
++@media (max-width: 720px) {
++  .app-shell {
++    padding: 1.5rem 1rem 3rem;
++  }
++}
+*** End Patch
+[2m2025-11-10T11:03:55.178217Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Delete File: poc13/src/main.js
+*** End Patch
+[2m2025-11-10T11:04:05.008802Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/main.js
+@@
+-import './style.css'
+-import javascriptLogo from './javascript.svg'
+-import viteLogo from '/vite.svg'
+-import { setupCounter } from './counter.js'
+-
+-document.querySelector('#app').innerHTML = `
+-  <div>
+-    <a href="https://vite.dev" target="_blank">
+-      <img src="${viteLogo}" class="logo" alt="Vite logo" />
+-    </a>
+-    <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank">
+-      <img src="${javascriptLogo}" class="logo vanilla" alt="JavaScript logo" />
+-    </a>
+-    <h1>Hello Vite!</h1>
+-    <div class="card">
+-      <button id="counter" type="button"></button>
+-    </div>
+-    <p class="read-the-docs">
+-      Click on the Vite logo to learn more
+-    </p>
+-  </div>
+-`
+-
+-setupCounter(document.querySelector('#counter'))
++import './styles/base.css';
++import './styles/layout.css';
++
++const appRoot = document.querySelector('#app');
++
++if (!appRoot) {
++  throw new Error('Root element #app was not found. Ensure index.html contains <div id="app"></div>.');
++}
++
++appRoot.innerHTML = `
++  <main class="app-shell">
++    <header class="app-header">
++      <span class="badge">browser-only p2p</span>
++      <h1>nostr library hub</h1>
++      <p>
++        Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
++        Nostr + WebRTC/WebTorrent. Implementation in progress—foundation tasks are laying down
++        storage, telemetry, and networking scaffolds.
++      </p>
++    </header>
++    <section class="placeholder-panel">
++      <p>
++        ✅ Vite scaffold ready<br />
++        ✅ Core dependencies installed<br />
++        ⚙️ Next up: shared styles, persistence, event bus, and relay configuration.
++      </p>
++      <div class="status-cluster">
++        <span class="status-pill">
++          <strong>Relays</strong>
++          <span>Pending wiring</span>
++        </span>
++        <span class="status-pill">
++          <strong>Library</strong>
++          <span>Sample manifest queued</span>
++        </span>
++        <span class="status-pill">
++          <strong>Transfers</strong>
++          <span>WebRTC / WebTorrent adapters upcoming</span>
++        </span>
++      </div>
++    </section>
++  </main>
++`;
+*** End Patch
+[2m2025-11-10T11:04:24.875381Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/src/state/persistence.js
++import { createStore, get, set, del } from 'idb-keyval';
++
++const DB_NAME = 'nostr-library-hub';
++const STORE_NAME = 'state';
++const LIBRARY_KEY = 'library-items';
++const KEYPAIR_KEY = 'nostr-keypair';
++
++const idbStore = typeof indexedDB !== 'undefined' ? createStore(DB_NAME, STORE_NAME) : null;
++const hasLocalStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
++
++const safeJSON = {
++  parse(value, fallback) {
++    try {
++      return JSON.parse(value);
++    } catch {
++      return fallback;
++    }
++  },
++  stringify(value, fallback = '[]') {
++    try {
++      return JSON.stringify(value);
++    } catch {
++      return fallback;
++    }
++  },
++};
++
++const readFromLocalStorage = (key, fallback) => {
++  if (!hasLocalStorage) return fallback;
++  return safeJSON.parse(window.localStorage.getItem(key), fallback);
++};
++
++const writeToLocalStorage = (key, value) => {
++  if (!hasLocalStorage) return;
++  window.localStorage.setItem(key, safeJSON.stringify(value));
++};
++
++const deleteFromLocalStorage = (key) => {
++  if (!hasLocalStorage) return;
++  window.localStorage.removeItem(key);
++};
++
++async function readFromIdb(key, fallback) {
++  if (!idbStore) return fallback;
++  try {
++    const value = await get(key, idbStore);
++    return typeof value === 'undefined' ? fallback : value;
++  } catch {
++    return fallback;
++  }
++}
++
++async function writeToIdb(key, value) {
++  if (!idbStore) return;
++  try {
++    await set(key, value, idbStore);
++  } catch {
++    // swallow—callers fall back to localStorage
++  }
++}
++
++async function deleteFromIdb(key) {
++  if (!idbStore) return;
++  try {
++    await del(key, idbStore);
++  } catch {
++    // swallow
++  }
++}
++
++export async function loadLibraryItems() {
++  const fallback = readFromLocalStorage(LIBRARY_KEY, []);
++  return readFromIdb(LIBRARY_KEY, fallback);
++}
++
++export async function saveLibraryItems(items) {
++  const safeItems = Array.isArray(items) ? items : [];
++  writeToLocalStorage(LIBRARY_KEY, safeItems);
++  await writeToIdb(LIBRARY_KEY, safeItems);
++  return safeItems;
++}
++
++export async function clearLibraryItems() {
++  deleteFromLocalStorage(LIBRARY_KEY);
++  await deleteFromIdb(LIBRARY_KEY);
++}
++
++export async function loadKeypair() {
++  const fallback = readFromLocalStorage(KEYPAIR_KEY, null);
++  return readFromIdb(KEYPAIR_KEY, fallback);
++}
++
++export async function saveKeypair(keypair) {
++  if (!keypair) return null;
++  writeToLocalStorage(KEYPAIR_KEY, keypair);
++  await writeToIdb(KEYPAIR_KEY, keypair);
++  return keypair;
++}
++
++export async function clearKeypair() {
++  deleteFromLocalStorage(KEYPAIR_KEY);
++  await deleteFromIdb(KEYPAIR_KEY);
++}
++
++export const storageKeys = {
++  LIBRARY_KEY,
++  KEYPAIR_KEY,
++};
+*** End Patch
+[2m2025-11-10T11:11:06.395390Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/src/state/event-bus.js
++const subscribers = new Map();
++
++function ensureChannel(channel) {
++  if (!subscribers.has(channel)) {
++    subscribers.set(channel, new Set());
++  }
++  return subscribers.get(channel);
++}
++
++/**
++ * Subscribe to a channel.
++ * @param {string} channel
++ * @param {(payload: any) => void} handler
++ * @returns {() => void} unsubscribe function
++ */
++export function subscribe(channel, handler) {
++  if (typeof handler !== 'function') {
++    throw new TypeError('event-bus handler must be a function');
++  }
++  const group = ensureChannel(channel);
++  group.add(handler);
++  return () => {
++    group.delete(handler);
++    if (group.size === 0) {
++      subscribers.delete(channel);
++    }
++  };
++}
++
++/**
++ * Emit a payload to a channel.
++ * @param {string} channel
++ * @param {any} payload
++ */
++export function emit(channel, payload) {
++  const group = subscribers.get(channel);
++  if (!group) return;
++  group.forEach((handler) => {
++    try {
++      handler(payload);
++    } catch (error) {
++      console.error(`[event-bus] handler error on ${channel}`, error);
++    }
++  });
++}
++
++/**
++ * Subscribe once and auto-unsubscribe after the first emission.
++ * @param {string} channel
++ * @param {(payload: any) => void} handler
++ */
++export function once(channel, handler) {
++  const unsubscribe = subscribe(channel, (payload) => {
++    unsubscribe();
++    handler(payload);
++  });
++  return unsubscribe;
++}
++
++/**
++ * Snapshot the current subscriber state—useful for diagnostics.
++ */
++export function getSubscriberSnapshot() {
++  const snapshot = {};
++  subscribers.forEach((handlers, channel) => {
++    snapshot[channel] = handlers.size;
++  });
++  return snapshot;
++}
++
++/**
++ * Broadcast telemetry into `window.__NOSTR_LIB_DIAGNOSTICS` if available.
++ */
++export function reportTelemetry(event, data) {
++  const diagnostics = typeof window !== 'undefined' ? window.__NOSTR_LIB_DIAGNOSTICS : null;
++  if (diagnostics && typeof diagnostics.push === 'function') {
++    diagnostics.push({
++      event,
++      data,
++      timestamp: Date.now(),
++    });
++  }
++}
+*** End Patch
+[2m2025-11-10T11:11:50.256624Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/src/config/app-config.js
++export const APP_NAME = 'Browser-Only Nostr Library Hub';
++
++export const DEFAULT_RELAYS = [
++  'wss://relay.snort.social',
++  'wss://nostr.wine',
++  'wss://relay.nostr.band',
++  'wss://nos.lol',
++  'wss://relay.damus.io',
++];
++
++export const RELAY_FAILOVER_INTERVAL_MS = 5_000;
++export const RELAY_TIMEOUT_MS = 5_000;
++
++export const TRACKERS = [
++  'wss://tracker.openwebtorrent.com',
++  'wss://tracker.webtorrent.dev',
++  'wss://tracker.btorrent.xyz',
++  'wss://tracker.fastcast.nz',
++  'wss://tracker.files.fm:7073/announce',
++];
++
++export const PERFORMANCE_BUDGETS = {
++  coldLoadMs: 2500,
++  searchResultMs: 1000,
++  throughputKBps: 400,
++  bundleKB: 300,
++};
++
++export const SAMPLE_COLLECTION_MAGNETS = {
++  full: 'magnet:?xt=urn:btih:38ea08e57e7fd054ed83165b7705bd57ca0250af',
++  mini10: 'magnet:?xt=urn:btih:bbd456a15950aef60ab28e786ae291d00e5fa934',
++  mini100: 'magnet:?xt=urn:btih:9dfeaa10e1be1e8d7b5efca400c966335c65447e',
++};
++
++export const STORAGE_LIMIT_WARNING_GB = 11;
++
++export const FEATURE_FLAGS = {
++  enableLibp2p: false,
++  allowCustomWidgets: false,
++};
++
++export default {
++  APP_NAME,
++  DEFAULT_RELAYS,
++  TRACKERS,
++  PERFORMANCE_BUDGETS,
++  SAMPLE_COLLECTION_MAGNETS,
++  STORAGE_LIMIT_WARNING_GB,
++  RELAY_FAILOVER_INTERVAL_MS,
++  RELAY_TIMEOUT_MS,
++  FEATURE_FLAGS,
++};
+*** End Patch
+[2m2025-11-10T11:12:14.375404Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/test/setup.js
++import { afterEach, beforeAll } from 'vitest';
++
++beforeAll(() => {
++  if (!globalThis.TextEncoder) {
++    const { TextEncoder, TextDecoder } = await import('util');
++    globalThis.TextEncoder = TextEncoder;
++    globalThis.TextDecoder = TextDecoder;
++  }
++});
++
++afterEach(() => {
++  document.body.innerHTML = '';
++  document.head.innerHTML = '';
++});
+*** End Patch
+[2m2025-11-10T11:12:25.639969Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/test/setup.js
+@@
+-import { afterEach, beforeAll } from 'vitest';
+-
+-beforeAll(() => {
+-  if (!globalThis.TextEncoder) {
+-    const { TextEncoder, TextDecoder } = await import('util');
+-    globalThis.TextEncoder = TextEncoder;
+-    globalThis.TextDecoder = TextDecoder;
+-  }
+-});
++import { afterEach } from 'vitest';
+ 
+ afterEach(() => {
+   document.body.innerHTML = '';
+   document.head.innerHTML = '';
+ });
+*** End Patch
+[2m2025-11-10T11:12:37.131657Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cat poc13/package.json"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:13:43.052467Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/package.json
+@@
+-  "scripts": {
+-    "dev": "vite",
+-    "build": "vite build",
+-    "preview": "vite preview"
+-  },
++  "scripts": {
++    "dev": "vite",
++    "build": "vite build",
++    "preview": "vite preview",
++    "test": "vitest run",
++    "test:watch": "vitest"
++  },
+*** End Patch
+[2m2025-11-10T11:14:43.877260Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:14:51.352421Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/package.json
+@@
+-    "test": "vitest run",
++    "test": "vitest run --passWithNoTests",
+*** End Patch
+[2m2025-11-10T11:15:10.398686Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:15:16.849513Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:16:12.349901Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","mkdir -p poc13/src/data"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:16:22.743019Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/src/data/sample-manifest.json
++[
++  {
++    "id": "gutenberg-11",
++    "title": "Alice's Adventures in Wonderland",
++    "author": "Lewis Carroll",
++    "size_kb": 403,
++    "cover": "https://0x6d.net/minip2p/assets/alice.jpg",
++    "magnet": "magnet:?xt=urn:btih:sample-alice",
++    "nostr_event": "nostr:sample-alice",
++    "summary": "A curious girl falls through a rabbit hole into a world of whimsical logic."
++  },
++  {
++    "id": "gutenberg-84",
++    "title": "Frankenstein",
++    "author": "Mary Wollstonecraft Shelley",
++    "size_kb": 512,
++    "cover": "https://0x6d.net/minip2p/assets/frankenstein.jpg",
++    "magnet": "magnet:?xt=urn:btih:sample-frankenstein",
++    "nostr_event": "nostr:sample-frankenstein",
++    "summary": "A scientist’s creation challenges the boundaries between life, death, and responsibility."
++  },
++  {
++    "id": "gutenberg-345",
++    "title": "Dracula",
++    "author": "Bram Stoker",
++    "size_kb": 706,
++    "cover": "https://0x6d.net/minip2p/assets/dracula.jpg",
++    "magnet": "magnet:?xt=urn:btih:sample-dracula",
++    "nostr_event": "nostr:sample-dracula",
++    "summary": "Journal entries and letters chronicle the hunt for a night-walking count."
++  },
++  {
++    "id": "gutenberg-1342",
++    "title": "Pride and Prejudice",
++    "author": "Jane Austen",
++    "size_kb": 723,
++    "cover": "https://0x6d.net/minip2p/assets/pride.jpg",
++    "magnet": "magnet:?xt=urn:btih:sample-pride",
++    "nostr_event": "nostr:sample-pride",
++    "summary": "Elizabeth Bennet learns to balance judgment with empathy amid regency-era society."
++  },
++  {
++    "id": "gutenberg-48320",
++    "title": "The Adventures of Sherlock Holmes",
++    "author": "Arthur Conan Doyle",
++    "size_kb": 654,
++    "cover": "https://0x6d.net/minip2p/assets/sherlock.jpg",
++    "magnet": "magnet:?xt=urn:btih:sample-sherlock",
++    "nostr_event": "nostr:sample-sherlock",
++    "summary": "A dozen mysteries showcase Holmes’ deductive flair and Watson’s loyal narration."
++  }
++]
+*** End Patch
+[2m2025-11-10T11:16:36.312681Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/src/state/store.js
++import sampleManifest from '@/data/sample-manifest.json';
++import { emit } from './event-bus';
++import { loadLibraryItems, saveLibraryItems } from './persistence';
++
++const state = {
++  manifest: sampleManifest,
++  library: [],
++  initialized: false,
++};
++
++const observers = new Set();
++
++function notify() {
++  const snapshot = getState();
++  observers.forEach((fn) => fn(snapshot));
++  emit('state:update', snapshot);
++}
++
++export function getState() {
++  return {
++    manifest: state.manifest,
++    library: state.library,
++    initialized: state.initialized,
++  };
++}
++
++export function subscribe(handler) {
++  if (typeof handler !== 'function') {
++    throw new TypeError('store.subscribe requires a function');
++  }
++  observers.add(handler);
++  handler(getState());
++  return () => observers.delete(handler);
++}
++
++export async function initStore() {
++  if (state.initialized) return getState();
++  const existing = await loadLibraryItems();
++  state.library = Array.isArray(existing) ? existing : [];
++  state.initialized = true;
++  notify();
++  return getState();
++}
++
++export async function saveToLibrary(item) {
++  if (!item || !item.id) {
++    throw new Error('Cannot save item without id');
++  }
++  const exists = state.library.some((entry) => entry.id === item.id);
++  if (exists) return getState();
++  state.library = [...state.library, item];
++  await saveLibraryItems(state.library);
++  notify();
++  return getState();
++}
++
++export async function removeFromLibrary(id) {
++  const next = state.library.filter((item) => item.id !== id);
++  if (next.length === state.library.length) return getState();
++  state.library = next;
++  await saveLibraryItems(state.library);
++  notify();
++  return getState();
++}
++
++export function getSampleItems(limit = 5) {
++  return state.manifest.slice(0, limit);
++}
+*** End Patch
+[2m2025-11-10T11:16:49.521250Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: poc13/src/library/ui.js
++import { getSampleItems, removeFromLibrary, saveToLibrary, subscribe } from '@/state/store';
++
++function createCard(item, inLibrary) {
++  const buttonLabel = inLibrary ? 'Remove from Library' : 'Save to Library';
++  const buttonAction = inLibrary ? 'remove' : 'save';
++
++  return `
++    <article class="library-card" data-id="${item.id}">
++      <div class="library-card__meta">
++        <h3>${item.title}</h3>
++        <p>${item.author}</p>
++      </div>
++      <p class="library-card__summary">${item.summary}</p>
++      <dl class="library-card__details">
++        <div>
++          <dt>Size</dt>
++          <dd>${item.size_kb} KB</dd>
++        </div>
++        <div>
++          <dt>Magnet</dt>
++          <dd title="${item.magnet}">${item.magnet.slice(0, 26)}...</dd>
++        </div>
++      </dl>
++      <div class="library-card__actions">
++        <button data-action="open" data-id="${item.id}" class="ghost">Open Preview</button>
++        <button data-action="${buttonAction}" data-id="${item.id}">${buttonLabel}</button>
++      </div>
++    </article>
++  `;
++}
++
++function renderShelf(container, state) {
++  const fragment = [];
++  const samples = getSampleItems(5);
++  fragment.push('<section>');
++  fragment.push('<header><h2>Featured Shelf</h2><p>Boots offline using bundled manifest.</p></header>');
++  fragment.push('<div class="library-grid">');
++  fragment.push(
++    samples
++      .map((item) => {
++        const inLibrary = state.library.some((entry) => entry.id === item.id);
++        return createCard(item, inLibrary);
++      })
++      .join(''),
++  );
++  fragment.push('</div></section>');
++  container.innerHTML = fragment.join('');
++}
++
++function handleShelfClick(event) {
++  const action = event.target.dataset.action;
++  if (!action) return;
++  const { id } = event.target.dataset;
++
++  if (action === 'open') {
++    window.alert(`Preview for ${id} coming soon. Rendering sample manifest only right now.`);
++    return;
++  }
++
++  const sample = getSampleItems(5).find((item) => item.id === id);
++  if (!sample) return;
++
++  if (action === 'save') {
++    saveToLibrary(sample);
++  } else if (action === 'remove') {
++    removeFromLibrary(id);
++  }
++}
++
++export function mountLibraryShelf(container) {
++  if (!container) {
++    throw new Error('mountLibraryShelf requires a container element');
++  }
++  container.addEventListener('click', handleShelfClick);
++  const unsubscribe = subscribe((state) => renderShelf(container, state));
++
++  return () => {
++    container.removeEventListener('click', handleShelfClick);
++    unsubscribe();
++  };
++}
+*** End Patch
+[2m2025-11-10T11:16:58.269252Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13/src/styles/layout.css
+@@
+ .placeholder-panel {
+   border: 1px dashed rgba(29, 78, 216, 0.25);
+@@
+ }
+ 
++.library-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
++  gap: 1rem;
++}
++
++.library-card {
++  background: white;
++  border-radius: 1rem;
++  padding: 1rem;
++  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
++  display: flex;
++  flex-direction: column;
++  gap: 0.75rem;
++}
++
++.library-card__meta h3 {
++  margin: 0;
++  font-size: 1.05rem;
++}
++
++.library-card__meta p {
++  margin: 0;
++  color: #4a5568;
++  font-size: 0.9rem;
++}
++
++.library-card__summary {
++  margin: 0;
++  color: #2d3748;
++  font-size: 0.9rem;
++}
++
++.library-card__details {
++  display: grid;
++  grid-template-columns: repeat(2, minmax(0, 1fr));
++  gap: 0.5rem;
++  margin: 0;
++}
++
++.library-card__details dt {
++  font-size: 0.75rem;
++  text-transform: uppercase;
++  color: #6b7280;
++}
++
++.library-card__details dd {
++  margin: 0;
++  font-weight: 600;
++  color: #111827;
++}
++
++.library-card__actions {
++  display: flex;
++  gap: 0.5rem;
++  flex-wrap: wrap;
++}
++
++.library-card__actions button {
++  flex: 1;
++  border-radius: 0.75rem;
++  border: 1px solid #2563eb;
++  background: #2563eb;
++  color: white;
++  padding: 0.5rem 0.75rem;
++  cursor: pointer;
++}
++
++.library-card__actions button.ghost {
++  background: transparent;
++  color: #2563eb;
++}
++
++button:disabled {
++  opacity: 0.5;
++  cursor: not-allowed;
++}
++
+*** End Patch
+[2m2025-11-10T11:17:09.643302Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13/src/main.js
+@@
+-import './styles/base.css';
+-import './styles/layout.css';
+-
+-const appRoot = document.querySelector('#app');
+-
+-if (!appRoot) {
+-  throw new Error('Root element #app was not found. Ensure index.html contains <div id="app"></div>.');
+-}
+-
+-appRoot.innerHTML = `
+-  <main class="app-shell">
+-    <header class="app-header">
+-      <span class="badge">browser-only p2p</span>
+-      <h1>nostr library hub</h1>
+-      <p>
+-        Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
+-        Nostr + WebRTC/WebTorrent. Implementation in progress—foundation tasks are laying down
+-        storage, telemetry, and networking scaffolds.
+-      </p>
+-    </header>
+-    <section class="placeholder-panel">
+-      <p>
+-        ✅ Vite scaffold ready<br />
+-        ✅ Core dependencies installed<br />
+-        ⚙️ Next up: shared styles, persistence, event bus, and relay configuration.
+-      </p>
+-      <div class="status-cluster">
+-        <span class="status-pill">
+-          <strong>Relays</strong>
+-          <span>Pending wiring</span>
+-        </span>
+-        <span class="status-pill">
+-          <strong>Library</strong>
+-          <span>Sample manifest queued</span>
+-        </span>
+-        <span class="status-pill">
+-          <strong>Transfers</strong>
+-          <span>WebRTC / WebTorrent adapters upcoming</span>
+-        </span>
+-      </div>
+-    </section>
+-  </main>
+-`;
++import './styles/base.css';
++import './styles/layout.css';
++import { initStore } from '@/state/store';
++import { mountLibraryShelf } from '@/library/ui';
++
++const appRoot = document.querySelector('#app');
++
++if (!appRoot) {
++  throw new Error('Root element #app was not found. Ensure index.html contains <div id="app"></div>.');
++}
++
++appRoot.innerHTML = `
++  <main class="app-shell">
++    <header class="app-header">
++      <span class="badge">browser-only p2p</span>
++      <h1>nostr library hub</h1>
++      <p>
++        Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
++        Nostr + WebRTC/WebTorrent.
++      </p>
++    </header>
++    <section id="sample-shelf"></section>
++    <section class="placeholder-panel">
++      <p>
++        Telemetry, search, and responder diagnostics will appear here once Nostr wiring lands.
++      </p>
++      <div class="status-cluster">
++        <span class="status-pill">
++          <strong>Relays</strong>
++          <span>Pending wiring</span>
++        </span>
++        <span class="status-pill">
++          <strong>Library</strong>
++          <span>Sample manifest live</span>
++        </span>
++        <span class="status-pill">
++          <strong>Transfers</strong>
++          <span>WebRTC/WebTorrent adapters upcoming</span>
++        </span>
++      </div>
++    </section>
++  </main>
++`;
++
++const shelfMount = document.querySelector('#sample-shelf');
++
++(async () => {
++  await initStore();
++  mountLibraryShelf(shelfMount);
++})();
+*** End Patch
+[2m2025-11-10T11:17:20.650831Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/main.js
+@@
+-import './styles/base.css';
+-import './styles/layout.css';
+-
+-const appRoot = document.querySelector('#app');
+-
+-if (!appRoot) {
+-  throw new Error('Root element #app was not found. Ensure index.html contains <div id="app"></div>.');
+-}
+-
+-appRoot.innerHTML = `
+-  <main class="app-shell">
+-    <header class="app-header">
+-      <span class="badge">browser-only p2p</span>
+-      <h1>nostr library hub</h1>
+-      <p>
+-        Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
+-        Nostr + WebRTC/WebTorrent. Implementation in progress—foundation tasks are laying down
+-        storage, telemetry, and networking scaffolds.
+-      </p>
+-    </header>
+-    <section class="placeholder-panel">
+-      <p>
+-        ✅ Vite scaffold ready<br />
+-        ✅ Core dependencies installed<br />
+-        ⚙️ Next up: shared styles, persistence, event bus, and relay configuration.
+-      </p>
+-      <div class="status-cluster">
+-        <span class="status-pill">
+-          <strong>Relays</strong>
+-          <span>Pending wiring</span>
+-        </span>
+-        <span class="status-pill">
+-          <strong>Library</strong>
+-          <span>Sample manifest queued</span>
+-        </span>
+-        <span class="status-pill">
+-          <strong>Transfers</strong>
+-          <span>WebRTC / WebTorrent adapters upcoming</span>
+-        </span>
+-      </div>
+-    </section>
+-  </main>
+-`;
++import './styles/base.css';
++import './styles/layout.css';
++import { initStore } from '@/state/store';
++import { mountLibraryShelf } from '@/library/ui';
++
++const appRoot = document.querySelector('#app');
++
++if (!appRoot) {
++  throw new Error('Root element #app was not found. Ensure index.html contains <div id="app"></div>.');
++}
++
++appRoot.innerHTML = `
++  <main class="app-shell">
++    <header class="app-header">
++      <span class="badge">browser-only p2p</span>
++      <h1>nostr library hub</h1>
++      <p>
++        Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
++        Nostr + WebRTC/WebTorrent.
++      </p>
++    </header>
++    <section id="sample-shelf"></section>
++    <section class="placeholder-panel">
++      <p>
++        Telemetry, search, and responder diagnostics will appear here once Nostr wiring lands.
++      </p>
++      <div class="status-cluster">
++        <span class="status-pill">
++          <strong>Relays</strong>
++          <span>Pending wiring</span>
++        </span>
++        <span class="status-pill">
++          <strong>Library</strong>
++          <span>Sample manifest live</span>
++        </span>
++        <span class="status-pill">
++          <strong>Transfers</strong>
++          <span>WebRTC/WebTorrent adapters upcoming</span>
++        </span>
++      </div>
++    </section>
++  </main>
++`;
++
++const shelfMount = document.querySelector('#sample-shelf');
++
++(async () => {
++  await initStore();
++  mountLibraryShelf(shelfMount);
++})();
+*** End Patch
+[2m2025-11-10T11:17:40.415298Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/src/state/__tests__/store.spec.js
++import { describe, expect, test, vi, beforeEach } from 'vitest';
++
++const persistenceMock = vi.hoisted(() => {
++  return {
++    data: [],
++    loadLibraryItems: vi.fn(async () => persistenceMock.data),
++    saveLibraryItems: vi.fn(async (items) => {
++      persistenceMock.data = items;
++    }),
++  };
++});
++
++vi.mock('../persistence', () => ({
++  loadLibraryItems: persistenceMock.loadLibraryItems,
++  saveLibraryItems: persistenceMock.saveLibraryItems,
++}));
++
++async function importStore() {
++  const module = await import('../store.js');
++  return module;
++}
++
++describe('state/store', () => {
++  beforeEach(() => {
++    persistenceMock.data = [];
++    vi.clearAllMocks();
++    vi.resetModules();
++  });
++
++  test('initializes with sample manifest', async () => {
++    const store = await importStore();
++    await store.initStore();
++    const snapshot = store.getState();
++    expect(snapshot.manifest).toHaveLength(5);
++    expect(snapshot.library).toEqual([]);
++  });
++
++  test('saves and removes library items', async () => {
++    const store = await importStore();
++    await store.initStore();
++    const sample = store.getSampleItems(1)[0];
++    await store.saveToLibrary(sample);
++    expect(store.getState().library).toHaveLength(1);
++    await store.removeFromLibrary(sample.id);
++    expect(store.getState().library).toHaveLength(0);
++  });
++});
+*** End Patch
+[2m2025-11-10T11:17:45.124352Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:17:57.514195Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-async function importStore() {
+-  const module = await import('../store.js');
++async function importStore() {
++  const module = await import(new URL('../store.js', import.meta.url));
+   return module;
+ }
+*** End Patch
+[2m2025-11-10T11:18:04.579529Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:18:16.384692Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13/src/state/store.js
+@@
+-const observers = new Set();
++const observers = new Set();
+ 
+ function notify() {
+   const snapshot = getState();
+   observers.forEach((fn) => fn(snapshot));
+   emit('state:update', snapshot);
+@@
+ export function getSampleItems(limit = 5) {
+   return state.manifest.slice(0, limit);
+ }
++
++export function __resetStore() {
++  state.library = [];
++  state.initialized = false;
++  observers.clear();
++}
+*** End Patch
+[2m2025-11-10T11:18:20.758679Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Delete File: ../poc13/src/state/__tests__/store.spec.js
+*** End Patch
+[2m2025-11-10T11:18:28.439396Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Add File: ../poc13/src/state/__tests__/store.spec.js
++import { describe, expect, test, vi, beforeEach } from 'vitest';
++
++const persistenceMock = vi.hoisted(() => ({
++  data: [],
++  loadLibraryItems: vi.fn(async () => persistenceMock.data),
++  saveLibraryItems: vi.fn(async (items) => {
++    persistenceMock.data = items;
++  }),
++}));
++
++vi.mock('../persistence', () => ({
++  loadLibraryItems: persistenceMock.loadLibraryItems,
++  saveLibraryItems: persistenceMock.saveLibraryItems,
++}));
++
++import {
++  __resetStore,
++  getSampleItems,
++  getState,
++  initStore,
++  removeFromLibrary,
++  saveToLibrary,
++} from '../store.js';
++
++describe('state/store', () => {
++  beforeEach(() => {
++    persistenceMock.data = [];
++    vi.clearAllMocks();
++    __resetStore();
++  });
++
++  test('initializes with sample manifest', async () => {
++    await initStore();
++    const snapshot = getState();
++    expect(snapshot.manifest).toHaveLength(5);
++    expect(snapshot.library).toEqual([]);
++  });
++
++  test('saves and removes library items', async () => {
++    await initStore();
++    const sample = getSampleItems(1)[0];
++    await saveToLibrary(sample);
++    expect(getState().library).toHaveLength(1);
++    await removeFromLibrary(sample.id);
++    expect(getState().library).toHaveLength(0);
++  });
++});
+*** End Patch
+[2m2025-11-10T11:18:33.815319Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:18:56.395174Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-import {
+-  __resetStore,
+-  getSampleItems,
+-  getState,
+-  initStore,
+-  removeFromLibrary,
+-  saveToLibrary,
+-} from '../store.js';
++import {
++  __resetStore,
++  getSampleItems,
++  getState,
++  initStore,
++  removeFromLibrary,
++  saveToLibrary,
++} from '@/state/store.js';
+*** End Patch
+[2m2025-11-10T11:19:45.648730Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:19:57.220924Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13/vite.config.js
+@@
+ export default defineConfig({
+   base: '/minip2p/poc13/',
+   resolve: {
+-    alias: {
+-      '@': path.resolve(__dirname, 'src'),
+-    },
++    alias: [
++      { find: '@', replacement: path.resolve(__dirname, 'src') },
++      { find: /^\/src\//, replacement: `${path.resolve(__dirname, 'src')}/` },
++    ],
+   },
+*** End Patch
+[2m2025-11-10T11:20:04.266007Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:20:16.164444Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-import {
+-  __resetStore,
+-  getSampleItems,
+-  getState,
+-  initStore,
+-  removeFromLibrary,
+-  saveToLibrary,
+-} from '@/state/store.js';
+-
+ describe('state/store', () => {
+   beforeEach(() => {
+     persistenceMock.data = [];
+     vi.clearAllMocks();
+-    __resetStore();
+   });
+ 
+   test('initializes with sample manifest', async () => {
+-    await initStore();
+-    const snapshot = getState();
++    const store = await vi.importActual('../store.js');
++    store.__resetStore();
++    await store.initStore();
++    const snapshot = store.getState();
+     expect(snapshot.manifest).toHaveLength(5);
+     expect(snapshot.library).toEqual([]);
+   });
+ 
+   test('saves and removes library items', async () => {
+-    await initStore();
+-    const sample = getSampleItems(1)[0];
+-    await saveToLibrary(sample);
+-    expect(getState().library).toHaveLength(1);
+-    await removeFromLibrary(sample.id);
+-    expect(getState().library).toHaveLength(0);
++    const store = await vi.importActual('../store.js');
++    store.__resetStore();
++    await store.initStore();
++    const sample = store.getSampleItems(1)[0];
++    await store.saveToLibrary(sample);
++    expect(store.getState().library).toHaveLength(1);
++    await store.removeFromLibrary(sample.id);
++    expect(store.getState().library).toHaveLength(0);
+   });
+ });
+*** End Patch
+[2m2025-11-10T11:20:24.466112Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,160p' poc13/src/state/__tests__/store.spec.js"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:20:29.885069Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:20:37.771356Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-  test('initializes with sample manifest', async () => {
+-    const store = await vi.importActual('../store.js');
++  test('initializes with sample manifest', async () => {
++    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
+@@
+-  test('saves and removes library items', async () => {
+-    const store = await vi.importActual('../store.js');
++  test('saves and removes library items', async () => {
++    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
+*** End Patch
+[2m2025-11-10T11:20:42.380016Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:20:55.178286Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src/state"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:03.984948Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:11.563205Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git ls-files poc13/src/state"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:17.502003Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls -R poc13/src/state"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:25.591664Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls nostlib/poc13/src/state"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:34.294513Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls nostlib/poc13/src"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:42.691583Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src/data"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:48.119361Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:21:54.058349Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src/styles"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:00.100686Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src/config"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:07.882404Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls poc13/src/library"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:14.845591Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cp -R nostlib/poc13/src/* poc13/src/"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:21.810223Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","rm -rf nostlib/poc13"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:30.206550Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","ls -R poc13/src"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:22:35.633019Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:22:48.023806Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: poc13/src/state/__tests__/store.spec.js
+@@
+-    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
++    const store = await vi.importActual('@/state/store.js');
+@@
+-    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
++    const store = await vi.importActual('@/state/store.js');
+*** End Patch
+[2m2025-11-10T11:22:53.467583Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
++    const store = await vi.importActual('@/state/store.js');
+@@
+-    const store = await vi.importActual(new URL('../store.js', import.meta.url).pathname);
++    const store = await vi.importActual('@/state/store.js');
+*** End Patch
+[2m2025-11-10T11:22:58.467872Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:23:10.812496Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/__tests__/store.spec.js
+@@
+-    const store = await vi.importActual('@/state/store.js');
++    const store = await import(new URL('../store.js', import.meta.url));
+@@
+-    const store = await vi.importActual('@/state/store.js');
++    const store = await import(new URL('../store.js', import.meta.url));
+*** End Patch
+[2m2025-11-10T11:23:17.120767Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:23:25.603883Z[0m [32m INFO[0m ToolCall: apply_patch *** Begin Patch
+*** Update File: ../poc13/src/state/store.js
+@@
+-import sampleManifest from '@/data/sample-manifest.json';
++import sampleManifest from '../data/sample-manifest.json';
+*** End Patch
+[2m2025-11-10T11:23:33.284656Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","cd poc13 && npm run test"],"workdir":"/home/user/test/minip2p","timeout_ms":120000}
+[2m2025-11-10T11:23:42.501485Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:27:56.324208Z[0m [32m INFO[0m ERR: No such file or directory (os error 2)
+[2m2025-11-10T11:31:06.519434Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","git status -sb"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:31:16.543011Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","sed -n '1,200p' Makefile"],"workdir":"/home/user/test/minip2p"}
+[2m2025-11-10T11:31:25.758837Z[0m [32m INFO[0m ToolCall: shell {"command":["bash","-lc","make deploy"],"workdir":"/home/user/test/minip2p"}

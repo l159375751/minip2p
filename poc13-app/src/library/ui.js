@@ -1,6 +1,30 @@
 import { buildMagnetFromInfohash } from '@/config/app-config';
 import { getState, removeFromLibrary, subscribe } from '@/state/store';
 
+const featuredItems = (state) => state.manifest.slice(0, 5);
+const libraryItems = (state) => (state.library.length ? state.library : featuredItems(state));
+
+function createFeaturedCard(item) {
+  const infohash = item.infohash || '';
+  const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
+  const magnetPreview = magnet ? `${magnet.slice(0, 32)}...` : 'n/a';
+
+  return `
+    <article class="featured-card" data-id="${item.id}">
+      <div>
+        <strong>${item.title}</strong>
+        <p>${item.author}</p>
+      </div>
+      <p>${item.summary}</p>
+      <span class="monospace" title="${magnetPreview}">${magnetPreview}</span>
+      <div class="featured-card__actions">
+        <button data-action="open" data-id="${item.id}">Open</button>
+        <button data-action="copy-magnet" data-id="${item.id}" ${magnet ? '' : 'disabled'}>Copy</button>
+      </div>
+    </article>
+  `;
+}
+
 function createRow(item, inLibrary) {
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
@@ -30,7 +54,7 @@ function createRow(item, inLibrary) {
 
 function renderShelf(container, state) {
   const fragment = [];
-  const shelves = state.library.length ? state.library : state.manifest.slice(0, 5);
+  const shelves = libraryItems(state);
   fragment.push('<section>');
   fragment.push('<header><h2>Featured Shelves</h2><p>These are our own shared collections—trim them locally or open titles directly.</p></header>');
   fragment.push('<ul class="library-list">');
@@ -99,20 +123,37 @@ function handleShelfClick(event, state) {
   }
 }
 
-export function mountLibraryShelf(container) {
-  if (!container) {
-    throw new Error('mountLibraryShelf requires a container element');
-  }
-  let currentState = getState();
-  const clickHandler = (event) => handleShelfClick(event, currentState);
-  container.addEventListener('click', clickHandler);
-  const unsubscribe = subscribe((state) => {
-    currentState = state;
+function bindActions(container, getCurrentState) {
+  const handler = (event) => handleShelfClick(event, getCurrentState());
+  container.addEventListener('click', handler);
+  return () => container.removeEventListener('click', handler);
+}
+
+export function mountFeaturedShelf(container) {
+  if (!container) return () => {};
+  let latestState = getState();
+  const unsubscribeStore = subscribe((state) => {
+    latestState = state;
+    const cards = featuredItems(state).map(createFeaturedCard).join('');
+    container.innerHTML = `<div class="featured-grid">${cards}</div>`;
+  });
+  const unsubscribeActions = bindActions(container, () => latestState);
+  return () => {
+    unsubscribeStore();
+    unsubscribeActions();
+  };
+}
+
+export function mountLibraryList(container) {
+  if (!container) return () => {};
+  let latestState = getState();
+  const unsubscribeStore = subscribe((state) => {
+    latestState = state;
     renderShelf(container, state);
   });
-
+  const unsubscribeActions = bindActions(container, () => latestState);
   return () => {
-    container.removeEventListener('click', clickHandler);
-    unsubscribe();
+    unsubscribeStore();
+    unsubscribeActions();
   };
 }

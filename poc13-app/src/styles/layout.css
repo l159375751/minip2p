@@ -95,23 +95,39 @@
 
 .library-card__actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.35rem;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .library-card__actions button {
-  flex: 1;
-  border-radius: 0.75rem;
+  flex: 0 0 auto;
+  border-radius: 0.65rem;
   border: 1px solid #2563eb;
   background: #2563eb;
   color: white;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.75rem;
   cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .library-card__actions button.ghost {
   background: transparent;
   color: #2563eb;
+}
+
+.library-card__actions button.icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.library-card__actions button.danger {
+  border-color: #ef4444;
+  background: #ef4444;
 }
 
 button:disabled {

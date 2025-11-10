@@ -1,11 +1,7 @@
 import { buildMagnetFromInfohash } from '@/config/app-config';
-import { getSampleItems, removeFromLibrary, saveToLibrary, subscribe } from '@/state/store';
-
-const featuredItems = () => getSampleItems(5);
+import { getState, removeFromLibrary, subscribe } from '@/state/store';
 
 function createCard(item, inLibrary) {
-  const buttonLabel = inLibrary ? 'Remove from Library' : 'Save to Library';
-  const buttonAction = inLibrary ? 'remove' : 'save';
   const infohash = item.infohash || '';
   const magnet = infohash ? buildMagnetFromInfohash(infohash) : '';
   const magnetPreview = magnet ? `${magnet.slice(0, 42)}...` : 'n/a';
@@ -32,9 +28,9 @@ function createCard(item, inLibrary) {
         </div>
       </dl>
       <div class="library-card__actions">
-        <button data-action="open" data-id="${item.id}" class="ghost">Open Preview</button>
+        <button data-action="open" data-id="${item.id}" class="ghost">Open</button>
         <button data-action="copy-magnet" data-id="${item.id}" class="ghost" ${magnet ? '' : 'disabled'}>Copy Magnet</button>
-        <button data-action="${buttonAction}" data-id="${item.id}">${buttonLabel}</button>
+        <button data-action="remove" data-id="${item.id}" class="icon danger" ${inLibrary ? '' : 'disabled'}>&times;</button>
       </div>
     </article>
   `;
@@ -42,12 +38,12 @@ function createCard(item, inLibrary) {
 
 function renderShelf(container, state) {
   const fragment = [];
-  const samples = featuredItems();
+  const shelves = state.library.length ? state.library : state.manifest.slice(0, 5);
   fragment.push('<section>');
-  fragment.push('<header><h2>Featured Shelf</h2><p>Boots offline using bundled manifest.</p></header>');
+  fragment.push('<header><h2>Featured Shelves</h2><p>These are our own shared collections—trim them locally or open titles directly.</p></header>');
   fragment.push('<div class="library-grid">');
   fragment.push(
-    samples
+    shelves
       .map((item) => {
         const inLibrary = state.library.some((entry) => entry.id === item.id);
         return createCard(item, inLibrary);
@@ -58,20 +54,35 @@ function renderShelf(container, state) {
   container.innerHTML = fragment.join('');
 }
 
-function handleShelfClick(event) {
+function handleShelfClick(event, state) {
   const action = event.target.dataset.action;
   if (!action) return;
   const { id } = event.target.dataset;
-  const sample = featuredItems().find((item) => item.id === id);
-  if (!sample) return;
+  const item = state.library.find((entry) => entry.id === id);
+  const fallback = state.manifest.find((entry) => entry.id === id);
+  const target = item || fallback;
+  if (!target) return;
 
   if (action === 'open') {
-    window.alert(`Preview for ${id} coming soon. Rendering sample manifest only right now.`);
+    const preview = window.open('', '_blank', 'noopener');
+    if (preview) {
+      preview.document.write(`
+        <main style="font-family: system-ui; padding: 2rem; max-width: 720px; margin: auto;">
+          <h1>${target.title}</h1>
+          <p><strong>Author:</strong> ${target.author}</p>
+          <p>This is a lightweight preview placeholder. Download via your preferred client using the infohash below:</p>
+          <pre style="background:#f3f4f6; padding:1rem; border-radius:0.5rem; overflow:auto;">${target.infohash || 'n/a'}</pre>
+        </main>
+      `);
+      preview.document.close();
+    } else {
+      window.alert('Unable to open preview window (pop-up blocked).');
+    }
     return;
   }
 
   if (action === 'copy-magnet') {
-    const magnet = buildMagnetFromInfohash(sample.infohash);
+    const magnet = buildMagnetFromInfohash(target.infohash);
     if (!magnet) {
       window.alert('Missing infohash for this entry.');
       return;
@@ -91,7 +102,6 @@ function handleShelfClick(event) {
   }
 
   if (action === 'save') {
-    saveToLibrary(sample);
   } else if (action === 'remove') {
     removeFromLibrary(id);
   }
@@ -101,11 +111,16 @@ export function mountLibraryShelf(container) {
   if (!container) {
     throw new Error('mountLibraryShelf requires a container element');
   }
-  container.addEventListener('click', handleShelfClick);
-  const unsubscribe = subscribe((state) => renderShelf(container, state));
+  let currentState = getState();
+  const clickHandler = (event) => handleShelfClick(event, currentState);
+  container.addEventListener('click', clickHandler);
+  const unsubscribe = subscribe((state) => {
+    currentState = state;
+    renderShelf(container, state);
+  });
 
   return () => {
-    container.removeEventListener('click', handleShelfClick);
+    container.removeEventListener('click', clickHandler);
     unsubscribe();
   };
 }

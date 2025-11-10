@@ -26,15 +26,17 @@ describe('state/store', () => {
     await store.initStore();
     const snapshot = store.getState();
     expect(snapshot.manifest).toHaveLength(5);
-    expect(snapshot.library).toEqual([]);
+    expect(snapshot.library).toHaveLength(5);
   });
 
   test('saves and removes library items', async () => {
     await store.initStore();
     const sample = store.getSampleItems(1)[0];
     await store.saveToLibrary(sample);
-    expect(store.getState().library).toHaveLength(1);
+    const afterSave = store.getState().library;
+    expect(afterSave.some((entry) => entry.id === sample.id)).toBe(true);
     await store.removeFromLibrary(sample.id);
-    expect(store.getState().library).toHaveLength(0);
+    const afterRemove = store.getState().library;
+    expect(afterRemove.some((entry) => entry.id === sample.id)).toBe(false);
   });
 });

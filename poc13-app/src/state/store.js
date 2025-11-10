@@ -33,10 +33,21 @@ export function subscribe(handler) {
   return () => observers.delete(handler);
 }
 
+async function seedLibraryIfEmpty() {
+  if (state.library.length === 0) {
+    state.library = state.manifest.slice(0, 5).map((item) => ({
+      ...item,
+      addedAt: Date.now(),
+    }));
+    await saveLibraryItems(state.library);
+  }
+}
+
 export async function initStore() {
   if (state.initialized) return getState();
   const existing = await loadLibraryItems();
   state.library = Array.isArray(existing) ? existing : [];
+  await seedLibraryIfEmpty();
   state.initialized = true;
   notify();
   return getState();

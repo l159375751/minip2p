@@ -149,7 +149,7 @@ function subscribeToRelayEvents(instance) {
     ],
     {
       label: 'nostr-search-stream',
-      receivedEvent: (event) => handleEvent(instance, event),
+      onevent: (event) => handleEvent(instance, event),
     },
   );
 }

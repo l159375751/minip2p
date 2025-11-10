@@ -3,6 +3,7 @@ import './styles/layout.css';
 import { initStore } from '@/state/store';
 import { mountFeaturedShelf, mountLibraryList } from '@/library/ui';
 import { mountSearchPanel } from '@/search/ui';
+import { subscribeSharing, toggleSharing } from '@/state/sharing.js';
 
 const appRoot = document.querySelector('#app');
 
@@ -19,6 +20,10 @@ appRoot.innerHTML = `
         Sleek, no-backend HTML/JS experience for sharing books, media, and manifests over
         Nostr + WebRTC/WebTorrent.
       </p>
+      <div class="share-cta">
+        <button id="share-toggle" class="share-button">Start Sharing</button>
+        <span id="share-note" class="share-note">Sharing paused</span>
+      </div>
     </header>
     <section id="featured-row"></section>
     <section id="library-list"></section>
@@ -64,10 +69,28 @@ const searchPanel = document.querySelector('#search-form');
 const searchInput = document.querySelector('#search-input');
 const searchClear = document.querySelector('#search-clear');
 const searchResults = document.querySelector('#search-results');
+const shareToggle = document.querySelector('#share-toggle');
+const shareNote = document.querySelector('#share-note');
 
 (async () => {
   await initStore();
   mountFeaturedShelf(featuredMount);
   mountLibraryList(listMount);
   mountSearchPanel(searchPanel, searchResults, searchInput, searchClear);
+
+  subscribeSharing(({ enabled }) => {
+    if (shareToggle) {
+      shareToggle.textContent = enabled ? 'Stop Sharing' : 'Start Sharing';
+      shareToggle.classList.toggle('active', enabled);
+    }
+    if (shareNote) {
+      shareNote.textContent = enabled ? 'Sharing with relays' : 'Sharing paused';
+    }
+  });
+
+  if (shareToggle) {
+    shareToggle.addEventListener('click', () => {
+      toggleSharing();
+    });
+  }
 })();

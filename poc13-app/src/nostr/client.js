@@ -4,6 +4,7 @@ import { DEFAULT_RELAYS } from '@/config/app-config';
 
 const SEARCH_KIND = 25555;
 const RESPONSE_KIND = 25556;
+const SHARE_KIND = 33333;
 
 let relayIndex = 0;
 let relay = null;
@@ -140,5 +141,39 @@ export async function initNostrClient() {
     await connectRelay();
   } catch (error) {
     console.warn('[nostr] connection error', error);
+  }
+}
+
+export async function publishShareEvent(items = []) {
+  if (!items.length) return;
+  try {
+    await connectRelay();
+  } catch (error) {
+    console.warn('[nostr] failed to connect relay for share', error);
+    return;
+  }
+  if (!relay) return;
+
+  const tags = items.slice(0, 25).map((item) => [
+    'item',
+    item.id || '',
+    item.infohash || '',
+    item.title || '',
+  ]);
+
+  const eventTemplate = {
+    kind: SHARE_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: `share:${items.length}`,
+    pubkey: publicKey,
+  };
+
+  const signed = finalizeEvent(eventTemplate, secretKey);
+
+  try {
+    await relay.publish(signed);
+  } catch (error) {
+    console.warn('[nostr] failed to publish share', error);
   }
 }

@@ -39,13 +39,11 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
       : '<p class="search-empty">No matches yet. Try title, author, or infohash.</p>';
   });
 
-  const onInput = (event) => updateQuery(event.target.value);
   const onSubmit = (event) => {
     event.preventDefault();
     updateQuery(inputEl.value);
   };
 
-  inputEl.addEventListener('input', onInput);
   panelEl.addEventListener('submit', onSubmit);
 
   if (clearBtn) {
@@ -84,7 +82,6 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
 
   return () => {
     unsubscribeSearch();
-    inputEl.removeEventListener('input', onInput);
     panelEl.removeEventListener('submit', onSubmit);
     resultsEl.removeEventListener('click', onResultClick);
   };

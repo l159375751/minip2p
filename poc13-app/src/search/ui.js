@@ -85,23 +85,15 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
 
     if (getBookBtn) {
       const bookId = getBookBtn.dataset.bookId;
-      const downloadAttr = getBookBtn.dataset.download ? decodeURIComponent(getBookBtn.dataset.download) : '';
 
-      console.log('[search-ui] Get Book clicked:', { bookId, downloadAttr });
+      console.log('[search-ui] Get Book clicked:', { bookId });
 
-      // Request transports from network FIRST
+      // Request transports from network
       if (bookId) {
         console.log('[search-ui] Calling requestBookTransport for:', bookId);
         requestBookTransport(bookId);
       } else {
         console.warn('[search-ui] No bookId found on button!');
-      }
-
-      // Also provide fallback download option
-      if (downloadAttr) {
-        if (!openUrlInNewTab(downloadAttr)) {
-          window.alert(`Pop-up blocked. Open this link manually:\n${downloadAttr}`);
-        }
       }
 
       return;

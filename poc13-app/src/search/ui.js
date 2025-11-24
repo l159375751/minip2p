@@ -22,6 +22,7 @@ function renderResult(item) {
       <div>
         <strong>${item.title}</strong>
         <span>${item.author}</span>
+        ${item.id ? `<span class="book-id">ID: ${item.id}</span>` : ''}
       </div>
       <div class="search-result__actions">
         <button data-action="get-book" data-infohash="${infohash}" ${downloadAttr} ${canCopy ? '' : 'disabled'}>Get Book</button>

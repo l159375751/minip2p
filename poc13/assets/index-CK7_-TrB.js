@@ -37,6 +37,7 @@ ${e.downloadUrl}`);return}const t=e.infohash||"",n=xt(t),r=n||t;if(!r){window.al
       <div>
         <strong>${e.title}</strong>
         <span>${e.author}</span>
+        ${e.id?`<span class="book-id">ID: ${e.id}</span>`:""}
       </div>
       <div class="search-result__actions">
         <button data-action="get-book" data-infohash="${t}" ${o} ${r?"":"disabled"}>Get Book</button>

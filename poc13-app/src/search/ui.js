@@ -93,9 +93,14 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
       const infohash = getBookBtn.dataset.infohash;
       const downloadAttr = getBookBtn.dataset.download ? decodeURIComponent(getBookBtn.dataset.download) : '';
 
+      console.log('[search-ui] Get Book clicked:', { bookId, infohash, downloadAttr });
+
       // Request transports from network FIRST
       if (bookId) {
+        console.log('[search-ui] Calling requestBookTransport for:', bookId);
         requestBookTransport(bookId);
+      } else {
+        console.warn('[search-ui] No bookId found on button!');
       }
 
       // Also provide fallback options

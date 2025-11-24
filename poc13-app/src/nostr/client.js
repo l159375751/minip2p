@@ -6,9 +6,12 @@ import { matchItemsByQuery } from '@/search/match-helpers';
 import { getGutenbergIndex, ensureGutenbergIndexLoaded } from '@/search/index-loader';
 import { emit } from '@/state/event-bus';
 import { pushDiagnosticLog, updateResponderStats, updateRelayStatus } from '@/state/diagnostics';
+import { getPeerId, isPeerReady } from '@/transport/peerjs-client';
 
 const SEARCH_KIND = 25555;
 const RESPONSE_KIND = 25556;
+const WHO_HAS_KIND = 25557;
+const AVAILABILITY_KIND = 25558;
 const SHARE_KIND = 33333;
 const RESPONDER_CACHE_MS = 5 * 60 * 1000;
 const MAX_RESPONSES_PER_QUERY = 5;
@@ -21,7 +24,9 @@ let secretKey;
 let publicKey;
 
 const listeners = new Set();
+const availabilityListeners = new Set();
 const answeredQueries = new Map();
+const answeredWhoHasQueries = new Map();
 let responderEnabled = true;
 let responsesServed = 0;
 
@@ -178,7 +183,7 @@ function subscribeToRelayEvents(instance) {
   sub = instance.subscribe(
     [
       {
-        kinds: [RESPONSE_KIND, SEARCH_KIND],
+        kinds: [RESPONSE_KIND, SEARCH_KIND, WHO_HAS_KIND, AVAILABILITY_KIND],
         since: Math.floor(Date.now() / 1000),
       },
     ],
@@ -206,6 +211,19 @@ async function handleEvent(instance, event) {
     } catch (error) {
       console.warn('[nostr] responder error', error);
     }
+    return;
+  }
+  if (event.kind === WHO_HAS_KIND) {
+    try {
+      await maybeAnnounceAvailability(event);
+    } catch (error) {
+      console.warn('[nostr] who-has responder error', error);
+    }
+    return;
+  }
+  if (event.kind === AVAILABILITY_KIND) {
+    processAvailabilityAnnouncement(instance, event);
+    return;
   }
 }
 
@@ -360,9 +378,142 @@ async function publishSearchResponse(item, query) {
   }
 }
 
+function processAvailabilityAnnouncement(instance, event) {
+  const idTag = event.tags.find((t) => t[0] === 'id');
+  const toTag = event.tags.find((t) => t[0] === 'to');
+  const transportsTag = event.tags.find((t) => t[0] === 'transports');
+  const peerTag = event.tags.find((t) => t[0] === 'peer');
+
+  if (!idTag) return;
+
+  // Check if this announcement is directed to us
+  if (toTag && toTag[1] !== publicKey) {
+    return;
+  }
+
+  let transports = [];
+  if (transportsTag) {
+    try {
+      transports = JSON.parse(transportsTag[1]);
+    } catch (_) {
+      transports = [transportsTag[1]];
+    }
+  }
+
+  const payload = {
+    bookId: idTag[1],
+    peerPubkey: event.pubkey,
+    peerId: peerTag ? peerTag[1] : '',
+    transports,
+    relay: instance.url,
+  };
+
+  availabilityListeners.forEach((fn) => fn(payload));
+
+  pushDiagnosticLog({
+    source: 'transport',
+    message: `Peer ${event.pubkey.slice(0, 8)}... has book ${idTag[1]} via ${transports.join(', ')}`,
+  });
+}
+
+async function maybeAnnounceAvailability(event) {
+  const idTag = event.tags.find((t) => t[0] === 'id');
+  const bookId = idTag ? idTag[1] : '';
+
+  if (!responderEnabled) {
+    return;
+  }
+
+  if (!bookId) return;
+
+  loadKeys();
+
+  // Don't respond to our own queries
+  if (event.pubkey === publicKey) return;
+
+  // Check if we've already responded to this query recently
+  pruneAnsweredWhoHasQueries();
+  if (answeredWhoHasQueries.has(event.id)) {
+    return;
+  }
+
+  // Check if we have this book in our library
+  const state = getState();
+  const haveIt = state.library.find((item) => item.id === bookId);
+
+  if (!haveIt) {
+    return;
+  }
+
+  answeredWhoHasQueries.set(event.id, Date.now());
+
+  // Announce that we have it
+  await publishAvailability(bookId, event.pubkey, haveIt);
+}
+
+function pruneAnsweredWhoHasQueries() {
+  const cutoff = Date.now() - RESPONDER_CACHE_MS;
+  answeredWhoHasQueries.forEach((timestamp, id) => {
+    if (timestamp < cutoff) {
+      answeredWhoHasQueries.delete(id);
+    }
+  });
+}
+
+async function publishAvailability(bookId, targetPubkey, item) {
+  try {
+    await connectRelay();
+  } catch (error) {
+    console.warn('[nostr] failed to connect relay for availability', error);
+    return;
+  }
+  if (!relay) return;
+
+  const transports = [];
+  if (isPeerReady()) {
+    transports.push('peerjs');
+  }
+
+  const tags = [
+    ['id', bookId],
+    ['to', targetPubkey],
+    ['transports', JSON.stringify(transports)],
+  ];
+
+  const myPeerId = getPeerId();
+  if (myPeerId) {
+    tags.push(['peer', myPeerId]);
+  }
+
+  const eventTemplate = {
+    kind: AVAILABILITY_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags,
+    content: `I have: ${item.title || bookId}`,
+    pubkey: publicKey,
+  };
+
+  const signed = finalizeEvent(eventTemplate, secretKey);
+
+  try {
+    await relay.publish(signed);
+    pushDiagnosticLog({
+      source: 'transport',
+      message: `Announced availability of "${item.title || bookId}" to ${targetPubkey.slice(0, 8)}... via ${transports.join(', ') || 'no transport'}`,
+    });
+  } catch (error) {
+    console.warn('[nostr] failed to publish availability', error);
+  }
+}
+
 export function subscribeToSearchResults(listener) {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+export function subscribeToAvailability(listener) {
+  availabilityListeners.add(listener);
+  return () => availabilityListeners.delete(listener);
 }
 
 export async function sendSearchRequest(query) {
@@ -404,6 +555,49 @@ export async function sendSearchRequest(query) {
       level: 'error',
       source: 'search',
       message: `Failed to publish search "${query}": ${error.message || error}`,
+    });
+  }
+}
+
+export async function sendWhoHasRequest(bookId) {
+  if (!bookId) return;
+
+  try {
+    await connectRelay();
+  } catch (error) {
+    console.warn('[nostr] failed to connect relay', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'transport',
+      message: `Failed to connect relay for who-has "${bookId}"`,
+    });
+    return;
+  }
+
+  if (!relay) return;
+
+  const eventTemplate = {
+    kind: WHO_HAS_KIND,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [['id', bookId]],
+    content: `Who has: ${bookId}`,
+    pubkey: publicKey,
+  };
+
+  const signed = finalizeEvent(eventTemplate, secretKey);
+
+  try {
+    await relay.publish(signed);
+    pushDiagnosticLog({
+      source: 'transport',
+      message: `Published who-has query for book "${bookId}"`,
+    });
+  } catch (error) {
+    console.warn('[nostr] failed to publish who-has', error);
+    pushDiagnosticLog({
+      level: 'error',
+      source: 'transport',
+      message: `Failed to publish who-has "${bookId}": ${error.message || error}`,
     });
   }
 }

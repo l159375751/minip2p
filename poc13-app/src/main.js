@@ -7,6 +7,7 @@ import { mountDiagnosticsPanel } from '@/diagnostics/ui';
 import { subscribeSharing, toggleSharing } from '@/state/sharing.js';
 import { subscribeDiagnostics } from '@/state/diagnostics';
 import { toggleSearchResponder } from '@/nostr/client';
+import { initPeerJS } from '@/transport/peerjs-client';
 
 const appRoot = document.querySelector('#app');
 
@@ -63,6 +64,12 @@ const diagnosticsMount = document.querySelector('#diagnostics-panel');
 
 (async () => {
   await initStore();
+
+  // Initialize PeerJS for p2p transfers
+  initPeerJS().catch((error) => {
+    console.warn('[main] PeerJS initialization failed', error);
+  });
+
   mountLibraryList(listMount);
   mountSearchPanel(searchPanel, searchResults, searchInput, searchClear);
   mountDiagnosticsPanel(diagnosticsMount);

@@ -93,6 +93,12 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
       const infohash = getBookBtn.dataset.infohash;
       const downloadAttr = getBookBtn.dataset.download ? decodeURIComponent(getBookBtn.dataset.download) : '';
 
+      // Request transports from network FIRST
+      if (bookId) {
+        requestBookTransport(bookId);
+      }
+
+      // Also provide fallback options
       if (downloadAttr) {
         if (!openUrlInNewTab(downloadAttr)) {
           window.alert(`Pop-up blocked. Open this link manually:\n${downloadAttr}`);
@@ -114,10 +120,6 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
         }
       }
 
-      // Request transports from network
-      if (bookId) {
-        requestBookTransport(bookId);
-      }
       return;
     }
 

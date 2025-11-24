@@ -231,7 +231,6 @@ function processSearchResponse(instance, event) {
   const idTag = event.tags.find((t) => t[0] === 'id');
   const titleTag = event.tags.find((t) => t[0] === 'title');
   const authorTag = event.tags.find((t) => t[0] === 'author');
-  const hashTag = event.tags.find((t) => t[0] === 'hash');
   const queryTag = event.tags.find((t) => t[0] === 'q');
 
   if (!idTag || !titleTag) return;
@@ -240,7 +239,6 @@ function processSearchResponse(instance, event) {
     id: idTag[1],
     title: titleTag[1],
     author: authorTag ? authorTag[1] : 'Unknown',
-    infohash: hashTag ? hashTag[1] : '',
     query: queryTag ? queryTag[1] : '',
     relay: instance.url,
   };
@@ -344,9 +342,6 @@ async function publishSearchResponse(item, query) {
     ['author', item.author || 'Unknown'],
   ];
 
-  if (item.infohash) {
-    tags.push(['hash', item.infohash]);
-  }
   if (query) {
     tags.push(['q', query]);
   }

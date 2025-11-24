@@ -1,5 +1,3 @@
-import { buildMagnetFromInfohash } from '@/config/app-config';
-import { copyText } from '@/utils/clipboard';
 import { clearSearch, subscribeSearch, updateQuery } from './state';
 import { requestBookTransport, subscribeToTransports, getAvailablePeers } from '@/transport/state';
 import { requestBookFromPeer } from '@/transport/peerjs-client';
@@ -15,9 +13,6 @@ function openUrlInNewTab(url) {
 }
 
 function renderResult(item) {
-  const infohash = item.infohash || '';
-  const magnet = buildMagnetFromInfohash(infohash);
-  const canCopy = Boolean(magnet || infohash || item.downloadUrl);
   const downloadAttr = item.downloadUrl ? `data-download="${encodeURIComponent(item.downloadUrl)}"` : '';
   const peers = getAvailablePeers(item.id);
 
@@ -32,7 +27,7 @@ function renderResult(item) {
     }).join('');
   } else {
     // Show default "Get Book" button
-    actionsHtml = `<button data-action="get-book" data-book-id="${item.id}" data-infohash="${infohash}" ${downloadAttr} ${canCopy ? '' : 'disabled'}>Get Book</button>`;
+    actionsHtml = `<button data-action="get-book" data-book-id="${item.id}" ${downloadAttr}>Get Book</button>`;
   }
 
   return `
@@ -90,10 +85,9 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
 
     if (getBookBtn) {
       const bookId = getBookBtn.dataset.bookId;
-      const infohash = getBookBtn.dataset.infohash;
       const downloadAttr = getBookBtn.dataset.download ? decodeURIComponent(getBookBtn.dataset.download) : '';
 
-      console.log('[search-ui] Get Book clicked:', { bookId, infohash, downloadAttr });
+      console.log('[search-ui] Get Book clicked:', { bookId, downloadAttr });
 
       // Request transports from network FIRST
       if (bookId) {
@@ -103,25 +97,10 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
         console.warn('[search-ui] No bookId found on button!');
       }
 
-      // Also provide fallback options
+      // Also provide fallback download option
       if (downloadAttr) {
         if (!openUrlInNewTab(downloadAttr)) {
           window.alert(`Pop-up blocked. Open this link manually:\n${downloadAttr}`);
-        }
-        return;
-      }
-
-      const magnet = buildMagnetFromInfohash(infohash || '');
-      const payload = magnet || infohash;
-
-      if (payload) {
-        // Copy to clipboard as fallback
-        const label = magnet ? 'Magnet link' : 'Infohash';
-        try {
-          await copyText(payload);
-          window.alert(`${label} copied to clipboard.`);
-        } catch (_) {
-          window.alert(`Unable to copy ${label.toLowerCase()}.`);
         }
       }
 

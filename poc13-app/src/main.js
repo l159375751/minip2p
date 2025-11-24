@@ -1,6 +1,6 @@
 import './styles/base.css';
 import './styles/layout.css';
-import { initStore } from '@/state/store';
+import { initStore, subscribe, seedDemoBooks } from '@/state/store';
 import { mountLibraryList } from '@/library/ui';
 import { mountSearchPanel } from '@/search/ui';
 import { mountDiagnosticsPanel } from '@/diagnostics/ui';
@@ -32,6 +32,10 @@ appRoot.innerHTML = `
         <button id="daemon-toggle" class="share-button secondary">Pause Search Daemon</button>
         <span id="daemon-note" class="share-note">Responder live</span>
       </div>
+      <div class="share-cta">
+        <button id="seed-library" class="share-button secondary">Seed Library (5 Demo Books)</button>
+        <span id="library-count" class="share-note">Library: 0 books</span>
+      </div>
     </header>
     <section id="library-list"></section>
     <section id="search-panel" class="search-panel">
@@ -60,6 +64,8 @@ const shareToggle = document.querySelector('#share-toggle');
 const shareNote = document.querySelector('#share-note');
 const daemonToggle = document.querySelector('#daemon-toggle');
 const daemonNote = document.querySelector('#daemon-note');
+const seedLibraryBtn = document.querySelector('#seed-library');
+const libraryCount = document.querySelector('#library-count');
 const diagnosticsMount = document.querySelector('#diagnostics-panel');
 
 (async () => {
@@ -105,6 +111,20 @@ const diagnosticsMount = document.querySelector('#diagnostics-panel');
   if (daemonToggle) {
     daemonToggle.addEventListener('click', () => {
       toggleSearchResponder();
+    });
+  }
+
+  // Update library count
+  subscribe((state) => {
+    if (libraryCount) {
+      libraryCount.textContent = `Library: ${state.library.length} books`;
+    }
+  });
+
+  if (seedLibraryBtn) {
+    seedLibraryBtn.addEventListener('click', async () => {
+      await seedDemoBooks();
+      window.alert('Added 5 demo books to your library!');
     });
   }
 })();

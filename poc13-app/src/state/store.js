@@ -78,6 +78,27 @@ export function getSampleItems(limit = 5) {
   return state.manifest.slice(0, limit);
 }
 
+export async function seedDemoBooks() {
+  // Add all 5 manifest books to library with mock data
+  const demoBooks = state.manifest.slice(0, 5).map((item) => ({
+    ...item,
+    addedAt: Date.now(),
+    data: `[Demo book content for ${item.title}]`,
+  }));
+
+  // Merge with existing library (avoid duplicates)
+  const existingIds = new Set(state.library.map((b) => b.id));
+  const newBooks = demoBooks.filter((book) => !existingIds.has(book.id));
+
+  if (newBooks.length > 0) {
+    state.library = [...state.library, ...newBooks];
+    await saveLibraryItems(state.library);
+    notify();
+  }
+
+  return getState();
+}
+
 export function __resetStore() {
   state.library = [];
   state.initialized = false;

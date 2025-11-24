@@ -11,6 +11,7 @@ TORRENT_DIR := $(abspath data)
 TRACKERS_FILE := $(abspath trackers.txt)
 
 deploy:
+	@echo "📦 Staging all changes (poc*, helpers/, index.html, etc.)..."
 	git add -A
 	@if git diff --cached --quiet; then \
 		echo "ℹ️ No staged changes to commit."; \

@@ -3,6 +3,10 @@ import path from 'node:path';
 
 export default defineConfig({
   base: '/minip2p/poc13/',
+  build: {
+    outDir: '../poc13',
+    emptyOutDir: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

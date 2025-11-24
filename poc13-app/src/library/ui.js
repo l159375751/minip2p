@@ -79,11 +79,20 @@ function renderShelf(container, state) {
   container.innerHTML = fragment.join('');
 }
 
+function openUrlInNewTab(url) {
+  if (!url) return false;
+  const win = window.open('', '_blank', 'noopener');
+  if (win) {
+    win.location.href = url;
+    return true;
+  }
+  return false;
+}
+
 function openBook(target) {
   if (target.downloadUrl) {
-    const win = window.open(target.downloadUrl, '_blank', 'noopener');
-    if (!win) {
-      window.location.href = target.downloadUrl;
+    if (!openUrlInNewTab(target.downloadUrl)) {
+      window.alert(`Pop-up blocked. Open this link manually:\n${target.downloadUrl}`);
     }
     return;
   }
@@ -91,11 +100,11 @@ function openBook(target) {
   const preview = window.open('', '_blank', 'noopener');
   if (preview) {
     preview.document.write(`
-      <main style="font-family: system-ui; padding: 2rem; max-width: 720px; margin: auto;">
+      <main style="font-family: 'IBM Plex Mono','SFMono-Regular',Menlo,Consolas,monospace; padding: 2rem; max-width: 720px; margin: auto; background:#111; color:#f5f5f5;">
         <h1>${target.title}</h1>
         <p><strong>Author:</strong> ${target.author}</p>
         <p>This is a lightweight preview placeholder. Download via your preferred client using the infohash below:</p>
-        <pre style="background:#f3f4f6; padding:1rem; border-radius:0.5rem; overflow:auto;">${target.infohash || 'n/a'}</pre>
+        <pre style="background:#000; border:1px solid #333; padding:1rem; border-radius:0.5rem; overflow:auto; color:#0f0;">${target.infohash || 'n/a'}</pre>
       </main>
     `);
     preview.document.close();
@@ -106,9 +115,8 @@ function openBook(target) {
 
 async function getBook(target) {
   if (target.downloadUrl) {
-    const win = window.open(target.downloadUrl, '_blank', 'noopener');
-    if (!win) {
-      window.location.href = target.downloadUrl;
+    if (!openUrlInNewTab(target.downloadUrl)) {
+      window.alert(`Pop-up blocked. Open this link manually:\n${target.downloadUrl}`);
     }
     return;
   }

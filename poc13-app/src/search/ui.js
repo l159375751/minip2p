@@ -2,6 +2,16 @@ import { buildMagnetFromInfohash } from '@/config/app-config';
 import { copyText } from '@/utils/clipboard';
 import { clearSearch, subscribeSearch, updateQuery } from './state';
 
+function openUrlInNewTab(url) {
+  if (!url) return false;
+  const win = window.open('', '_blank', 'noopener');
+  if (win) {
+    win.location.href = url;
+    return true;
+  }
+  return false;
+}
+
 function renderResult(item) {
   const infohash = item.infohash || '';
   const magnet = buildMagnetFromInfohash(infohash);
@@ -53,8 +63,9 @@ export function mountSearchPanel(panelEl, resultsEl, inputEl, clearBtn) {
     const magnet = buildMagnetFromInfohash(infohash || '');
     const payload = magnet || infohash;
     if (downloadAttr) {
-      const win = window.open(downloadAttr, '_blank', 'noopener');
-      if (!win) window.location.href = downloadAttr;
+      if (!openUrlInNewTab(downloadAttr)) {
+        window.alert(`Pop-up blocked. Open this link manually:\n${downloadAttr}`);
+      }
       return;
     }
     if (!payload) {

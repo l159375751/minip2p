@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>relay.0x6d.net - Live Feed</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #00ff00;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      border: 2px solid #00ff00;
+      padding: 15px;
+      background: #000;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      font-size: 24px;
+      text-shadow: 0 0 10px #00ff00;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00; }
+      to { text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00; }
+    }
+
+    .status {
+      text-align: center;
+      margin-bottom: 15px;
+      padding: 8px;
+      background: #001a00;
+      border: 1px solid #00ff00;
+    }
+
+    .status.connected { color: #00ff00; }
+    .status.disconnected { color: #ff0000; }
+    .status.connecting { color: #ffff00; }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #001a00;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: #00ff00;
+      color: #000;
+      box-shadow: 0 0 10px #00ff00;
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat {
+      background: #001a00;
+      border: 1px solid #00ff00;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .stat-label {
+      color: #00aa00;
+      font-size: 11px;
+    }
+
+    .stat-value {
+      color: #00ff00;
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+
+    .log-container {
+      background: #000;
+      border: 1px solid #00ff00;
+      padding: 10px;
+      height: 500px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      padding: 5px;
+      border-left: 3px solid transparent;
+      word-wrap: break-word;
+    }
+
+    .log-entry.event { border-left-color: #00ff00; background: #001a00; }
+    .log-entry.req { border-left-color: #0088ff; background: #001a1a; }
+    .log-entry.eose { border-left-color: #ffaa00; background: #1a1a00; }
+    .log-entry.ok { border-left-color: #ff00ff; background: #1a001a; }
+    .log-entry.system { border-left-color: #888888; background: #0a0a0a; }
+    .log-entry.error { border-left-color: #ff0000; background: #1a0000; }
+
+    .timestamp {
+      color: #00aa00;
+      margin-right: 10px;
+    }
+
+    .type {
+      color: #ffff00;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .kind {
+      color: #ff00ff;
+      margin-right: 10px;
+    }
+
+    .content {
+      color: #00ff00;
+    }
+
+    .log-container::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .log-container::-webkit-scrollbar-track {
+      background: #000;
+    }
+
+    .log-container::-webkit-scrollbar-thumb {
+      background: #00ff00;
+      border: 1px solid #000;
+    }
+
+    .log-container::-webkit-scrollbar-thumb:hover {
+      background: #00aa00;
+    }
+
+    select {
+      background: #001a00;
+      color: #00ff00;
+      border: 1px solid #00ff00;
+      padding: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>╔══ RELAY.0X6D.NET ══╗</h1>
+
+    <div class="status" id="status">● CONNECTING...</div>
+
+    <div class="controls">
+      <button onclick="connect()">CONNECT</button>
+      <button onclick="disconnect()">DISCONNECT</button>
+      <button onclick="clearLog()">CLEAR LOG</button>
+      <button onclick="fetchRecent()">FETCH LAST 5 MIN</button>
+      <label style="color: #00ff00;">
+        Filter:
+        <select id="kindFilter" onchange="applyFilter()">
+          <option value="">All Events</option>
+          <option value="25555">25555 (Search)</option>
+          <option value="25556">25556 (Response)</option>
+          <option value="25557">25557 (Who Has)</option>
+          <option value="25558">25558 (Availability)</option>
+          <option value="1">1 (Notes)</option>
+          <option value="0">0 (Metadata)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-label">EVENTS RECEIVED</div>
+        <div class="stat-value" id="eventCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">SEARCH (25555)</div>
+        <div class="stat-value" id="searchCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">RESPONSES (25556)</div>
+        <div class="stat-value" id="responseCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">WHO HAS (25557)</div>
+        <div class="stat-value" id="whoHasCount">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">AVAILABLE (25558)</div>
+        <div class="stat-value" id="availableCount">0</div>
+      </div>
+    </div>
+
+    <div class="log-container" id="log"></div>
+  </div>
+
+  <script src="https://unpkg.com/nostr-tools@2.7.2/lib/nostr.bundle.js"></script>
+  <script>
+    const RELAY_URL = 'wss://relay.0x6d.net';
+    let relay = null;
+    let sub = null;
+    let allEvents = [];
+    let stats = {
+      total: 0,
+      25555: 0,
+      25556: 0,
+      25557: 0,
+      25558: 0,
+    };
+
+    function updateStatus(message, state = 'connecting') {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = 'status ' + state;
+    }
+
+    function log(message, type = 'system', data = null) {
+      const logDiv = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+
+      const now = new Date();
+      const timestamp = now.toTimeString().split(' ')[0];
+
+      let html = `<span class="timestamp">[${timestamp}]</span>`;
+      html += `<span class="type">${type.toUpperCase()}</span>`;
+
+      if (data) {
+        html += `<span class="content">${message}</span>`;
+        if (data.kind) {
+          html += ` <span class="kind">kind:${data.kind}</span>`;
+        }
+        if (data.content && data.content.length < 100) {
+          html += ` <span class="content">"${data.content}"</span>`;
+        }
+      } else {
+        html += `<span class="content">${message}</span>`;
+      }
+
+      entry.innerHTML = html;
+      logDiv.insertBefore(entry, logDiv.firstChild);
+
+      // Keep max 100 entries
+      while (logDiv.children.length > 100) {
+        logDiv.removeChild(logDiv.lastChild);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('eventCount').textContent = stats.total;
+      document.getElementById('searchCount').textContent = stats[25555] || 0;
+      document.getElementById('responseCount').textContent = stats[25556] || 0;
+      document.getElementById('whoHasCount').textContent = stats[25557] || 0;
+      document.getElementById('availableCount').textContent = stats[25558] || 0;
+    }
+
+    async function connect() {
+      if (relay) {
+        log('Already connected', 'system');
+        return;
+      }
+
+      try {
+        updateStatus('● CONNECTING...', 'connecting');
+        log('Connecting to ' + RELAY_URL, 'system');
+
+        relay = await NostrTools.Relay.connect(RELAY_URL);
+
+        updateStatus('● CONNECTED', 'connected');
+        log('Connected successfully', 'system');
+
+        // Subscribe to live events
+        subscribeToEvents();
+      } catch (error) {
+        updateStatus('● CONNECTION FAILED', 'error');
+        log('Connection failed: ' + error.message, 'error');
+        relay = null;
+      }
+    }
+
+    function subscribeToEvents() {
+      if (!relay) return;
+
+      const now = Math.floor(Date.now() / 1000);
+
+      sub = relay.subscribe([
+        {
+          kinds: [0, 1, 25555, 25556, 25557, 25558],
+          since: now
+        }
+      ], {
+        onevent(event) {
+          handleEvent(event);
+        },
+        oneose() {
+          log('End of stored events', 'eose');
+        }
+      });
+
+      log('Subscribed to live events', 'system');
+    }
+
+    function handleEvent(event) {
+      allEvents.push(event);
+      stats.total++;
+      if (stats[event.kind] !== undefined) {
+        stats[event.kind]++;
+      }
+      updateStats();
+
+      const kindFilter = document.getElementById('kindFilter').value;
+      if (kindFilter && event.kind !== parseInt(kindFilter)) {
+        return; // Skip display if filtered
+      }
+
+      let message = `Event from ${event.pubkey.slice(0, 8)}...`;
+      log(message, 'event', event);
+    }
+
+    async function fetchRecent() {
+      if (!relay) {
+        await connect();
+        if (!relay) return;
+      }
+
+      const fiveMinutesAgo = Math.floor(Date.now() / 1000) - (5 * 60);
+
+      log('Fetching events from last 5 minutes...', 'system');
+
+      const events = await relay.fetch([
+        {
+          kinds: [25555, 25556, 25557, 25558],
+          since: fiveMinutesAgo
+        }
+      ], { timeout: 5000 });
+
+      log(`Received ${events.length} historical events`, 'system');
+
+      events.forEach(event => {
+        allEvents.push(event);
+        stats.total++;
+        if (stats[event.kind] !== undefined) {
+          stats[event.kind]++;
+        }
+
+        let message = `Event from ${event.pubkey.slice(0, 8)}...`;
+        log(message, 'event', event);
+      });
+
+      updateStats();
+    }
+
+    function disconnect() {
+      if (sub) {
+        sub.close();
+        sub = null;
+      }
+      if (relay) {
+        relay.close();
+        relay = null;
+      }
+      updateStatus('● DISCONNECTED', 'disconnected');
+      log('Disconnected from relay', 'system');
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      log('Log cleared', 'system');
+    }
+
+    function applyFilter() {
+      const logDiv = document.getElementById('log');
+      logDiv.innerHTML = '';
+
+      const kindFilter = document.getElementById('kindFilter').value;
+
+      const filtered = kindFilter
+        ? allEvents.filter(e => e.kind === parseInt(kindFilter))
+        : allEvents;
+
+      filtered.reverse().forEach(event => {
+        let message = `Event from ${event.pubkey.slice(0, 8)}...`;
+        log(message, 'event', event);
+      });
+
+      log(`Showing ${filtered.length} of ${allEvents.length} events`, 'system');
+    }
+
+    // Auto-connect on load
+    window.addEventListener('load', () => {
+      setTimeout(connect, 500);
+    });
+  </script>
+</body>
+</html>

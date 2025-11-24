@@ -39,7 +39,7 @@ appRoot.innerHTML = `
         <h2>Search Collections</h2>
       </header>
       <form id="search-form">
-        <input id="search-input" type="text" placeholder="Search by title, author, or infohash" />
+        <input id="search-input" type="text" placeholder="Search by title, author, or infohash" value="dracula" />
         <div class="search-actions">
           <button type="submit">Search</button>
           <button type="button" id="search-clear">Clear</button>

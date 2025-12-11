@@ -8,7 +8,7 @@ relay_url = "wss://relay.0x6d.net/"
 name = "0x6d.net relay"
 
 # Description
-description = "Nostr relay for minip2p P2P Gutenberg project"
+description = "Nostr relay for minip2p P2P UNOFFICIAL Gutenberg mirror"
 
 # Administrative contact pubkey (32-byte hex, not npub)
 #pubkey = "0c2d168a4ae8ca58c9f1ab237b5df682599c6c7ab74307ea8b05684b60405d41"

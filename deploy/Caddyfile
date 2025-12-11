@@ -1,51 +1,46 @@
 {
-        debug
-    log {
-        output file /var/log/caddy/caddy.log
-        format console
-    }
+	debug
+	log {
+		output file /var/log/caddy/caddy.log
+		format console
+	}
 }
 
 ip.0x6d.net {
-        reverse_proxy 127.0.0.1:18080 {
-                header_up X-Real-IP {remote_host}
-        }
+	reverse_proxy 127.0.0.1:18080 {
+		header_up X-Real-IP {remote_host}
+	}
 }
 
 relay.0x6d.net {
-    reverse_proxy 127.0.0.1:7000
+	reverse_proxy 127.0.0.1:7000
 }
 
+c.0x6d.net {
+	@dotgit path /.git*
+	respond @dotgit "Not allowed" 403
 
-cinema.0x6d.net  {
-    @dotgit path /.git*
-    respond @dotgit "Not allowed" 403
+	@cinema_exact path /cinema
+	redir @cinema_exact /cinema/
 
-    @cinema_exact path /cinema
-    redir @cinema_exact /cinema/
-
-    handle_path /cinema* {
-        root * /var/www/cinema
-        file_server
-    }
-
-    respond "not found" 404
-
-
+	handle_path /cinema* {
+		root * /var/www/cinema
+		file_server
+	}
+	respond "not found" 404
 }
-
 
 0x6d.net {
-    @dotgit path /.git*
-    respond @dotgit "Not allowed" 403
+	@dotgit path /.git*
+	respond @dotgit "Not allowed" 403
 
-    @minip2p_exact path /minip2p
-    redir @minip2p_exact /minip2p/
+	@minip2p_exact path /minip2p
+	redir @minip2p_exact /minip2p/
 
-    handle_path /minip2p* {
-        root * /var/www/minip2p
-        file_server
-    }
+	handle_path /minip2p* {
+		root * /var/www/minip2p
+		file_server
+	}
 
-    respond "not found" 404
+	respond "not found" 404
 }

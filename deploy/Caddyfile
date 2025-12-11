@@ -16,6 +16,25 @@ relay.0x6d.net {
     reverse_proxy 127.0.0.1:7000
 }
 
+
+cinema.0x6d.net  {
+    @dotgit path /.git*
+    respond @dotgit "Not allowed" 403
+
+    @cinema_exact path /cinema
+    redir @cinema_exact /cinema/
+
+    handle_path /cinema* {
+        root * /var/www/cinema
+        file_server
+    }
+
+    respond "not found" 404
+
+
+}
+
+
 0x6d.net {
     @dotgit path /.git*
     respond @dotgit "Not allowed" 403

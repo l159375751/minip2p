@@ -5,7 +5,8 @@
   "main": "seed-multi.js",
   "type": "module",
   "dependencies": {
-    "webtorrent": "^2.8.4",
-    "glob": "^11.0.0"
+    "glob": "^11.0.0",
+    "npm": "^11.7.0",
+    "webtorrent": "^2.8.4"
   }
 }

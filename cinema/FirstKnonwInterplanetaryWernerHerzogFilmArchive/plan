@@ -1,0 +1,23 @@
+for each movie, we need some meta info..
+
+## we need info about the movie itself:
+
+maybe:
+* IMDB ID
+* rotten tm id
+* title(??)
+* summary
+* media file?
+* info: lengh, year, description
+
+## and about the version we have:
+
+maybe:
+media file name [?]
+info_language [??]
+info_language_subs_available [??]
+
+
+
+https://www.reddit.com/r/opensource/comments/1jpjl5b/webtor_opensource_torrent_streaming_engine/
+

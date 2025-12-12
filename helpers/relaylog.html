@@ -251,10 +251,20 @@
       25558: 0,
       25559: 0
     };
-    let sk = NostrTools.generatePrivateKey();
-    let pk = NostrTools.getPublicKey(sk);
+    let sk = null;
+    let pk = null;
 
-    
+    function initializeKeys() {
+        if (!sk) {
+            try {
+                sk = NostrTools.generatePrivateKey();
+                pk = NostrTools.getPublicKey(sk);
+            } catch (e) {
+                console.error("Failed to initialize Nostr keys", e);
+                log('Fatal: Failed to initialize Nostr keys.', 'error');
+            }
+        }
+    }
 
     function updateStatus(message, state = 'connecting') {
       const status = document.getElementById('status');
@@ -308,6 +318,7 @@
         log('Already connected', 'system');
         return;
       }
+      initializeKeys();
 
       try {
         updateStatus('● CONNECTING...', 'connecting');

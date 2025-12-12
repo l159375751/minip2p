@@ -188,7 +188,8 @@
     <div class="controls">
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
-      <button onclick="sendPing()">send nostr ping</button>
+      <button onclick="sendWebsocketPing()">SEND WS PING</button>
+      <button onclick="sendNostrPing()">SEND NOSTR PING</button>
       <button onclick="clearLog()">CLEAR LOG</button>
       <button onclick="fetchRecent()">FETCH LAST 5 MIN</button>
       <label style="color: #00ff00;">
@@ -199,6 +200,7 @@
           <option value="25556">25556 (Response)</option>
           <option value="25557">25557 (Who Has)</option>
           <option value="25558">25558 (Availability)</option>
+          <option value="25559">25559 (Ping/Pong)</option>
           <option value="1">1 (Notes)</option>
           <option value="0">0 (Metadata)</option>
         </select>
@@ -226,6 +228,10 @@
         <div class="stat-label">AVAILABLE (25558)</div>
         <div class="stat-value" id="availableCount">0</div>
       </div>
+      <div class="stat">
+        <div class="stat-label">PING/PONG (25559)</div>
+        <div class="stat-value" id="pingPongCount">0</div>
+      </div>
     </div>
 
     <div class="log-container" id="log"></div>
@@ -243,7 +249,12 @@
       25556: 0,
       25557: 0,
       25558: 0,
+      25559: 0
     };
+    let sk = NostrTools.generatePrivateKey();
+    let pk = NostrTools.getPublicKey(sk);
+
+    
 
     function updateStatus(message, state = 'connecting') {
       const status = document.getElementById('status');
@@ -289,6 +300,7 @@
       document.getElementById('responseCount').textContent = stats[25556] || 0;
       document.getElementById('whoHasCount').textContent = stats[25557] || 0;
       document.getElementById('availableCount').textContent = stats[25558] || 0;
+      document.getElementById('pingPongCount').textContent = stats[25559] || 0;
     }
 
     async function connect() {
@@ -300,6 +312,7 @@
       try {
         updateStatus('● CONNECTING...', 'connecting');
         log('Connecting to ' + RELAY_URL, 'system');
+        log(`Your ephemeral pubkey: ${pk}`, 'system');
 
         relay = await NostrTools.Relay.connect(RELAY_URL);
 
@@ -308,6 +321,9 @@
 
         // Subscribe to live events
         subscribeToEvents();
+        setTimeout(sendNostrPing, 1000);
+        setInterval(sendNostrPing, 30000);
+
       } catch (error) {
         updateStatus('● CONNECTION FAILED', 'error');
         log('Connection failed: ' + error.message, 'error');
@@ -322,7 +338,7 @@
 
       sub = relay.subscribe([
         {
-          kinds: [0, 1, 25555, 25556, 25557, 25558],
+          kinds: [0, 1, 25555, 25556, 25557, 25558, 25559],
           since: now
         }
       ], {
@@ -337,13 +353,19 @@
       log('Subscribed to live events', 'system');
     }
 
-    function handleEvent(event) {
+    async function handleEvent(event) {
       allEvents.push(event);
       stats.total++;
       if (stats[event.kind] !== undefined) {
         stats[event.kind]++;
       }
       updateStats();
+
+      if (event.kind === 25559 && event.pubkey !== pk) {
+        if (event.content === 'ping') {
+          await sendNostrPong(event.pubkey);
+        }
+      }
 
       const kindFilter = document.getElementById('kindFilter').value;
       if (kindFilter && event.kind !== parseInt(kindFilter)) {
@@ -366,7 +388,7 @@
 
       const events = await relay.fetch([
         {
-          kinds: [25555, 25556, 25557, 25558],
+          kinds: [25555, 25556, 25557, 25558, 25559],
           since: fiveMinutesAgo
         }
       ], { timeout: 5000 });
@@ -400,7 +422,7 @@
       log('Disconnected from relay', 'system');
     }
 
-    function sendPing() {
+    function sendWebsocketPing() {
       if (!relay) {
         log('Not connected, cannot send PING.', 'error');
         return;
@@ -412,6 +434,55 @@
         log(`Error sending PING: ${error.message}`, 'error');
       }
     }
+
+    async function sendNostrPing() {
+        if (!relay) {
+            log('Not connected, cannot send Nostr PING.', 'error');
+            return;
+        }
+
+        const event = {
+            kind: 25559,
+            pubkey: pk,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [],
+            content: 'ping'
+        };
+        event.id = NostrTools.getEventHash(event);
+        event.sig = NostrTools.signEvent(event, sk);
+
+        try {
+            await relay.publish(event);
+            log('Published a PING event', 'system', event);
+        } catch (error) {
+            log(`Error publishing PING event: ${error.message}`, 'error');
+        }
+    }
+
+    async function sendNostrPong(recipientPk) {
+        if (!relay) {
+            log('Not connected, cannot send Nostr PONG.', 'error');
+            return;
+        }
+
+        const event = {
+            kind: 25559,
+            pubkey: pk,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [['p', recipientPk]],
+            content: 'pong'
+        };
+        event.id = NostrTools.getEventHash(event);
+        event.sig = NostrTools.signEvent(event, sk);
+
+        try {
+            await relay.publish(event);
+            log(`Published a PONG event to ${recipientPk.slice(0,8)}...`, 'system', event);
+        } catch (error) {
+            log(`Error publishing PONG event: ${error.message}`, 'error');
+        }
+    }
+
 
     function clearLog() {
       document.getElementById('log').innerHTML = '';

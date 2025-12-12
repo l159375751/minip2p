@@ -254,6 +254,20 @@
     let sk = null;
     let pk = null;
 
+    const FANCY_COLORS = [
+      '#7b68ee', '#ee82ee', '#ff69b4', '#00ff7f', '#40e0d0', '#1e90ff', '#ffdead', '#ff8c00', '#ff4500'
+    ];
+
+    function colorFromPublicKey(pk) {
+        let hash = 0;
+        if (pk.length === 0) return FANCY_COLORS[0];
+        for (let i = 0; i < pk.length; i++) {
+            hash = pk.charCodeAt(i) + ((hash << 5) - hash);
+            hash = hash & hash;
+        }
+        return FANCY_COLORS[Math.abs(hash) % FANCY_COLORS.length];
+    }
+
     function initializeKeys() {
         if (!sk) {
             try {
@@ -283,16 +297,25 @@
       let html = `<span class="timestamp">[${timestamp}]</span>`;
       html += `<span class="type">${type.toUpperCase()}</span>`;
 
-      if (data) {
-        html += `<span class="content">${message}</span>`;
-        if (data.kind) {
-          html += ` <span class="kind">kind:${data.kind}</span>`;
-        }
-        if (data.content && data.content.length < 100) {
-          html += ` <span class="content">"${data.content}"</span>`;
-        }
+      if (type === 'event' && data && data.pubkey) {
+          const color = colorFromPublicKey(data.pubkey);
+          html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b></span>`;
+          if (data.kind) {
+            html += ` <span class="kind">kind:${data.kind}</span>`;
+          }
+          if (data.content && data.content.length < 100) {
+            html += ` <span class="content">"${data.content}"</span>`;
+          }
       } else {
         html += `<span class="content">${message}</span>`;
+        if (data) {
+            if (data.kind) {
+              html += ` <span class="kind">kind:${data.kind}</span>`;
+            }
+            if (data.content && data.content.length < 100) {
+              html += ` <span class="content">"${data.content}"</span>`;
+            }
+        }
       }
 
       entry.innerHTML = html;
@@ -323,7 +346,7 @@
       try {
         updateStatus('● CONNECTING...', 'connecting');
         log('Connecting to ' + RELAY_URL, 'system');
-        log(`Your ephemeral pubkey: ${pk}`, 'system');
+        log(`Your ephemeral pubkey: <b style="color: ${colorFromPublicKey(pk)}" title="${pk}">${pk}</b>`, 'system');
 
         relay = await NostrTools.Relay.connect(RELAY_URL);
 
@@ -383,8 +406,7 @@
         return; // Skip display if filtered
       }
 
-      let message = `Event from ${event.pubkey.slice(0, 8)}...`;
-      log(message, 'event', event);
+      log('', 'event', event);
     }
 
     async function fetchRecent() {

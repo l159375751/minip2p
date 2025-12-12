@@ -188,6 +188,7 @@
     <div class="controls">
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
+      <button onclick="sendPing()">send nostr ping</button>
       <button onclick="clearLog()">CLEAR LOG</button>
       <button onclick="fetchRecent()">FETCH LAST 5 MIN</button>
       <label style="color: #00ff00;">
@@ -397,6 +398,19 @@
       }
       updateStatus('● DISCONNECTED', 'disconnected');
       log('Disconnected from relay', 'system');
+    }
+
+    function sendPing() {
+      if (!relay) {
+        log('Not connected, cannot send PING.', 'error');
+        return;
+      }
+      try {
+        relay.ws.send('["PING"]');
+        log('--> PING', 'system');
+      } catch (error) {
+        log(`Error sending PING: ${error.message}`, 'error');
+      }
     }
 
     function clearLog() {

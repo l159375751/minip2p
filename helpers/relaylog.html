@@ -177,6 +177,26 @@
       font-family: 'Courier New', monospace;
       font-size: 12px;
     }
+
+    .expandable-json summary {
+      cursor: pointer;
+      color: #00aa00;
+      font-size: 11px;
+      margin-top: 5px;
+      outline: none;
+    }
+    .expandable-json summary:hover {
+      text-decoration: underline;
+    }
+    .expandable-json pre {
+      background: #001a00;
+      border: 1px solid #00ff00;
+      padding: 10px;
+      margin-top: 5px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #00ff00;
+    }
   </style>
 </head>
 <body>
@@ -307,11 +327,25 @@
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
           html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b></span>`;
-          if (data.kind) {
-            html += ` <span class="kind">kind:${data.kind}</span>`;
-          }
-          if (data.content && data.content.length < 100) {
-            html += ` <span class="content">"${data.content}"</span>`;
+          html += ` <span class="kind">kind:${data.kind}</span>`;
+          
+          if (data.kind === 30317) {
+              try {
+                  const contentJSON = JSON.parse(data.content);
+                  const prettyJSON = JSON.stringify(contentJSON, null, 2);
+                  html += `<details class="expandable-json">`;
+                  html += `<summary>Show/Hide Content</summary>`;
+                  html += `<pre>${prettyJSON}</pre>`;
+                  html += `</details>`;
+              } catch (e) {
+                  if (data.content) {
+                    html += ` <span class="content">"${data.content}"</span>`;
+                  }
+              }
+          } else {
+              if (data.content && data.content.length < 100) {
+                html += ` <span class="content">"${data.content}"</span>`;
+              }
           }
       } else {
         html += `<span class="content">${message}</span>`;

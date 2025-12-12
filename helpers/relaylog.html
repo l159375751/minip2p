@@ -399,7 +399,7 @@
         subscribeToEvents();
         setTimeout(sendNostrPing, 1000);
         setInterval(sendNostrPing, 30000);
-
+        fetchRecent();
       } catch (error) {
         updateStatus('● CONNECTION FAILED', 'error');
         log('Connection failed: ' + error.message, 'error');
@@ -476,9 +476,7 @@
         if (stats[event.kind] !== undefined) {
           stats[event.kind]++;
         }
-
-        let message = `Event from ${event.pubkey.slice(0, 8)}...`;
-        log(message, 'event', event);
+        log('', 'event', event);
       });
 
       updateStats();
@@ -612,8 +610,7 @@
         : allEvents;
 
       filtered.reverse().forEach(event => {
-        let message = `Event from ${event.pubkey.slice(0, 8)}...`;
-        log(message, 'event', event);
+        log('', 'event', event);
       });
 
       log(`Showing ${filtered.length} of ${allEvents.length} events`, 'system');

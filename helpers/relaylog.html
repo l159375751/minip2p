@@ -257,7 +257,7 @@
     function initializeKeys() {
         if (!sk) {
             try {
-                sk = NostrTools.generatePrivateKey();
+                sk = NostrTools.generateSecretKey();
                 pk = NostrTools.getPublicKey(sk);
             } catch (e) {
                 console.error("Failed to initialize Nostr keys", e);

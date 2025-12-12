@@ -452,19 +452,18 @@
             return;
         }
 
-        const event = {
+        let event = {
             kind: 25559,
-            pubkey: pk,
             created_at: Math.floor(Date.now() / 1000),
             tags: [],
             content: 'ping'
         };
-        event.id = NostrTools.getEventHash(event);
-        event.sig = NostrTools.signEvent(event, sk);
+        
+        const signedEvent = NostrTools.finalizeEvent(event, sk);
 
         try {
-            await relay.publish(event);
-            log('Published a PING event', 'system', event);
+            await relay.publish(signedEvent);
+            log('Published a PING event', 'system', signedEvent);
         } catch (error) {
             log(`Error publishing PING event: ${error.message}`, 'error');
         }
@@ -476,19 +475,18 @@
             return;
         }
 
-        const event = {
+        let event = {
             kind: 25559,
-            pubkey: pk,
             created_at: Math.floor(Date.now() / 1000),
             tags: [['p', recipientPk]],
             content: 'pong'
         };
-        event.id = NostrTools.getEventHash(event);
-        event.sig = NostrTools.signEvent(event, sk);
+
+        const signedEvent = NostrTools.finalizeEvent(event, sk);
 
         try {
-            await relay.publish(event);
-            log(`Published a PONG event to ${recipientPk.slice(0,8)}...`, 'system', event);
+            await relay.publish(signedEvent);
+            log(`Published a PONG event to ${recipientPk.slice(0,8)}...`, 'system', signedEvent);
         } catch (error) {
             log(`Error publishing PONG event: ${error.message}`, 'error');
         }

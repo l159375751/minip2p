@@ -190,6 +190,7 @@
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendWebsocketPing()">SEND WS PING</button>
       <button onclick="sendNostrPing()">SEND NOSTR PING</button>
+      <button onclick="sendCinemaNote()">SEND CINEMA NOTE</button>
       <button onclick="clearLog()">CLEAR LOG</button>
       <button onclick="fetchRecent()">FETCH LAST 5 MIN</button>
       <label style="color: #00ff00;">
@@ -201,6 +202,7 @@
           <option value="25557">25557 (Who Has)</option>
           <option value="25558">25558 (Availability)</option>
           <option value="25559">25559 (Ping/Pong)</option>
+          <option value="30317">30317 (Cinema)</option>
           <option value="1">1 (Notes)</option>
           <option value="0">0 (Metadata)</option>
         </select>
@@ -232,6 +234,10 @@
         <div class="stat-label">PING/PONG (25559)</div>
         <div class="stat-value" id="pingPongCount">0</div>
       </div>
+      <div class="stat">
+        <div class="stat-label">CINEMA (30317)</div>
+        <div class="stat-value" id="cinemaCount">0</div>
+      </div>
     </div>
 
     <div class="log-container" id="log"></div>
@@ -249,7 +255,8 @@
       25556: 0,
       25557: 0,
       25558: 0,
-      25559: 0
+      25559: 0,
+      30317: 0
     };
     let sk = null;
     let pk = null;
@@ -334,6 +341,7 @@
       document.getElementById('whoHasCount').textContent = stats[25557] || 0;
       document.getElementById('availableCount').textContent = stats[25558] || 0;
       document.getElementById('pingPongCount').textContent = stats[25559] || 0;
+      document.getElementById('cinemaCount').textContent = stats[30317] || 0;
     }
 
     async function connect() {
@@ -372,7 +380,7 @@
 
       sub = relay.subscribe([
         {
-          kinds: [0, 1, 25555, 25556, 25557, 25558, 25559],
+          kinds: [0, 1, 25555, 25556, 25557, 25558, 25559, 30317],
           since: now
         }
       ], {
@@ -421,7 +429,7 @@
 
       const events = await relay.fetch([
         {
-          kinds: [25555, 25556, 25557, 25558, 25559],
+          kinds: [25555, 25556, 25557, 25558, 25559, 30317],
           since: fiveMinutesAgo
         }
       ], { timeout: 5000 });
@@ -511,6 +519,45 @@
             log(`Published a PONG event to ${recipientPk.slice(0,8)}...`, 'system', signedEvent);
         } catch (error) {
             log(`Error publishing PONG event: ${error.message}`, 'error');
+        }
+    }
+
+    async function sendCinemaNote() {
+        if (!relay) {
+            log('Not connected, cannot send Cinema Note.', 'error');
+            return;
+        }
+
+        let event = {
+            kind: 30317,
+            created_at: Math.floor(Date.now() / 1000),
+            tags: [
+              ["d", "WHDA"],
+              ["t", "cinema"],
+              ["t", "herzog"],
+              ["client", "cinema-poc0.2"]
+            ],
+            content: JSON.stringify({
+              "items": [
+                {"infohash":"c9c47e7b12586a59d83e3e519570835625d44b3e","title":"Herzog Collection"},
+                {"infohash":"A50DFEB595BA55726EEC43C691221188D2BE8471","title":"Lessons of Darkness (1992)"},
+                {"infohash":"C5B2CB165B7CBBDE3A36262FA50FF818BE18207B","title":"Grizzly Man (2005)"},
+                {"infohash":"7D8F3DA61332336454C4F4849FF5BA063DE0E191","title":"Cave of Forgotten Dreams (2010)"},
+                {"infohash":"91C7CF39E3E25CBD77ABE92EF2C4A8029F1D123A","title":"Little Dieter Needs to Fly (1997)"},
+                {"infohash":"2504A0C0D722CDA65ADEDB17DB4D61F366982A23","title":"The Great Ecstasy of Woodcarver Steiner (1974)"},
+                {"infohash":"DA288753694BE9483F2B24E8D99DA6C77FCBC9A9","title":"The Wild Blue Yonder (2005)"},
+                {"infohash":"460b0b5d942af2de6e3d69333c782f391fcc1ee0","title":"Charge – Blender Open Movie"}
+              ]
+            })
+        };
+        
+        const signedEvent = NostrTools.finalizeEvent(event, sk);
+
+        try {
+            await relay.publish(signedEvent);
+            log('Published a Cinema Note event', 'system', signedEvent);
+        } catch (error) {
+            log(`Error publishing Cinema Note event: ${error.message}`, 'error');
         }
     }
 

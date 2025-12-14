@@ -60,13 +60,19 @@ build-docker:
 seed: build-docker
 	@echo "🌱 Starting seeder..."
 	@echo "   Will seed .torrent files from data/ directory"
+	@mkdir -p data
 	@if [ -f torrents.txt ] && grep -q '^[^#]' torrents.txt; then \
 		echo "   Also reading magnet links from torrents.txt"; \
+		echo "   Syncing torrents.txt -> data/torrents.txt"; \
+		cp torrents.txt data/torrents.txt; \
+	else \
+		rm -f data/torrents.txt 2>/dev/null || true; \
 	fi
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
 		-v $$(pwd)/data:/data \
 		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent 
+		$(if $(HASH),-e INFOHASH=$(HASH),) \
+		webtorrent
 	@echo "✅ Seeder started!"
 	@echo "📋 Check logs: make seed-logs"
 	@echo "🛑 Stop: make seed-stop"

@@ -66,7 +66,7 @@ seed: build-docker
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
 		-v $$(pwd)/data:/data \
 		-p 6881:6881 -p 6881:6881/udp \
-		webtorrent
+		webtorrent 
 	@echo "✅ Seeder started!"
 	@echo "📋 Check logs: make seed-logs"
 	@echo "🛑 Stop: make seed-stop"

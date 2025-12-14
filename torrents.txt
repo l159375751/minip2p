@@ -1,7 +1,1 @@
-# List of torrents to seed
-# One magnet link or infohash per line
-# Lines starting with # are comments
-
-# The seeder now reads .torrent files directly from data/ directory
-# Leave this file empty or add additional magnet links if needed
-
+460b0b5d942af2de6e3d69333c782f391fcc1ee0

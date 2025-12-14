@@ -1,2 +1,3 @@
 # Ignore generated archives only
 data/*.tar.gz
+data/charge-blender-open-movie-1608p/

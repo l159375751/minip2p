@@ -23,11 +23,8 @@ c.0x6d.net {
 	@cinema_exact path /cinema
 	redir @cinema_exact /cinema/
 
-	handle_path /cinema* {
-		root * /var/www/cinema
-		file_server
-	}
-	respond "not found" 404
+	root * /var/www/cinema
+	file_server
 }
 
 0x6d.net {

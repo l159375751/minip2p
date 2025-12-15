@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker test-wss check-charge-movie
+.PHONY: deploy push deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker test-wss check-charge-movie
 
 SAMPLE ?= all
 
@@ -9,6 +9,9 @@ TEST_DATA_DIR := $(abspath data/test-data)
 TEST_SAMPLES := 10mb 100mb 1000mb
 TORRENT_DIR := $(abspath data)
 TRACKERS_FILE := $(abspath trackers.txt)
+
+push:
+	git push
 
 deploy:
 	@echo "📦 Staging all changes (poc*, helpers/, index.html, etc.)..."

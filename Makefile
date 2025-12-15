@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker
+.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker test-wss check-charge-movie
 
 SAMPLE ?= all
 
@@ -194,3 +194,12 @@ check-tracker:
 		exit 1; \
 	fi
 	node check-tracker.js $(HASH)
+
+check-charge-movie:
+	@echo "🔍 Checking tracker for 'charge-blender-open-movie-1608p'..."
+	node check-tracker.js 460b0b5d942af2de6e3d69333c782f391fcc1ee0
+
+
+test-wss:
+	@echo "🧪 Testing WSS connection to tracker..."
+	node utils/test-wss.js

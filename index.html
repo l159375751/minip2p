@@ -1,33 +1,158 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>PoCs</title></head>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniP2P Project Hub</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    :root { --pico-font-size: 100%; }
+    main.container {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 2rem;
+    }
+    .search-form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    #search-results article {
+      margin-bottom: 1rem;
+      padding: 1rem;
+    }
+    #search-results h4 {
+      margin-bottom: 0.25rem;
+    }
+    .result-snippet {
+      color: var(--pico-secondary);
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
 <body>
+  <main class="container">
+    <header>
+      <h1>MiniP2P Project Hub</h1>
+      <p>A collection of prototypes and tools for decentralized communication, with integrated search.</p>
+    </header>
 
-  meta <a href="https://github.com/l159375751/minip2p">(github repo)</a><br>
-  served from <b>0x6d.net</b> and <b>github.io</b> e.g:<br>
-  <a href="https://0x6d.net/minip2p/"> 0x6d.net/minip2p</a> &
-  <a href="https://l159375751.github.io/minip2p/"> l159375751.github.io/minip2p/</a><br>
+    <section>
+        <form class="search-form" id="search-form">
+          <input type="search" id="search-input" name="search" placeholder="Search documents and experiments..." required>
+          <button type="submit" aria-busy="false">Search</button>
+        </form>
+        <div id="search-results">
+          <!-- Search results will be dynamically inserted here -->
+        </div>
+    </section>
 
-movie libraries, e.g.: blender/herzog; decentralized browser-based P2P experiments
-  see also <a href="https://c.0x6d.net">c.0x6d.net</a><br>
+    <article id="links-section">
+        <hgroup>
+          <h2>Prototypes & PoCs</h2>
+          <h3>Core feature experiments and demonstrations.</h3>
+        </hgroup>
+        <ul>
+          <li><a href="./poc0/index.html">poc0</a> <small>Simple Nostr query/answer mechanism.</small></li>
+          <li><a href="./poc1/index.html">poc1</a> <small>Fully working b2b Nostr-based book collection.</small></li>
+          <li><a href="./poc6/index.html">poc6</a> <small>WebTorrent transport demo.</small></li>
+          <li><a href="./poc10/index.html">poc10</a> <small>Unofficial Gutenberg Mirror - Browser P2P W/ Trackers.</small></li>
+          <li><a href="./poc12/index.html">poc12</a> <small>Block Diagnostics Lab - Progressive WebTorrent Reader.</small></li>
+        </ul>
+        <hgroup>
+            <h2>Helpers & Diagnostics</h2>
+        </hgroup>
+         <ul>
+            <li><a href="./helpers/relaylog.html">Relay Log Viewer</a> <small>Live feed from relay.0x6d.net.</small></li>
+            <li><a href="./debug.html">WebTorrent Debugger</a> <small>Client-side WebTorrent diagnostics.</small></li>
+        </ul>
+    </article>
+    
+    <footer>
+      <p>
+        <a href="https://github.com/l159375751/minip2p">GitHub Repository</a> | 
+        Canonical Host: <a href="https://0x6d.net/minip2p/">0x6d.net/minip2p/</a>
+      </p>
+    </footer>
+  </main>
 
-<ul>
-book libraries, e.g., Project Gutenberg; decentralized browser-based P2P book search and hosting experiments.<br>
+  <script>
+    const searchForm = document.getElementById('search-form');
+    const searchInput = document.getElementById('search-input');
+    const searchButton = searchForm.querySelector('button');
+    const resultsContainer = document.getElementById('search-results');
+    const linksSection = document.getElementById('links-section');
 
-  <li><a href="./poc0/index.html">poc0 ( simple Nostr query/answer )</a></li>
-  <li><a href="./poc1/index.html">poc1 ( fully working b2b Nostr-based book collection: search, download, offer and index )</a></li>
-  <li><a href="./poc2/index.html">poc2 ( b2b file xfer only, with peerjs )</a></li>
-  <li><a href="./poc3/index.html"><marquee><s>poc3 ( b2b file xfer via simple-peer, signaling via peerjs (broken))</s> ⚠️</marquee></a></li>
-  <li><a href="./poc4/index.html">poc4 ( PeerJS with nice debug logging in browser console )</a></li>
-  <li><a href="./poc5/index.html">poc5 ( b2b/p2p Gutenberg with PeerJS + WebRTC Debug )</a></li>
-  <li><a href="./poc6/index.html">poc6 ( WebTorrent transport demo )</a></li>
-  <li><a href="./poc7/index.html">poc7 ( Full Gutenberg via WebTorrent - 10.9GB collection )</a></li>
-  <li><a href="./poc8/index.html">poc8 ( Create WebTorrent from ZIP file )</a></li>
-  <li><a href="./poc9/index.html">poc9 ( Complete Offline Gutenberg Library - Fetch via WebTorrent, Serve from Index )</a></li>
-  <li><a href="./poc10/index.html">poc10 ( Unofficial Gutenberg Mirror - Browser P2P W/ Trackers )</a></li>
-  <li><a href="./poc11/index.html">poc11 ( Progressive Library Builder - Download → Extract → Ingest )</a></li>
-  <li><a href="./poc12/index.html">poc12 ( Block Diagnostics Lab - Progressive WebTorrent Reader )</a></li>
+    // --- Mock Data for Demonstration ---
+    const sampleData = {
+        "webtorrent": [
+            { title: "poc6: WebTorrent transport demo", url: "./poc6/index.html", snippet: "A basic demonstration of file transfer using the WebTorrent library." },
+            { title: "poc12: Block Diagnostics Lab", url: "./poc12/index.html", snippet: "A progressive WebTorrent reader for inspecting blocks and pieces." },
+            { title: "debug.html: WebTorrent Debugger", url: "./debug.html", snippet: "Client-side diagnostics for WebTorrent connections, including STUN/TURN configuration." }
+        ],
+        "nostr": [
+            { title: "poc0: simple Nostr query/answer", url: "./poc0/index.html", snippet: "A fundamental proof-of-concept for Nostr-based communication." },
+            { title: "poc1: b2b Nostr-based book collection", url: "./poc1/index.html", snippet: "A fully working Nostr implementation for book collection management." }
+        ]
+    };
 
-</ul>
+    searchForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      performSearch();
+    });
+
+    async function performSearch() {
+      const query = searchInput.value.trim().toLowerCase();
+      if (!query) return;
+
+      setLoadingState(true);
+      linksSection.classList.add('hidden');
+      resultsContainer.innerHTML = ''; // Clear previous results
+
+      try {
+        // In a real application, this would be a fetch call:
+        // const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        // if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        // const results = await response.json();
+        
+        // For demonstration, we'll use the sample data.
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+        const results = sampleData[query] || [];
+        
+        if (results.length === 0) {
+            displayError(`No results found for "${query}". Try "webtorrent" or "nostr".`);
+        } else {
+            displayResults(results);
+        }
+
+      } catch (error) {
+        displayError(`Search failed: ${error.message}`);
+      } finally {
+        setLoadingState(false);
+      }
+    }
+
+    function displayResults(results) {
+      const html = results.map(result => `
+        <article>
+          <h4><a href="${result.url}">${result.title}</a></h4>
+          <p class="result-snippet">${result.snippet}</p>
+        </article>
+      `).join('');
+      resultsContainer.innerHTML = html;
+    }
+
+    function displayError(message) {
+        resultsContainer.innerHTML = `<p><mark>${message}</mark></p>`;
+    }
+
+    function setLoadingState(isLoading) {
+      searchButton.setAttribute('aria-busy', isLoading);
+      searchInput.disabled = isLoading;
+    }
+  </script>
 </body>
 </html>

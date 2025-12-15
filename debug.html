@@ -19,7 +19,9 @@
         const log = document.getElementById('log');
         function writeLog(message) {
             console.log(message);
-            log.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            const line = `[${new Date().toLocaleTimeString()}] ${message}\n`;
+            log.textContent += line;
+            log.scrollTop = log.scrollHeight; // Auto-scroll
         }
 
         writeLog('Debugger initialized.');
@@ -28,10 +30,25 @@
             writeLog('ERROR: WebTorrent library not found. Check the script path.');
         } else {
             writeLog(`WebTorrent v${WebTorrent.VERSION} loaded successfully.`);
+            
+            const torrentId = '460b0b5d942af2de6e3d69333c782f391fcc1ee0';
+
             try {
-                const client = new WebTorrent();
-                writeLog('WebTorrent client instantiated successfully.');
-                
+                // Configuration with STUN servers is crucial for NAT traversal
+                const client = new WebTorrent({
+                    tracker: {
+                        rtcConfig: {
+                            iceServers: [
+                                { urls: 'stun:0x6d.net:3478' },
+                                { urls: 'stun:stun.l.google.com:19302' },
+                                { urls: 'stun:global.stun.twilio.com:3478' }
+                            ]
+                        }
+                    }
+                });
+
+                writeLog('WebTorrent client instantiated with STUN configuration.');
+
                 client.on('error', (err) => {
                     writeLog(`CLIENT ERROR: ${err.message}`);
                 });
@@ -40,11 +57,60 @@
                     writeLog(`CLIENT WARNING: ${err.message}`);
                 });
 
-                writeLog('Listening for client errors and warnings.');
-                writeLog('Ready.');
+                writeLog(`Adding torrent: ${torrentId}`);
+                const torrent = client.add(torrentId, { 
+                    announce: ['wss://tracker.0x6d.net'] 
+                });
+
+                torrent.on('infoHash', () => {
+                    writeLog(`Torrent infoHash: ${torrent.infoHash}`);
+                });
+
+                torrent.on('metadata', () => {
+                    writeLog('Metadata received.');
+                    torrent.files.forEach(file => {
+                        writeLog(`- File: ${file.name} (${file.length} bytes)`);
+                    });
+                });
+
+                torrent.on('ready', () => {
+                    writeLog('Torrent is ready to download.');
+                });
+
+                torrent.on('wire', (wire, addr) => {
+                    writeLog(`Connected to peer: ${addr || 'unknown'}`);
+                });
+                
+                torrent.on('peer', (peer) => {
+                    writeLog(`Discovered a peer: ${peer}`);
+                });
+
+                torrent.on('download', (bytes) => {
+                    // This event can be very noisy, so we don't log it by default.
+                    // We rely on the 'progress' event instead.
+                });
+
+                torrent.on('upload', (bytes) => {
+                    // Also noisy.
+                });
+
+                torrent.on('done', () => {
+                    writeLog('DOWNLOAD COMPLETE!');
+                });
+
+                // Log progress every 2 seconds
+                setInterval(() => {
+                    const progress = (torrent.progress * 100).toFixed(2);
+                    writeLog(
+                        `Progress: ${progress}% | ` +
+                        `Peers: ${torrent.numPeers} | ` +
+                        `DL: ${(torrent.downloadSpeed / 1024).toFixed(2)} KB/s | ` +
+                        `UL: ${(torrent.uploadSpeed / 1024).toFixed(2)} KB/s`
+                    );
+                }, 2000);
 
             } catch (err) {
-                writeLog(`FATAL: Could not instantiate WebTorrent client: ${err.message}`);
+                writeLog(`FATAL: Could not instantiate or add torrent: ${err.message}`);
             }
         }
     </script>

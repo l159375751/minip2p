@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebTorrent Debug Page</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: #f0f0f0; padding: 1rem; }
+        h1 { color: #0f0; }
+        #log { border: 1px solid #333; padding: 1rem; height: 80vh; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+    <h1>WebTorrent Debugger</h1>
+    <pre id="log"></pre>
+
+    <script src="poc12/vendor/webtorrent.min.js"></script>
+    <script>
+        const log = document.getElementById('log');
+        function writeLog(message) {
+            console.log(message);
+            log.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+        }
+
+        writeLog('Debugger initialized.');
+
+        if (typeof WebTorrent === 'undefined') {
+            writeLog('ERROR: WebTorrent library not found. Check the script path.');
+        } else {
+            writeLog(`WebTorrent v${WebTorrent.VERSION} loaded successfully.`);
+            try {
+                const client = new WebTorrent();
+                writeLog('WebTorrent client instantiated successfully.');
+                
+                client.on('error', (err) => {
+                    writeLog(`CLIENT ERROR: ${err.message}`);
+                });
+
+                client.on('warning', (err) => {
+                    writeLog(`CLIENT WARNING: ${err.message}`);
+                });
+
+                writeLog('Listening for client errors and warnings.');
+                writeLog('Ready.');
+
+            } catch (err) {
+                writeLog(`FATAL: Could not instantiate WebTorrent client: ${err.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

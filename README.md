@@ -7,3 +7,7 @@ This repository grows a series of browser-based experiments for sharing the Proj
   - `/poc12/` working webtorrent browser only p2p book backend CDN
 
 Want to explore locally? Most prototypes are single HTML files you can open directly. For `poc0` and `poc1`, run `make serve` inside the directory to spin up a quick static server.
+
+If you run the local WebSocket tracker (Aquatic), the public metrics UI lives at:
+
+- https://metrics.tracker.0x6d.net/

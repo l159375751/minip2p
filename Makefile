@@ -1,4 +1,4 @@
-.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker
+.PHONY: deploy deploy-caddy fetch-gutenberg convert-to-targz setup-docker build-docker create-torrent seed seed-stop seed-logs mini-archive mini-archive-all mini-archive-sha test-data test-data-clean mini-torrents main-torrent all-torrents transmission-add transmission-status transmission-verify transmission-start transmission-stop check-tracker test-wss check-charge-movie
 
 SAMPLE ?= all
 
@@ -11,6 +11,7 @@ TORRENT_DIR := $(abspath data)
 TRACKERS_FILE := $(abspath trackers.txt)
 
 deploy:
+	@echo "📦 Staging all changes (poc*, helpers/, index.html, etc.)..."
 	git add -A
 	@if git diff --cached --quiet; then \
 		echo "ℹ️ No staged changes to commit."; \
@@ -59,12 +60,18 @@ build-docker:
 seed: build-docker
 	@echo "🌱 Starting seeder..."
 	@echo "   Will seed .torrent files from data/ directory"
+	@mkdir -p data
 	@if [ -f torrents.txt ] && grep -q '^[^#]' torrents.txt; then \
 		echo "   Also reading magnet links from torrents.txt"; \
+		echo "   Syncing torrents.txt -> data/torrents.txt"; \
+		cp torrents.txt data/torrents.txt; \
+	else \
+		rm -f data/torrents.txt 2>/dev/null || true; \
 	fi
 	docker run -d --name webtorrent-seeder --restart unless-stopped \
 		-v $$(pwd)/data:/data \
 		-p 6881:6881 -p 6881:6881/udp \
+		$(if $(HASH),-e INFOHASH=$(HASH),) \
 		webtorrent
 	@echo "✅ Seeder started!"
 	@echo "📋 Check logs: make seed-logs"
@@ -187,3 +194,12 @@ check-tracker:
 		exit 1; \
 	fi
 	node check-tracker.js $(HASH)
+
+check-charge-movie:
+	@echo "🔍 Checking tracker for 'charge-blender-open-movie-1608p'..."
+	node check-tracker.js 460b0b5d942af2de6e3d69333c782f391fcc1ee0
+
+
+test-wss:
+	@echo "🧪 Testing WSS connection to tracker..."
+	node utils/test-wss.js

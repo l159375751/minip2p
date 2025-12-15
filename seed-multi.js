@@ -21,24 +21,39 @@ const FALLBACK_TRACKERS = [
   'udp://tracker.torrent.eu.org:451/announce'
 ]
 
-// Read torrents file
+// Read torrents file / env config
 const torrentsFile = process.argv[2] || 'torrents.txt'
 const trackersArg = process.argv[3] || null
 const torrentFilesDir = process.argv[4] || null
 
 let lines = []
 
-// Read from torrents.txt if it exists
-if (fs.existsSync(torrentsFile)) {
-  const content = fs.readFileSync(torrentsFile, 'utf8')
-  lines = content.split('\n')
+// 1) Optional INFOHASH/INFOHASHES env (space/comma/newline separated)
+const envSeedsRaw = (process.env.INFOHASHES || process.env.INFOHASH || '').trim()
+if (envSeedsRaw) {
+  const envLines = envSeedsRaw
+    .split(/[\s,]+/)
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('#'))
 
-  if (lines.length > 0) {
-    console.log(`📋 Found ${lines.length} torrent(s) from ${torrentsFile}`)
+  if (envLines.length > 0) {
+    console.log(`📋 Found ${envLines.length} torrent(s) from INFOHASH env`)
+    lines.push(...envLines)
   }
-} else {
+}
+
+// 2) Read from torrents.txt if it exists
+if (fs.existsSync(torrentsFile)) {
+  const content = fs.readFileSync(torrentsFile, 'utf8')
+  const fileLines = content.split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'))
+
+  if (fileLines.length > 0) {
+    console.log(`📋 Found ${fileLines.length} torrent(s) from ${torrentsFile}`)
+    lines.push(...fileLines)
+  }
+} else if (lines.length === 0) {
   console.log(`ℹ️  No ${torrentsFile} file found, checking for .torrent files...`)
 }
 

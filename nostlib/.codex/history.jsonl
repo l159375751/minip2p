@@ -67,3 +67,40 @@
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762781472,"text":"ok"}
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762781799,"text":"next?"}
 {"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762781847,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783164,"text":"do it"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783333,"text":"[Violation] 'click' handler took 3815ms\n￼index-BHS_PaNR.js:46 [Violation] 'click' handler took 1718ms\n￼index-BHS_PaNR.js:46 Uncaught (in promise) Error: private key must be 32 bytes, hex or bigint, not object\n    at Object.a [as normPrivateKeyToScalar] (￼index-BHS_PaNR.js:46:17672)\n    at Zt (￼index-BHS_PaNR.js:46:30814)\n    at Object.hi [as getPublicKey] (￼index-BHS_PaNR.js:46:31182)\n    at finalizeEvent (￼index-BHS_PaNR.js:46:70146)\n    at Iu (￼index-BHS_PaNR.js:46:97191)\n﻿"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783504,"text":"not available\n﻿\n￼index-BHS_PaNR.js:46 NOTICE from ￼wss://relay.0x6d.net/: could not parse command\n￼index-BHS_PaNR.js:46 Uncaught (in promise) Error: private key must be 32 bytes, hex or bigint, not object\n    at Object.a [as normPrivateKeyToScalar] (￼index-BHS_PaNR.js:46:17672)\n    at Zt (￼index-BHS_PaNR.js:46:30814)\n    at Object.hi [as getPublicKey] (￼index-BHS_PaNR.js:46:31182)\n    at finalizeEvent (￼index-BHS_PaNR.js:46:70146)\n    at Iu (￼index-BHS_PaNR.js:46:97191)\n﻿"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783621,"text":"do it"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783808,"text":"my relay might be stupid, or down? :D"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762783846,"text":"not available\n﻿\n￼index-D5nGCPV7.js:46 NOTICE from ￼wss://relay.0x6d.net/: could not parse command"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762784413,"text":"Featured Shelves should be -> list view of my books"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762784723,"text":"does not work."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785108,"text":"￼\n￼Expression\nnot available\n﻿\n￼index-D2z4woFK.js:46 onevent() callback not defined for subscription 'nostr-search-stream:1' in relay ￼wss://relay.0x6d.net/. event received: \n{id: '673cde78e2055d384f7858606868a248d9c47ece111a1fdeaf77833c588deeb5', pubkey: 'e9779adb143d0cd011f61bd172d6c155ce4bdc2451a9032ae31e75d864c1344e', created_at: 1762785087, kind: 25555, tags: Array(1), …}\n﻿"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785257,"text":"can you give me a overwview of this porject, wodneirng if it is not lean .. when we compare it to poc10 for example .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785319,"text":"for now we keep it, but we must restore ALL functinatility form poc10. that is allot1"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785330,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785383,"text":"hm. ok do it/ also remove the first book view, we will add it later. just the list .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762785749,"text":"rigth now we have  two bad overviews, make it one good one.. onely the books list stays for now.. pls :)"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786094,"text":"where is our search? we wanna have de  nostr book searhc from poc10 or so .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786195,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786362,"text":"sgtm"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786475,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786724,"text":"what next"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786799,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762786866,"text":"kk"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762787289,"text":"yeah"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762787465,"text":"looks about right, next?"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762787542,"text":"lest remove the desciption for now"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762787658,"text":"ok do it. also 'get book' still not work ."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788105,"text":"what next?"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788162,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788303,"text":"ok"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788320,"text":"next"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788413,"text":"next"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788436,"text":"ah, you active in background?"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788463,"text":"do it!"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762788531,"text":"currently weg get info has, not book .."}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762789860,"text":"do it"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762789950,"text":"see how to open file in poc10. here you kill the current tab, also font is ugrly , i guess??? :D"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762789970,"text":"doit"}
+{"session_id":"019a6d3e-c791-7792-b6ff-12bc952a523e","ts":1762791063,"text":"save your state, we continue next time"}

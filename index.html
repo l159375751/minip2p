@@ -1,30 +1,93 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>PoCs</title></head>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniP2P Project Hub</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    body {
+      padding: 2rem;
+    }
+    .container {
+      max-width: 960px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    article {
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 1rem;
+      border-left: 3px solid var(--primary);
+      padding-left: 1rem;
+    }
+    a {
+      text-decoration: none;
+      font-weight: bold;
+    }
+    small {
+      display: block;
+      color: var(--muted-color);
+    }
+  </style>
+</head>
 <body>
-<ul>
-  <li><a href="./poc0/index.html">poc0 ( simple Nostr query/answer )</a></li>
-  <li><a href="./poc1/index.html">poc1 ( fully working b2b Nostr-based book collection: search, download, offer and index )</a></li>
-  <li><a href="./poc2/index.html">poc2 ( b2b file xfer only, with peerjs )</a></li>
-  <li><a href="./poc3/index.html"><marquee><s>poc3 ( b2b file xfer via simple-peer, signaling via peerjs (broken))</s> ⚠️</marquee></a></li>
-  <li><a href="./poc4/index.html">poc4 ( PeerJS with nice debug logging in browser console )</a></li>
-  <li><a href="./poc5/index.html">poc5 ( b2b/p2p Gutenberg with PeerJS + WebRTC Debug )</a></li>
-  <li><a href="./poc6/index.html">poc6 ( WebTorrent transport demo )</a></li>
-  <li><a href="./poc7/index.html">poc7 ( Full Gutenberg via WebTorrent - 10.9GB collection )</a></li>
-  <li><a href="./poc8/index.html">poc8 ( Create WebTorrent from ZIP file )</a></li>
-  <li><a href="./poc9/index.html">poc9 ( Complete Offline Gutenberg Library - Fetch via WebTorrent, Serve from Index )</a></li>
-  <li><a href="./poc10/index.html">poc10 ( Unofficial Gutenberg Mirror - Browser P2P W/ Trackers )</a></li>
-  <li><a href="./poc11/index.html">poc11 ( Progressive Library Builder - Download → Extract → Ingest )</a></li>
-  <li><a href="./poc12/index.html">poc12 ( Block Diagnostics Lab - Progressive WebTorrent Reader )</a></li>
-  <li><a href="./poc13/index.html">poc13 ( Browser Based P2P Libraries & Collections )</a></li>
-</ul>
-<h2>Helpers</h2>
-<ul>
-  <li><a href="./helpers/relaylog.html">Relay Log Viewer ( Live feed from relay.0x6d.net )</a></li>
-</ul>
-<p>
-  Back to canonical host:
-  <a href="https://0x6d.net/minip2p/">https://0x6d.net/minip2p/</a>
-</p>
+  <main class="container">
+    <header>
+      <h1>MiniP2P Project Hub</h1>
+      <p>A collection of prototypes, proofs-of-concept, and tools for decentralized communication.</p>
+    </header>
+
+    <article>
+        <hgroup>
+          <h2>Prototypes & PoCs</h2>
+          <h3>Core feature experiments and demonstrations.</h3>
+        </hgroup>
+        <input type="search" id="search" name="search" placeholder="Search experiments (coming soon)...">
+        <ul>
+          <li><a href="./poc0/index.html">poc0</a> <small>Simple Nostr query/answer mechanism.</small></li>
+          <li><a href="./poc1/index.html">poc1</a> <small>Fully working b2b Nostr-based book collection: search, download, offer and index.</small></li>
+          <li><a href="./poc2/index.html">poc2</a> <small>b2b file transfer only, with PeerJS.</small></li>
+          <li><a href="./poc3/index.html">poc3</a> <small>b2b file xfer via simple-peer, signaling via peerjs (broken).</small></li>
+          <li><a href="./poc4/index.html">poc4</a> <small>PeerJS with nice debug logging in browser console.</small></li>
+          <li><a href="./poc5/index.html">poc5</a> <small>b2b/p2p Gutenberg with PeerJS + WebRTC Debug.</small></li>
+          <li><a href="./poc6/index.html">poc6</a> <small>WebTorrent transport demo.</small></li>
+          <li><a href="./poc7/index.html">poc7</a> <small>Full Gutenberg via WebTorrent - 10.9GB collection.</small></li>
+          <li><a href="./poc8/index.html">poc8</a> <small>Create WebTorrent from ZIP file.</small></li>
+          <li><a href="./poc9/index.html">poc9</a> <small>Complete Offline Gutenberg Library - Fetch via WebTorrent, Serve from Index.</small></li>
+          <li><a href="./poc10/index.html">poc10</a> <small>Unofficial Gutenberg Mirror - Browser P2P W/ Trackers.</small></li>
+          <li><a href="./poc11/index.html">poc11</a> <small>Progressive Library Builder - Download → Extract → Ingest.</small></li>
+          <li><a href="./poc12/index.html">poc12</a> <small>Block Diagnostics Lab - Progressive WebTorrent Reader.</small></li>
+          <li><a href="./poc13/index.html">poc13</a> <small>Browser Based P2P Libraries & Collections.</small></li>
+        </ul>
+    </article>
+
+    <article>
+        <hgroup>
+            <h2>Helpers</h2>
+            <h3>Utilities and diagnostic tools.</h3>
+        </hgroup>
+        <ul>
+            <li><a href="./helpers/relaylog.html">Relay Log Viewer</a> <small>Live feed from relay.0x6d.net.</small></li>
+            <li><a href="./debug.html">WebTorrent Debugger</a> <small>Client-side WebTorrent diagnostics.</small></li>
+        </ul>
+    </article>
+    
+    <footer>
+      <p>
+        Back to canonical host:
+        <a href="https://0x6d.net/minip2p/">https://0x6d.net/minip2p/</a>
+      </p>
+    </footer>
+
+  </main>
 </body>
 </html>

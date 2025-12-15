@@ -24,7 +24,7 @@ c.0x6d.net {
 	redir @cinema_exact /cinema/
 
 	root * /var/www/cinema
-	file_server
+	file_server browse
 }
 
 0x6d.net {

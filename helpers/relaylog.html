@@ -84,17 +84,20 @@
     }
 
     .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 10px;
-      margin-bottom: 15px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 16px;
+      margin-bottom: 10px;
     }
 
     .stat {
-      background: #001a00;
-      border: 1px solid #00ff00;
-      padding: 8px;
-      text-align: center;
+      background: transparent;
+      border: none;
+      padding: 0;
+      text-align: left;
+      display: flex;
+      gap: 4px;
+      align-items: baseline;
     }
 
     .stat-label {
@@ -104,9 +107,8 @@
 
     .stat-value {
       color: #00ff00;
-      font-size: 18px;
+      font-size: 11px;
       font-weight: bold;
-      margin-top: 5px;
     }
 
     .log-container {
@@ -199,10 +201,15 @@
     }
 
     .whda-panel {
+      display: none;
       margin-bottom: 15px;
       background: #001a00;
       border: 1px solid #00ff00;
       padding: 8px;
+    }
+
+    .whda-panel.whda-panel--visible {
+      display: block;
     }
 
     .whda-header {
@@ -243,7 +250,6 @@
     <div class="controls">
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
-      <button onclick="sendWebsocketPing()">SEND WS PING</button>
       <label style="color: #00ff00;">
         WHDA:
         <select id="whdaAction" onchange="handleWhdaAction()">
@@ -360,6 +366,13 @@
                 log('Fatal: Failed to initialize Nostr keys.', 'error');
             }
         }
+    }
+
+    function ensureWhdaVisible() {
+      const panel = document.querySelector('.whda-panel');
+      if (panel) {
+        panel.classList.add('whda-panel--visible');
+      }
     }
 
     function setWhdaStatus(message) {
@@ -509,6 +522,35 @@
       log('', 'event', event);
     }
 
+    async function fetchOnce(filters, timeoutMs) {
+      if (!relay) return [];
+
+      return new Promise((resolve) => {
+        const events = [];
+        let finished = false;
+
+        const timer = setTimeout(() => {
+          if (finished) return;
+          finished = true;
+          if (tempSub) tempSub.close();
+          resolve(events);
+        }, typeof timeoutMs === 'number' ? timeoutMs : 5000);
+
+        const tempSub = relay.subscribe(filters, {
+          onevent(event) {
+            events.push(event);
+          },
+          oneose() {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timer);
+            tempSub.close();
+            resolve(events);
+          }
+        });
+      });
+    }
+
     async function fetchRecent() {
       if (!relay) {
         await connect();
@@ -519,12 +561,12 @@
 
       log('Fetching events from last 5 minutes...', 'system');
 
-      const events = await relay.fetch([
+      const events = await fetchOnce([
         {
           kinds: [25555, 25556, 25557, 25558, 25559, 30317],
           since: fiveMinutesAgo
         }
-      ], { timeout: 5000 });
+      ], 5000);
 
       log(`Received ${events.length} historical events`, 'system');
 
@@ -551,19 +593,6 @@
       }
       updateStatus('● DISCONNECTED', 'disconnected');
       log('Disconnected from relay', 'system');
-    }
-
-    function sendWebsocketPing() {
-      if (!relay) {
-        log('Not connected, cannot send PING.', 'error');
-        return;
-      }
-      try {
-        relay.ws.send('["PING"]');
-        log('--> PING', 'system');
-      } catch (error) {
-        log(`Error sending PING: ${error.message}`, 'error');
-      }
     }
 
     async function sendNostrPong(recipientPk) {
@@ -642,6 +671,8 @@
       const editor = document.getElementById('whdaEditor');
       if (!editor) return;
 
+      ensureWhdaVisible();
+
       const payload = {
         items: [
           {"infohash":"c9c47e7b12586a59d83e3e519570835625d44b3e","title":"Herzog Collection"},
@@ -670,19 +701,21 @@
       const editor = document.getElementById('whdaEditor');
       if (!editor) return;
 
+      ensureWhdaVisible();
+
       setWhdaStatus('Loading latest WHDA from relay...');
       log('Fetching latest WHDA note from relay...', 'system');
 
       const since = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
 
       try {
-        const events = await relay.fetch([
+        const events = await fetchOnce([
           {
             kinds: [30317],
             '#d': ['WHDA'],
             since
           }
-        ], { timeout: 5000 });
+        ], 5000);
 
         if (!events || events.length === 0) {
           setWhdaStatus('No WHDA note found in last 24h');
@@ -723,6 +756,8 @@
         log('WHDA editor not found in DOM.', 'error');
         return;
       }
+
+      ensureWhdaVisible();
 
       let payload;
       const raw = editor.value.trim();

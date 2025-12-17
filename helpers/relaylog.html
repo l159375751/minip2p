@@ -459,22 +459,22 @@
       }
       initializeKeys();
 
-      try {
-        updateStatus('● CONNECTING...', 'connecting');
-        log('Connecting to ' + RELAY_URL, 'system');
+	      try {
+	        updateStatus('● CONNECTING ' + RELAY_URL, 'connecting');
+	        log('Connecting to ' + RELAY_URL, 'system');
         log(`Your ephemeral pubkey: <b style="color: ${colorFromPublicKey(pk)}" title="${pk}">${pk}</b>`, 'system');
 
-        relay = await NostrTools.Relay.connect(RELAY_URL);
-
-        updateStatus('● CONNECTED', 'connected');
-        log('Connected successfully', 'system');
+	        relay = await NostrTools.Relay.connect(RELAY_URL);
+	
+	        updateStatus('● CONNECTED ' + RELAY_URL, 'connected');
+	        log('Connected successfully to ' + RELAY_URL, 'system');
 
         // Subscribe to live events
         subscribeToEvents();
         fetchRecent();
-      } catch (error) {
-        updateStatus('● CONNECTION FAILED', 'error');
-        log('Connection failed: ' + error.message, 'error');
+	      } catch (error) {
+	        updateStatus('● CONNECTION FAILED ' + RELAY_URL, 'error');
+	        log('Connection failed to ' + RELAY_URL + ': ' + error.message, 'error');
         relay = null;
       }
     }
@@ -588,12 +588,12 @@
         sub.close();
         sub = null;
       }
-      if (relay) {
-        relay.close();
-        relay = null;
-      }
-      updateStatus('● DISCONNECTED', 'disconnected');
-      log('Disconnected from relay', 'system');
+	      if (relay) {
+	        relay.close();
+	        relay = null;
+	      }
+	      updateStatus('● DISCONNECTED ' + RELAY_URL, 'disconnected');
+	      log('Disconnected from relay ' + RELAY_URL, 'system');
     }
 
     async function sendNostrPong(recipientPk) {

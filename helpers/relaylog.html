@@ -648,21 +648,31 @@
         }
       }
 
-        let event = {
-            kind: 25559,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [],
-            content: 'whda'
-        };
-        
-        const signedEvent = NostrTools.finalizeEvent(event, sk);
+        // Legacy WHDA helper left intentionally blank.
+        // The WHDA editor + publish flow handles this now.
+    }
 
-        try {
-            await relay.publish(signedEvent);
-            log('Published a WHDA event', 'system', signedEvent);
-        } catch (error) {
-            log(`Error publishing WHDA event: ${error.message}`, 'error');
-        }
+    async function sendNostrPing() {
+      if (!relay) {
+        log('Not connected, cannot send Nostr PING.', 'error');
+        return;
+      }
+
+      const event = {
+        kind: 25559,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+        content: 'ping'
+      };
+
+      const signedEvent = NostrTools.finalizeEvent(event, sk);
+
+      try {
+        await relay.publish(signedEvent);
+        log('Published a PING event', 'system', signedEvent);
+      } catch (error) {
+        log(`Error publishing PING event: ${error.message}`, 'error');
+      }
     }
 
     async function handleWhdaAction() {

@@ -250,6 +250,7 @@
     <div class="controls">
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
+      <button onclick="sendWebsocketPing()">SEND WS PING</button>
       <label style="color: #00ff00;">
         WHDA:
         <select id="whdaAction" onchange="handleWhdaAction()">
@@ -628,11 +629,24 @@
         await publishWhda();
     }
 
-    async function sendWhda() {
+	    async function sendWhda() {
         if (!relay) {
             log('Not connected, cannot send WHDA.', 'error');
             return;
+	    }
+
+      function sendWebsocketPing() {
+        if (!relay || !relay.ws) {
+          log('Relay WebSocket not available for PING.', 'error');
+          return;
         }
+        try {
+          relay.ws.send('["PING"]');
+          log('--> PING (raw websocket)', 'system');
+        } catch (error) {
+          log(`Error sending PING: ${error.message}`, 'error');
+        }
+      }
 
         let event = {
             kind: 25559,

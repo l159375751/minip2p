@@ -1,0 +1,13 @@
+[network]
+address = "0.0.0.0:3000"
+
+[access_list]
+mode = "allow"
+path = "/var/lib/aquatic/access-list.txt"
+
+[metrics]
+run_prometheus_endpoint = true
+prometheus_endpoint_address = "0.0.0.0:3001"
+torrent_count_update_interval = 10
+peer_clients = false
+peer_id_prefixes = false

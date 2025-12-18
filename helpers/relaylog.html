@@ -261,7 +261,16 @@
         </select>
       </label>
       <button onclick="clearLog()">CLEAR LOG</button>
-      <button onclick="fetchRecent()">FETCH LAST 5 MIN</button>
+      <label style="color: #00ff00;">
+        Fetch:
+        <select id="fetchRange" onchange="fetchRecent()">
+          <option value="5">5 min</option>
+          <option value="60">1 hour</option>
+          <option value="1440">1 day</option>
+          <option value="10080">1 week</option>
+          <option value="all">All</option>
+        </select>
+      </label>
       <label style="color: #00ff00;">
         Filter:
         <select id="kindFilter" onchange="applyFilter()">
@@ -558,16 +567,30 @@
         if (!relay) return;
       }
 
-      const fiveMinutesAgo = Math.floor(Date.now() / 1000) - (5 * 60);
+      const rangeSelect = document.getElementById('fetchRange');
+      const rangeValue = rangeSelect.value;
+      const rangeText = rangeSelect.options[rangeSelect.selectedIndex].text;
 
-      log('Fetching events from last 5 minutes...', 'system');
+      let since = 0;
+      let logMessage = `Fetching all events...`;
 
-      const events = await fetchOnce([
-        {
-          kinds: [25555, 25556, 25557, 25558, 25559, 30317],
-          since: fiveMinutesAgo
-        }
-      ], 5000);
+      if (rangeValue !== 'all') {
+        const minutes = parseInt(rangeValue, 10);
+        since = Math.floor(Date.now() / 1000) - (minutes * 60);
+        logMessage = `Fetching events from last ${rangeText}...`;
+      }
+
+      log(logMessage, 'system');
+
+      const filter = {
+        kinds: [25555, 25556, 25557, 25558, 25559, 30317]
+      };
+
+      if (since > 0) {
+        filter.since = since;
+      }
+
+      const events = await fetchOnce([filter], 5000);
 
       log(`Received ${events.length} historical events`, 'system');
 

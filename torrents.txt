@@ -1,1 +1,20 @@
+# Torrent Collections
+#
+# This file defines torrents to be seeded by default.
+# The seeder also automatically picks up any *.torrent files in the /data/ directory.
+#
+# Collections:
+# - BLNR: Blender Open Movies
+# - WHDA: Werner Herzog Documentary Archive
+# - MISC: Other torrents (e.g. Gutenberg)
+
+# == BLNR (Default for debug) ==
 460b0b5d942af2de6e3d69333c782f391fcc1ee0
+
+# == MISC (loaded from /data/*.torrent) ==
+#
+# The following torrents are loaded directly by the seeder:
+# - gutenberg-txt-files.tar.gz.torrent
+# - mini-gutenberg-1000mb.tar.gz.torrent
+# - mini-gutenberg-100mb.tar.gz.torrent
+# - mini-gutenberg-10mb.tar.gz.torrent

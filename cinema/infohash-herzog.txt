@@ -1,0 +1,2 @@
+# Infohashes for the Werner Herzog Documentary Archive (WHDA) collection.
+# This file is a placeholder for now.

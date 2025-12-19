@@ -251,19 +251,6 @@
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendNostrPing()">SEND NOSTR PING</button>
-          <label style="color: #00ff00;">
-            d=
-            <select id="collectionSelect" onchange="onCollectionChange()">
-              <option value="WHDA">WHDA</option>
-              <option value="BLNR">BLNR</option>
-            </select>
-          </label>
-          <select id="collectionAction" onchange="handleCollectionAction()" style="background: #001a00; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
-            <option value="">--</option>
-            <option value="load-latest">Load</option>
-            <option value="new-note">New</option>
-            <option value="publish">Publish</option>
-          </select>
       <button onclick="clearLog()">CLEAR LOG</button>
       <label style="color: #00ff00;">
         Fetch:
@@ -289,6 +276,22 @@
           <option value="0">0 (Metadata)</option>
         </select>
       </label>
+    </div>
+
+    <div style="background: #001a00; border: 1px solid #00ff00; padding: 8px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
+      <label style="color: #00ff00; margin: 0;">
+        d=
+        <select id="collectionSelect" onchange="onCollectionChange()">
+          <option value="WHDA">WHDA</option>
+          <option value="BLNR">BLNR</option>
+        </select>
+      </label>
+      <select id="collectionAction" onchange="handleCollectionAction()" style="background: #001a00; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
+        <option value="">--</option>
+        <option value="load-latest">Load</option>
+        <option value="new-note">New</option>
+        <option value="publish">Publish</option>
+      </select>
     </div>
 
     <div class="stats">

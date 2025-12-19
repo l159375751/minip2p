@@ -410,26 +410,39 @@
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
           html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b></span>`;
-          html += ` <span class="kind">kind:${data.kind}</span>`;
           
+          let contentHtml = '';
           if (data.kind === 30317) {
               try {
                   const contentJSON = JSON.parse(data.content);
                   const prettyJSON = JSON.stringify(contentJSON, null, 2);
-                  html += `<details class="expandable-json">`;
-                  html += `<summary>Show/Hide Content</summary>`;
-                  html += `<pre>${prettyJSON}</pre>`;
-                  html += `</details>`;
+                  // Ensure contentJSON.items exists before trying to access its first element
+                  const previewSource = contentJSON.items && contentJSON.items.length > 0 ? contentJSON.items[0] : contentJSON;
+                  const contentPreview = JSON.stringify(previewSource, null, 0).substring(0, 50) + (JSON.stringify(previewSource, null, 0).length > 50 ? '...' : '');
+                  
+                  contentHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; flex-grow: 1;">
+                      <span class="kind">kind:${data.kind}</span>
+                      <span class="content">${contentPreview}</span>
+                      <details class="expandable-json" style="margin-left: auto;">
+                        <summary>Show/Hide Content</summary>
+                        <pre>${prettyJSON}</pre>
+                      </details>
+                    </div>
+                  `;
               } catch (e) {
+                  contentHtml += ` <span class="kind">kind:${data.kind}</span>`;
                   if (data.content) {
-                    html += ` <span class="content">"${data.content}"</span>`;
+                    contentHtml += ` <span class="content">"${data.content}"</span>`;
                   }
               }
           } else {
+              contentHtml += ` <span class="kind">kind:${data.kind}</span>`;
               if (data.content && data.content.length < 100) {
-                html += ` <span class="content">"${data.content}"</span>`;
+                contentHtml += ` <span class="content">"${data.content}"</span>`;
               }
           }
+          html += contentHtml; // Append the generated content HTML
       } else {
         html += `<span class="content">${message}</span>`;
         if (data) {

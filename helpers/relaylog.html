@@ -403,6 +403,20 @@
       status.className = 'status ' + state;
     }
 
+    function getEventTypeName(kind) {
+      const kindNames = {
+        0: 'METADATA',
+        1: 'NOTE',
+        25555: 'SEARCH',
+        25556: 'RESPONSE',
+        25557: 'WHO-HAS',
+        25558: 'AVAILABLE',
+        25559: 'PING/PONG',
+        30317: 'CINEMA'
+      };
+      return kindNames[kind] || `KIND-${kind}`;
+    }
+
     function log(message, type = 'system', data = null) {
       const logDiv = document.getElementById('log');
       const entry = document.createElement('div');
@@ -412,11 +426,17 @@
       const timestamp = now.toTimeString().split(' ')[0];
 
       let html = `<span class="timestamp">[${timestamp}]</span>`;
-      html += `<span class="type">${type.toUpperCase()}</span>`;
+
+      // Use event kind name for events instead of generic "EVENT"
+      if (type === 'event' && data && data.kind !== undefined) {
+        html += `<span class="type">${getEventTypeName(data.kind)}</span>`;
+      } else {
+        html += `<span class="type">${type.toUpperCase()}</span>`;
+      }
 
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
-          html += `<span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b> kind:${data.kind}</span>`;
+          html += `<span class="content">from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b></span>`;
 
           if (data.kind === 30317) {
               try {

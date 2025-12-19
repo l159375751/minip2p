@@ -252,21 +252,18 @@
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendNostrPing()">SEND NOSTR PING</button>
           <label style="color: #00ff00;">
-            Collection:
+            d=
             <select id="collectionSelect" onchange="onCollectionChange()">
-              <option value="WHDA">WHDA (Werner Herzog)</option>
-              <option value="BLNR">BLNR (Blender)</option>
+              <option value="WHDA">WHDA</option>
+              <option value="BLNR">BLNR</option>
             </select>
           </label>
-          <label style="color: #00ff00;">
-            Collection Action:
-            <select id="collectionAction" onchange="handleCollectionAction()">
-              <option value="">-- Select action --</option>
-              <option value="load-latest">Load latest</option>
-              <option value="new-note">Create new</option>
-              <option value="publish">Publish</option>
-            </select>
-          </label>
+          <select id="collectionAction" onchange="handleCollectionAction()" style="background: #001a00; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
+            <option value="">--</option>
+            <option value="load-latest">Load</option>
+            <option value="new-note">New</option>
+            <option value="publish">Publish</option>
+          </select>
       <button onclick="clearLog()">CLEAR LOG</button>
       <label style="color: #00ff00;">
         Fetch:

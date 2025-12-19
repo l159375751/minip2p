@@ -251,6 +251,7 @@
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendNostrPing()">NOSTR PING</button>
+      <button onclick="sendDemoData()">SEND DEMO DATA</button>
       <button onclick="clearLog()">CLEAR LOG</button>
       <label style="color: #00ff00;">
         Fetch:
@@ -681,6 +682,59 @@
         log('Published a PING event', 'system', signedEvent);
       } catch (error) {
         log(`Error publishing PING event: ${error.message}`, 'error');
+      }
+    }
+
+    async function sendDemoData() {
+      if (!relay) {
+        log('Not connected, cannot send demo data.', 'error');
+        return;
+      }
+
+      log('Sending demo cinema collections...', 'system');
+
+      // Send WHDA collection
+      const whdaEvent = {
+        kind: 30317,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', 'WHDA'],
+          ['t', 'cinema'],
+          ['t', 'herzog'],
+          ['client', 'relaylog']
+        ],
+        content: JSON.stringify(DEFAULT_PAYLOADS.WHDA)
+      };
+
+      const whdaSigned = NostrTools.finalizeEvent(whdaEvent, sk);
+
+      try {
+        await relay.publish(whdaSigned);
+        log('Published WHDA demo collection', 'system', whdaSigned);
+      } catch (error) {
+        log(`Error publishing WHDA: ${error.message}`, 'error');
+      }
+
+      // Send BLNR collection
+      const blnrEvent = {
+        kind: 30317,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', 'BLNR'],
+          ['t', 'cinema'],
+          ['t', 'blender'],
+          ['client', 'relaylog']
+        ],
+        content: JSON.stringify(DEFAULT_PAYLOADS.BLNR)
+      };
+
+      const blnrSigned = NostrTools.finalizeEvent(blnrEvent, sk);
+
+      try {
+        await relay.publish(blnrSigned);
+        log('Published BLNR demo collection', 'system', blnrSigned);
+      } catch (error) {
+        log(`Error publishing BLNR: ${error.message}`, 'error');
       }
     }
 

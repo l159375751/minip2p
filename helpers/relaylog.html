@@ -429,7 +429,7 @@
                   const dTagValue = data.tags ? (data.tags.find(t => t[0] === 'd')?.[1] || '') : '';
                   html += `<details class="expandable-json">
                     <summary>show/edit/send Content</summary>
-                    <textarea id="${editorId}" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px;">${prettyJSON}</textarea>
+                    <textarea id="${editorId}" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px; background: #000; color: #0f0; border: 1px solid #0f0;">${prettyJSON}</textarea>
                     <button onclick="sendEditedContent('${editorId}', '${dTagValue}', ${data.kind})">SEND</button>
                   </details>`;
               } catch (e) {

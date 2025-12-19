@@ -425,7 +425,13 @@
               try {
                   const contentJSON = JSON.parse(data.content);
                   const prettyJSON = JSON.stringify(contentJSON, null, 2);
-                  html += `<details class="expandable-json"><summary>show/edit/send Content</summary><pre>${prettyJSON}</pre></details>`;
+                  const editorId = 'editor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                  const dTagValue = data.tags ? (data.tags.find(t => t[0] === 'd')?.[1] || '') : '';
+                  html += `<details class="expandable-json">
+                    <summary>show/edit/send Content</summary>
+                    <textarea id="${editorId}" style="width: 100%; min-height: 200px; font-family: monospace; font-size: 12px;">${prettyJSON}</textarea>
+                    <button onclick="sendEditedContent('${editorId}', '${dTagValue}', ${data.kind})">SEND</button>
+                  </details>`;
               } catch (e) {
                   if (data.content) {
                     html += ` <span class="content">"${data.content}"</span>`;
@@ -919,6 +925,60 @@
       } catch (error) {
         setWhdaStatus(`Failed to publish ${collection} note`);
         log(`Error publishing ${collection} note: ${error.message}`, 'error');
+      }
+    }
+
+    async function sendEditedContent(editorId, dTagValue, kind) {
+      if (!relay) {
+        log('Not connected, cannot send.', 'error');
+        return;
+      }
+
+      const editor = document.getElementById(editorId);
+      if (!editor) {
+        log('Editor not found.', 'error');
+        return;
+      }
+
+      const raw = editor.value.trim();
+      if (!raw) {
+        log('Editor is empty; nothing to send.', 'error');
+        return;
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(raw);
+      } catch (error) {
+        log('Content is not valid JSON; not sending.', 'error');
+        return;
+      }
+
+      let tags = [
+        ['d', dTagValue],
+        ['t', 'cinema'],
+        ['client', 'relaylog']
+      ];
+
+      // Add specific tag based on collection
+      if (dTagValue.toLowerCase() === 'whda') tags.push(['t', 'herzog']);
+      if (dTagValue.toLowerCase() === 'blnr') tags.push(['t', 'blender']);
+
+      const event = {
+        kind: kind,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: tags,
+        content: JSON.stringify(payload),
+        pubkey: pk
+      };
+
+      const signedEvent = NostrTools.finalizeEvent(event, sk);
+
+      try {
+        await relay.publish(signedEvent);
+        log(`Published edited ${dTagValue} note to relay`, 'system', signedEvent);
+      } catch (error) {
+        log(`Error publishing edited note: ${error.message}`, 'error');
       }
     }
 

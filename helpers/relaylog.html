@@ -250,7 +250,7 @@
     <div class="controls">
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
-      <button onclick="sendNostrPing()">SEND NOSTR PING</button>
+      <button onclick="sendNostrPing()">NOSTR PING</button>
       <button onclick="clearLog()">CLEAR LOG</button>
       <label style="color: #00ff00;">
         Fetch:
@@ -406,7 +406,7 @@
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
           const kindName = getEventTypeName(data.kind);
-          const kindLabel = kindName ? `kind:${data.kind}[${kindName}]` : `kind:${data.kind}`;
+          const kindLabel = kindName ? `kind:${data.kind} "${kindName}"` : `kind:${data.kind}`;
           html += `<span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b> ${kindLabel}</span>`;
 
           if (data.kind === 30317) {

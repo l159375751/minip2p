@@ -251,15 +251,22 @@
       <button onclick="connect()">CONNECT</button>
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendNostrPing()">SEND NOSTR PING</button>
-      <label style="color: #00ff00;">
-        WHDA:
-        <select id="whdaAction" onchange="handleWhdaAction()">
-          <option value="">Select action</option>
-          <option value="load-latest">Load latest from relay</option>
-          <option value="new-note">Start new note</option>
-          <option value="publish">Publish current note</option>
-        </select>
-      </label>
+          <label style="color: #00ff00;">
+            Cinema:
+            <select id="collectionSelect" onchange="onCollectionChange()">
+              <option value="WHDA">WHDA</option>
+              <option value="BLNR">BLNR</option>
+            </select>
+          </label>
+          <label style="color: #00ff00;">
+            Action:
+            <select id="collectionAction" onchange="handleCollectionAction()">
+              <option value="">Select action</option>
+              <option value="load-latest">Load latest from relay</option>
+              <option value="new-note">Start new note</option>
+              <option value="publish">Publish current note</option>
+            </select>
+          </label>
       <button onclick="clearLog()">CLEAR LOG</button>
       <label style="color: #00ff00;">
         Fetch:
@@ -320,7 +327,7 @@
 
     <div class="whda-panel">
       <div class="whda-header">
-        <span>WHDA note editor (kind 30317 / d=WHDA)</span>
+        <span id="collectionPanelHeader">WHDA note editor (kind 30317 / d=WHDA)</span>
         <span class="whda-status" id="whdaStatus">Idle</span>
       </div>
       <textarea
@@ -698,48 +705,68 @@
       }
     }
 
-    async function handleWhdaAction() {
-      const select = document.getElementById('whdaAction');
-      if (!select) return;
-      const value = select.value;
-      // Reset selection so the same action can be chosen again
-      select.value = '';
+    const DEFAULT_PAYLOADS = {
+      WHDA: {
+        items: [
+          {"infohash":"c9c47e7b12586a59d83e3e519570835625d44b3e","title":"Herzog Collection"},
+          {"infohash":"A50DFEB595BA55726EEC43C691221188D2BE8471","title":"Lessons of Darkness (1992)"},
+          {"infohash":"C5B2CB165B7CBBDE3A36262FA50FF818BE18207B","title":"Grizzly Man (2005)"},
+          {"infohash":"7D8F3DA61332336454C4F4849FF5BA063DE0E191","title":"Cave of Forgotten Dreams (2010)"}
+        ]
+      },
+      BLNR: {
+        items: [
+          {"infohash":"460b0b5d942af2de6e3d69333c782f391fcc1ee0","title":"Charge – Blender Open Movie"}
+        ]
+      }
+    };
 
-      if (value === 'load-latest') {
-        await loadLatestWhda();
-      } else if (value === 'new-note') {
-        startNewWhda();
-      } else if (value === 'publish') {
-        await publishWhda();
+    function onCollectionChange() {
+      const collection = document.getElementById('collectionSelect').value;
+      const header = document.getElementById('collectionPanelHeader');
+      if (header) {
+        header.textContent = `${collection} note editor (kind 30317 / d=${collection})`;
+      }
+      // Optionally, clear the editor or load the default for the new collection
+      document.getElementById('whdaEditor').value = '';
+      setWhdaStatus('Switched to ' + collection);
+    }
+
+    async function handleCollectionAction() {
+      const actionSelect = document.getElementById('collectionAction');
+      const collectionSelect = document.getElementById('collectionSelect');
+      if (!actionSelect || !collectionSelect) return;
+
+      const action = actionSelect.value;
+      const collection = collectionSelect.value;
+      
+      // Reset selection
+      actionSelect.value = '';
+
+      if (action === 'load-latest') {
+        await loadLatestNote(collection);
+      } else if (action === 'new-note') {
+        startNewNote(collection);
+      } else if (action === 'publish') {
+        await publishNote(collection);
       }
     }
 
-    function startNewWhda() {
+    function startNewNote(collection) {
       const editor = document.getElementById('whdaEditor');
       if (!editor) return;
 
       ensureWhdaVisible();
 
-      const payload = {
-        items: [
-          {"infohash":"c9c47e7b12586a59d83e3e519570835625d44b3e","title":"Herzog Collection"},
-          {"infohash":"A50DFEB595BA55726EEC43C691221188D2BE8471","title":"Lessons of Darkness (1992)"},
-          {"infohash":"C5B2CB165B7CBBDE3A36262FA50FF818BE18207B","title":"Grizzly Man (2005)"},
-          {"infohash":"7D8F3DA61332336454C4F4849FF5BA063DE0E191","title":"Cave of Forgotten Dreams (2010)"},
-          {"infohash":"91C7CF39E3E25CBD77ABE92EF2C4A8029F1D123A","title":"Little Dieter Needs to Fly (1997)"},
-          {"infohash":"2504A0C0D722CDA65ADEDB17DB4D61F366982A23","title":"The Great Ecstasy of Woodcarver Steiner (1974)"},
-          {"infohash":"DA288753694BE9483F2B24E8D99DA6C77FCBC9A9","title":"The Wild Blue Yonder (2005)"},
-          {"infohash":"460b0b5d942af2de6e3d69333c782f391fcc1ee0","title":"Charge – Blender Open Movie"}
-        ]
-      };
+      const payload = DEFAULT_PAYLOADS[collection] || { items: [] };
 
       editor.value = JSON.stringify(payload, null, 2);
-      whdaDraftEvent = null;
-      setWhdaStatus('New WHDA draft ready for editing');
-      log('Initialized new WHDA draft in editor', 'system');
+      whdaDraftEvent = null; // Reset draft event
+      setWhdaStatus(`New ${collection} draft ready for editing`);
+      log(`Initialized new ${collection} draft in editor`, 'system');
     }
 
-    async function loadLatestWhda() {
+    async function loadLatestNote(collection) {
       if (!relay) {
         await connect();
         if (!relay) return;
@@ -750,8 +777,8 @@
 
       ensureWhdaVisible();
 
-      setWhdaStatus('Loading latest WHDA from relay...');
-      log('Fetching latest WHDA note from relay...', 'system');
+      setWhdaStatus(`Loading latest ${collection} from relay...`);
+      log(`Fetching latest ${collection} note from relay...`, 'system');
 
       const since = Math.floor(Date.now() / 1000) - 24 * 60 * 60;
 
@@ -759,14 +786,14 @@
         const events = await fetchOnce([
           {
             kinds: [30317],
-            '#d': ['WHDA'],
+            '#d': [collection],
             since
           }
         ], 5000);
 
         if (!events || events.length === 0) {
-          setWhdaStatus('No WHDA note found in last 24h');
-          log('No WHDA notes found in last 24h', 'system');
+          setWhdaStatus(`No ${collection} note found in last 24h`);
+          log(`No ${collection} notes found in last 24h`, 'system');
           return;
         }
 
@@ -784,59 +811,52 @@
         }
 
         editor.value = content;
-        setWhdaStatus('Loaded latest WHDA from relay');
-        log('Loaded latest WHDA note from relay', 'system', latest);
+        setWhdaStatus(`Loaded latest ${collection} from relay`);
+        log(`Loaded latest ${collection} note from relay`, 'system', latest);
       } catch (error) {
-        setWhdaStatus('Failed to load WHDA from relay');
-        log(`Error fetching WHDA note: ${error.message}`, 'error');
+        setWhdaStatus(`Failed to load ${collection} from relay`);
+        log(`Error fetching ${collection} note: ${error.message}`, 'error');
       }
     }
 
-    async function publishWhda() {
+    async function publishNote(collection) {
       if (!relay) {
-        log('Not connected, cannot publish WHDA.', 'error');
+        log('Not connected, cannot publish.', 'error');
         return;
       }
 
       const editor = document.getElementById('whdaEditor');
       if (!editor) {
-        log('WHDA editor not found in DOM.', 'error');
+        log('Editor not found in DOM.', 'error');
         return;
       }
 
       ensureWhdaVisible();
 
-      let payload;
       const raw = editor.value.trim();
-
       if (!raw) {
-        log('WHDA editor is empty; initializing default payload.', 'system');
-        startNewWhda();
+        log(`Editor is empty; initializing default payload for ${collection}.`, 'system');
+        startNewNote(collection);
         return;
       }
-
+      
+      let payload;
       try {
         payload = JSON.parse(raw);
       } catch (error) {
-        log('WHDA content is not valid JSON; not publishing.', 'error');
-        setWhdaStatus('Invalid JSON in WHDA editor');
+        log(`Content for ${collection} is not valid JSON; not publishing.`, 'error');
+        setWhdaStatus('Invalid JSON in editor');
         return;
       }
 
       let tags = [
-        ['d', 'WHDA'],
+        ['d', collection],
         ['t', 'cinema'],
-        ['t', 'herzog'],
         ['client', 'relaylog']
       ];
-
-      if (whdaDraftEvent && Array.isArray(whdaDraftEvent.tags)) {
-        tags = whdaDraftEvent.tags.slice();
-        const hasD = tags.some(t => t[0] === 'd');
-        if (!hasD) {
-          tags.push(['d', 'WHDA']);
-        }
-      }
+      // Add specific tag for collection if needed
+      if (collection.toLowerCase() === 'whda') tags.push(['t', 'herzog']);
+      if (collection.toLowerCase() === 'blnr') tags.push(['t', 'blender']);
 
       const event = {
         kind: 30317,
@@ -849,12 +869,12 @@
 
       try {
         await relay.publish(signedEvent);
-        whdaDraftEvent = signedEvent;
-        setWhdaStatus('Published WHDA note to relay');
-        log('Published WHDA note to relay', 'system', signedEvent);
+        whdaDraftEvent = signedEvent; // Still using the same draft event variable
+        setWhdaStatus(`Published ${collection} note to relay`);
+        log(`Published ${collection} note to relay`, 'system', signedEvent);
       } catch (error) {
-        setWhdaStatus('Failed to publish WHDA note');
-        log(`Error publishing WHDA note: ${error.message}`, 'error');
+        setWhdaStatus(`Failed to publish ${collection} note`);
+        log(`Error publishing ${collection} note: ${error.message}`, 'error');
       }
     }
 

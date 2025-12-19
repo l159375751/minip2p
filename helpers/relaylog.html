@@ -252,19 +252,19 @@
       <button onclick="disconnect()">DISCONNECT</button>
       <button onclick="sendNostrPing()">SEND NOSTR PING</button>
           <label style="color: #00ff00;">
-            Cinema:
+            Collection:
             <select id="collectionSelect" onchange="onCollectionChange()">
-              <option value="WHDA">WHDA</option>
-              <option value="BLNR">BLNR</option>
+              <option value="WHDA">WHDA (Werner Herzog)</option>
+              <option value="BLNR">BLNR (Blender)</option>
             </select>
           </label>
           <label style="color: #00ff00;">
-            Action:
+            Collection Action:
             <select id="collectionAction" onchange="handleCollectionAction()">
-              <option value="">Select action</option>
-              <option value="load-latest">Load latest from relay</option>
-              <option value="new-note">Start new note</option>
-              <option value="publish">Publish current note</option>
+              <option value="">-- Select action --</option>
+              <option value="load-latest">Load latest</option>
+              <option value="new-note">Create new</option>
+              <option value="publish">Publish</option>
             </select>
           </label>
       <button onclick="clearLog()">CLEAR LOG</button>

@@ -416,40 +416,35 @@
 
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
-          html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b></span>`;
+          // Combine parts of the log line into a single flex container for alignment
+          html += `<div style="display: flex; align-items: baseline; flex-wrap: wrap;">`;
+          html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey.slice(0,12)}...</b></span>`;
           
-          let contentHtml = '';
           if (data.kind === 30317) {
               try {
                   const contentJSON = JSON.parse(data.content);
                   const prettyJSON = JSON.stringify(contentJSON, null, 2);
-                  // Ensure contentJSON.items exists before trying to access its first element
-                  const previewSource = contentJSON.items && contentJSON.items.length > 0 ? contentJSON.items[0] : contentJSON;
-                  const contentPreview = JSON.stringify(previewSource, null, 0).substring(0, 50) + (JSON.stringify(previewSource, null, 0).length > 50 ? '...' : '');
                   
-                  contentHtml += `
-                    <div style="display: flex; justify-content: space-between; align-items: baseline; flex-grow: 1;">
-                      <span class="kind">kind:${data.kind}</span>
-                      <span class="content">${contentPreview}</span>
-                      <details class="expandable-json" style="margin-left: auto;">
+                  html += ` <span class="kind">kind:${data.kind}</span>`;
+                  html += `
+                      <details class="expandable-json" style="margin-left: auto; padding-left: 10px;">
                         <summary>Show/Hide Content</summary>
                         <pre>${prettyJSON}</pre>
                       </details>
-                    </div>
                   `;
               } catch (e) {
-                  contentHtml += ` <span class="kind">kind:${data.kind}</span>`;
+                  html += ` <span class="kind">kind:${data.kind}</span>`;
                   if (data.content) {
-                    contentHtml += ` <span class="content">"${data.content}"</span>`;
+                    html += ` <span class="content">"${data.content}"</span>`;
                   }
               }
           } else {
-              contentHtml += ` <span class="kind">kind:${data.kind}</span>`;
+              html += ` <span class="kind">kind:${data.kind}</span>`;
               if (data.content && data.content.length < 100) {
-                contentHtml += ` <span class="content">"${data.content}"</span>`;
+                html += ` <span class="content">"${data.content}"</span>`;
               }
           }
-          html += contentHtml; // Append the generated content HTML
+          html += `</div>`; // Close the flex container
       } else {
         html += `<span class="content">${message}</span>`;
         if (data) {
@@ -602,8 +597,9 @@
 
       log(logMessage, 'system');
 
+      // Add missing kinds 0 and 1 to be consistent with live subscription
       const filter = {
-        kinds: [25555, 25556, 25557, 25558, 25559, 30317]
+        kinds: [0, 1, 25555, 25556, 25557, 25558, 25559, 30317]
       };
 
       if (since > 0) {
@@ -614,13 +610,21 @@
 
       log(`Received ${events.length} historical events`, 'system');
 
+      const kindFilter = document.getElementById('kindFilter').value;
+
       events.forEach(event => {
+        // Add events to master list regardless of filter
         allEvents.push(event);
         stats.total++;
         if (stats[event.kind] !== undefined) {
           stats[event.kind]++;
         }
-        log('', 'event', event);
+        
+        // But only log it if it matches the current filter
+        const matchesFilter = !kindFilter || event.kind === parseInt(kindFilter);
+        if (matchesFilter) {
+          log('', 'event', event);
+        }
       });
 
       updateStats();

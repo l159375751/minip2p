@@ -296,31 +296,11 @@
 
     <div class="stats">
       <div class="stat">
-        <div class="stat-label">EVENTS RECEIVED</div>
+        <div class="stat-label">EVENTS</div>
         <div class="stat-value" id="eventCount">0</div>
       </div>
       <div class="stat">
-        <div class="stat-label">SEARCH (25555)</div>
-        <div class="stat-value" id="searchCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">RESPONSES (25556)</div>
-        <div class="stat-value" id="responseCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">WHO HAS (25557)</div>
-        <div class="stat-value" id="whoHasCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">AVAILABLE (25558)</div>
-        <div class="stat-value" id="availableCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">PING/PONG (25559)</div>
-        <div class="stat-value" id="pingPongCount">0</div>
-      </div>
-      <div class="stat">
-        <div class="stat-label">CINEMA (30317)</div>
+        <div class="stat-label">CINEMA</div>
         <div class="stat-value" id="cinemaCount">0</div>
       </div>
     </div>
@@ -472,11 +452,6 @@
 
     function updateStats() {
       document.getElementById('eventCount').textContent = stats.total;
-      document.getElementById('searchCount').textContent = stats[25555] || 0;
-      document.getElementById('responseCount').textContent = stats[25556] || 0;
-      document.getElementById('whoHasCount').textContent = stats[25557] || 0;
-      document.getElementById('availableCount').textContent = stats[25558] || 0;
-      document.getElementById('pingPongCount').textContent = stats[25559] || 0;
       document.getElementById('cinemaCount').textContent = stats[30317] || 0;
     }
 

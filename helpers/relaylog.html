@@ -408,7 +408,18 @@
           const color = colorFromPublicKey(data.pubkey);
           const kindName = getEventTypeName(data.kind);
           const kindLabel = kindName ? `kind:${data.kind} "${kindName}"` : `kind:${data.kind}`;
-          html += `<span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b> ${kindLabel}</span>`;
+
+          // Extract d tag if present
+          let dTag = '';
+          if (data.tags) {
+            const dTagArray = data.tags.find(tag => tag[0] === 'd');
+            if (dTagArray && dTagArray[1]) {
+              const dValue = dTagArray[1].substring(0, 8);
+              dTag = ` d=${dValue}`;
+            }
+          }
+
+          html += `<span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b> ${kindLabel}${dTag}</span>`;
 
           if (data.kind === 30317) {
               try {

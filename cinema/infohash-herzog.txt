@@ -1,2 +1,5 @@
-# Infohashes for the Werner Herzog Documentary Archive (WHDA) collection.
-# This file is a placeholder for now.
+# WHDA - Werner Herzog Documentary Archive
+c9c47e7b12586a59d83e3e519570835625d44b3e  # Herzog Collection
+A50DFEB595BA55726EEC43C691221188D2BE8471  # Lessons of Darkness (1992)
+C5B2CB165B7CBBDE3A36262FA50FF818BE18207B  # Grizzly Man (2005)
+7D8F3DA61332336454C4F4849FF5BA063DE0E191  # Cave of Forgotten Dreams (2010)

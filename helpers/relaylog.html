@@ -413,7 +413,7 @@
               try {
                   const contentJSON = JSON.parse(data.content);
                   const prettyJSON = JSON.stringify(contentJSON, null, 2);
-                  html += `<details class="expandable-json"><summary>Show/Hide Content</summary><pre>${prettyJSON}</pre></details>`;
+                  html += `<details class="expandable-json"><summary>show/edit/send Content</summary><pre>${prettyJSON}</pre></details>`;
               } catch (e) {
                   if (data.content) {
                     html += ` <span class="content">"${data.content}"</span>`;

@@ -416,35 +416,23 @@
 
       if (type === 'event' && data && data.pubkey) {
           const color = colorFromPublicKey(data.pubkey);
-          // Combine parts of the log line into a single flex container for alignment
-          html += `<div style="display: flex; align-items: baseline; flex-wrap: wrap;">`;
-          html += ` <span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey.slice(0,12)}...</b></span>`;
-          
+          html += `<span class="content">Event from <b style="color: ${color};" title="${data.pubkey}">${data.pubkey}</b> kind:${data.kind}</span>`;
+
           if (data.kind === 30317) {
               try {
                   const contentJSON = JSON.parse(data.content);
                   const prettyJSON = JSON.stringify(contentJSON, null, 2);
-                  
-                  html += ` <span class="kind">kind:${data.kind}</span>`;
-                  html += `
-                      <details class="expandable-json" style="margin-left: auto; padding-left: 10px;">
-                        <summary>Show/Hide Content</summary>
-                        <pre>${prettyJSON}</pre>
-                      </details>
-                  `;
+                  html += `<details class="expandable-json"><summary>Show/Hide Content</summary><pre>${prettyJSON}</pre></details>`;
               } catch (e) {
-                  html += ` <span class="kind">kind:${data.kind}</span>`;
                   if (data.content) {
                     html += ` <span class="content">"${data.content}"</span>`;
                   }
               }
           } else {
-              html += ` <span class="kind">kind:${data.kind}</span>`;
               if (data.content && data.content.length < 100) {
                 html += ` <span class="content">"${data.content}"</span>`;
               }
           }
-          html += `</div>`; // Close the flex container
       } else {
         html += `<span class="content">${message}</span>`;
         if (data) {

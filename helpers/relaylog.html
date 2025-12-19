@@ -278,22 +278,6 @@
       </label>
     </div>
 
-    <div style="background: #001a00; border: 1px solid #00ff00; padding: 8px; margin-bottom: 10px; display: flex; gap: 10px; align-items: center;">
-      <label style="color: #00ff00; margin: 0;">
-        d=
-        <select id="collectionSelect" onchange="onCollectionChange()">
-          <option value="WHDA">WHDA</option>
-          <option value="BLNR">BLNR</option>
-        </select>
-      </label>
-      <select id="collectionAction" onchange="handleCollectionAction()" style="background: #001a00; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
-        <option value="">--</option>
-        <option value="load-latest">Load</option>
-        <option value="new-note">New</option>
-        <option value="publish">Publish</option>
-      </select>
-    </div>
-
     <div class="stats">
       <div class="stat">
         <div class="stat-label">EVENTS</div>
@@ -306,9 +290,21 @@
     </div>
 
     <div class="whda-panel">
-      <div class="whda-header">
-        <span id="collectionPanelHeader">WHDA note editor (kind 30317 / d=WHDA)</span>
-        <span class="whda-status" id="whdaStatus">Idle</span>
+      <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+        <label style="color: #00ff00; margin: 0;">
+          d=
+          <select id="collectionSelect" onchange="onCollectionChange()">
+            <option value="WHDA">WHDA</option>
+            <option value="BLNR">BLNR</option>
+          </select>
+        </label>
+        <select id="collectionAction" onchange="handleCollectionAction()" style="background: #001a00; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; font-size: 12px;">
+          <option value="">--</option>
+          <option value="load-latest">Load</option>
+          <option value="new-note">New</option>
+          <option value="publish">Publish</option>
+        </select>
+        <span class="whda-status" id="whdaStatus" style="margin-left: auto;">Idle</span>
       </div>
       <textarea
         id="whdaEditor"

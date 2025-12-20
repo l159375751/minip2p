@@ -8,8 +8,13 @@
 # - WHDA: Werner Herzog Documentary Archive
 # - MISC: Other torrents (e.g. Gutenberg)
 
-# == BLNR (Default for debug) ==
+# == BLNR ==
+403484f62da4fbc835c60736cad841e4cc1a3641
 460b0b5d942af2de6e3d69333c782f391fcc1ee0
+08ada5a7a6183aae1e09d831df6748d566095a10
+c9e15763f722f23e98a29decdfae341b98d53056
+dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c
+209c8226b299b308beaf2b9cd3fb49212dbd13ec
 
 # == MISC (loaded from /data/*.torrent) ==
 #
